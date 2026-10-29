@@ -122,7 +122,7 @@ Isso aperta o runner de evals: é preciso esperar e repetir no 429 usando `retry
 A worktree `T6-spike-llm` já tem `@mastra/core@1.80.0`, `@ai-sdk/groq@4.0.72` e `tsx` instalados,
 com `package.json` e `package-lock.json` alterados e ainda sem commit.
 
-## T1: domínio (pronto na branch `task/T1-dominio`, aguardando merge)
+## T1: domínio (na `main`)
 
 API pública em `src/domain/`, com 107 testes que passam em qualquer fuso da máquina:
 
