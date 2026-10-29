@@ -1,5 +1,5 @@
 // Gera as chaves do Convex Auth e grava as variáveis no deployment atual do Convex.
-// Uso: node scripts/setup-auth-env.mjs [SITE_URL]   (padrão: http://localhost:3000)
+// Uso: npm run setup:auth [-- SITE_URL]   (padrão: http://localhost:3000)
 // Para produção: npx convex env set --prod ... com os mesmos nomes (ver README).
 import { execFileSync } from "node:child_process";
 import { exportJWK, exportPKCS8, generateKeyPair } from "jose";

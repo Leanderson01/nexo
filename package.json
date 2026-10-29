@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed": "convex run seed:run"
+    "seed": "convex run seed:run",
+    "setup:auth": "node scripts/setup-auth-env.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",
