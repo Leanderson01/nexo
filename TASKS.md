@@ -46,7 +46,7 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 5. **Limite de 30:** conta só as mensagens do funcionário ou todas?
 6. **Reabertura renova `lastActivityAt`?**
 7. **Protótipo (Anexo C):** necessário para T7, T8 e T12.
-8. **Provedor de LLM:** depende das chaves disponíveis (T6).
+8. ~~**Provedor de LLM**~~ → **Groq** (única chave disponível). Candidatos a validar no T6: `openai/gpt-oss-20b` (rápido, saída estruturada strict) e `openai/gpt-oss-120b` (principal, tool calling); reserva: Kimi K2 ou Qwen3. Transcrição também pelo Groq (Whisper). Pendente: medir PT-BR e o limite de taxa do plano da chave.
 
 ---
 
@@ -132,8 +132,10 @@ Depende de: T0 (guards stub até T2).
 ### T6 Spike Mastra + escolha do LLM
 Depende de: nada (pode começar junto com T0). **Maior risco técnico.**
 - Confirmar na doc atual: saída estruturada, tools com contexto por requisição, streaming de texto, leitura de tokens/uso.
-- `src/agent/llm/models.ts`: resolve provedor e modelos fast/main por env.
-- Comparar provedores (custo/turno, latência, PT-BR, tool calling) e gerar uma nota curta de decisão que vai pro README.
+- `src/agent/llm/models.ts`: resolve provedor e modelos fast/main por env (`groq` no `LLM_PROVIDER`, `GROQ_API_KEY` no `.env.example`).
+- Provedor decidido: Groq. Comparar os modelos candidatos (custo/turno, latência, PT-BR, tool calling, saída estruturada strict) e gerar uma nota curta de decisão que vai pro README.
+- Conferir limites de taxa (RPM/TPM) do plano, porque o runner de evals dispara muitos turnos seguidos.
+- Confirmar o Whisper do Groq para `/api/transcribe` (T15).
 
 ### T7 Blocos de mensagem (só apresentação, com fixtures)
 Depende de: T0 + protótipo (Anexo C).
