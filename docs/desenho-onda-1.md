@@ -121,3 +121,37 @@ Isso aperta o runner de evals: é preciso esperar e repetir no 429 usando `retry
 
 A worktree `T6-spike-llm` já tem `@mastra/core@1.80.0`, `@ai-sdk/groq@4.0.72` e `tsx` instalados,
 com `package.json` e `package-lock.json` alterados e ainda sem commit.
+
+## T1: domínio (pronto na branch `task/T1-dominio`, aguardando merge)
+
+API pública em `src/domain/`, com 107 testes que passam em qualquer fuso da máquina:
+
+- `priority.ts`: `derivePriority`, `PRIORITY_DEADLINES` e `explainPriority` ("Alta: impede uma pessoa
+  de trabalhar. Prazo: 4 horas úteis.").
+- `business-hours.ts`: `addBusinessHours(start, hours)`, com seg–sex 8h–18h em `America/Sao_Paulo`
+  via `Intl`, sem dependência nova.
+- `sla.ts`: `computeDueAt`, `isOverdue`, `timeUntilDue` (tempo corrido), `getSlaState`
+  (`closed | paused | overdue | due_soon | on_time`, para a cor do selo) e `formatSlaBadge`
+  ("encerrado", "prazo pausado", "no prazo" a partir de 24h, "vence em Nh/N min",
+  "vencido há N min/h/dias").
+- `ticket-rules.ts`: `findDuplicateCandidates` (abertos e encerrados há até 30 dias) e
+  `suggestDuplicateAction` (`update | reopen | new_with_reference`).
+- `conversation-fsm.ts`: `transition(status, event): Result`, `canTransition` e `TRANSITION_EVENTS`
+  (transição → evento da mensagem `system`).
+- `sensitive-data.ts`: `maskSensitiveData` de verdade, com `PASSWORD_PLACEHOLDER` e `TOKEN_PLACEHOLDER`.
+
+Uso pelas outras tasks: a T9 usa `isOverdue`; a T7 usa `formatSlaBadge` + `getSlaState`; a T11 usa
+`derivePriority`, `explainPriority` e `computeDueAt`; a T3/T10 filtram o `findSimilar` com
+`findDuplicateCandidates` e escolhem a proposta com `suggestDuplicateAction`; a T5/T12 validam
+mudanças de estado com `transition`.
+
+Pontos registrados:
+
+- `ConversationTransition` é um union em `conversation-fsm.ts`, não um array em `enums.ts` (para não
+  mexer no contrato). Se a T12 precisar de validator Convex para ele, vira array em `enums.ts`.
+- O ajuste de fuso é exato para São Paulo (sem horário de verão desde 2019); vai no README junto com
+  "sem feriados".
+- Encerrado sem `resolvedAt` usa `lastActivityAt` na janela de 30 dias: **a T3 deve gravar
+  `resolvedAt` também ao fechar**.
+- A seed foi conferida por um teste que varre a semana em passos de 15 min: INC-20311 sempre vencido;
+  INC-20402, REQ-10442, INC-20395, REQ-10498 e INC-20420 nunca.
