@@ -49,11 +49,11 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 7. ~~**Protótipo (Anexo C)**~~ → recebido; telas em `docs/prototipo/` e divergências na seção "Protótipo" abaixo.
 8. ~~**Provedor de LLM**~~ → **Groq** (única chave disponível). Candidatos a validar no T6: `openai/gpt-oss-20b` (rápido, saída estruturada strict) e `openai/gpt-oss-120b` (principal, tool calling); reserva: Kimi K2 ou Qwen3. Transcrição também pelo Groq (Whisper). Chave paga. Pendente: medir PT-BR e conferir o limite de taxa do plano.
 9. **UI com Mantine** (decidido). Conferir a versão atual no T0.1; tema próprio (azul primário, serifada só no título do login, sans no resto).
-10. **Seed × protótipo:** no protótipo, Ana Souza é **funcionária** (Financeiro) e dona do INC-20311, e Rafael Lima é **analista N2**. Na spec, Ana Ribeiro é analista N1, Rafael Lima é funcionário e o INC-20311 é da Mariana. O protótipo também mostra chamados que o seed não tem (INC-20298, INC-19877, INC-19410).
-11. **Devolver ao agent antes de assumir:** a tela 5 mostra "Devolver ao agent" em `waiting_analyst`, mas a FSM da spec só permite `return` a partir de `with_analyst`.
-12. **Extras que só o protótipo tem:** busca na fila, presença ("online", "digitando..."), confirmação de leitura (✓✓), contador de não lidas, status "Disponível" do analista, encaminhamento por nível ("Suporte N2"), subcategoria ("Hardware › Notebook"), atalho ⌘↵ no Confirmar, número do rascunho ("D-381"). Proposta: não lidas, busca, ⌘↵ e número do rascunho entram; presença, digitando e leitura ficam na faixa 2.
-13. **O que a spec pede e o protótipo não mostra:** histórico de conversas e "Nova conversa" no chat, link "Ver detalhes" nos chips, card de resumo da transferência no console, filtro "Encerradas", contas de demonstração no login. Proposta: incluir tudo no estilo do protótipo.
-14. **Números do login** ("8 s", "72%", "6 analistas online"): estáticos ou vindos das métricas? Proposta: estáticos até o T17 e, se ele entrar, reais.
+10. ~~**Seed × protótipo**~~ → **decidido: o seed segue a spec** (pessoas, chamados, cenários e evals). O protótipo vale só como referência visual; os nomes dele não entram no seed. Contexto: no protótipo, Ana Souza é **funcionária** (Financeiro) e dona do INC-20311, e Rafael Lima é **analista N2**. Na spec, Ana Ribeiro é analista N1, Rafael Lima é funcionário e o INC-20311 é da Mariana. O protótipo também mostra chamados que o seed não tem (INC-20298, INC-19877, INC-19410).
+11. ~~**Devolver ao agent antes de assumir**~~ → **decidido: liberar `return` também a partir de `waiting_analyst`** (desvio da §5.9, vai no README). Contexto: a tela 5 mostra "Devolver ao agent" em `waiting_analyst`, mas a FSM da spec só permite `return` a partir de `with_analyst`.
+12. ~~**Extras que só o protótipo tem**~~ → **decidido conforme a proposta abaixo**; nível ("Suporte N2") e subcategoria são só texto visual, sem regra de negócio. Contexto: busca na fila, presença ("online", "digitando..."), confirmação de leitura (✓✓), contador de não lidas, status "Disponível" do analista, encaminhamento por nível ("Suporte N2"), subcategoria ("Hardware › Notebook"), atalho ⌘↵ no Confirmar, número do rascunho ("D-381"). Proposta: não lidas, busca, ⌘↵ e número do rascunho entram; presença, digitando e leitura ficam na faixa 2.
+13. ~~**O que a spec pede e o protótipo não mostra**~~ → **decidido: entra tudo, no estilo do protótipo.** Contexto: histórico de conversas e "Nova conversa" no chat, link "Ver detalhes" nos chips, card de resumo da transferência no console, filtro "Encerradas", contas de demonstração no login. Proposta: incluir tudo no estilo do protótipo.
+14. ~~**Números do login**~~ → **decidido: estáticos até o T17.** Contexto: ("8 s", "72%", "6 analistas online"): estáticos ou vindos das métricas? Proposta: estáticos até o T17 e, se ele entrar, reais.
 
 ---
 
@@ -119,7 +119,7 @@ Depende de: T0. Sem LLM, sem Convex.
 - `priority.ts` (`derivePriority`, matriz completa testada).
 - `sla.ts`: `computeDueAt`, `isOverdue`, `timeUntilDue`, `formatSlaBadge`; horário útil 8h–18h seg–sex `America/Sao_Paulo`, 3d=30h, 5d=50h, Crítica 1h corrida, pausa em "Aguardando você".
 - `ticket-rules.ts`: `isOpen`, `canReopen` (limite de 7 dias), `findDuplicateCandidates`.
-- `conversation-fsm.ts`: transições válidas e inválidas (§5.9).
+- `conversation-fsm.ts`: transições válidas e inválidas (§5.9), **com `return` permitido também a partir de `waiting_analyst`** (decisão 11).
 - `sensitive-data.ts`: mascaramento + falsos positivos.
 - **Pronto quando:** casos da §13.1 cobertos (ex.: sexta 17h + 4h úteis = segunda 11h).
 
@@ -199,6 +199,7 @@ Depende de: T3, T5, T7.
 ### T12 Console do analista (F7)
 Depende de: T2, T5, T7, T8.
 - Fila com filtros (estado, motivo), ordenação (críticas, depois espera), tempo real com destaque e contador.
+- Abas do protótipo (Todas, Para você, Com o agent, Minhas) + filtro "Encerradas" e busca por funcionário/chamado; contador de não lidas.
 - Conversa: card de resumo fixo, histórico com painel de decisão, "Agent pausado", Assumir, mensagens do analista, Devolver com nota, Encerrar, modo leitura para outros analistas.
 - Painel do funcionário: dados, chamados com vencidos no topo, detalhe e histórico.
 
