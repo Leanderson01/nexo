@@ -1,9 +1,18 @@
 import "@mantine/core/styles.css";
 
+import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import type { Metadata } from "next";
 import { Inter, Source_Serif_4 } from "next/font/google";
-import { ColorSchemeScript, MantineProvider, mantineHtmlProps } from "@mantine/core";
+import {
+  Center,
+  ColorSchemeScript,
+  Loader,
+  MantineProvider,
+  mantineHtmlProps,
+} from "@mantine/core";
+import { Suspense } from "react";
 
+import { ConvexClientProvider } from "@/features/auth/convex-client-provider";
 import { theme } from "@/shared/theme/theme";
 
 const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -22,9 +31,23 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body>
         <MantineProvider theme={theme} defaultColorScheme="light">
-          {children}
+          {/* O provider do Convex Auth lê os cookies da sessão; com Cache Components,
+              leitura da requisição precisa ficar dentro de um <Suspense>. */}
+          <Suspense fallback={<FullScreenLoader />}>
+            <ConvexAuthNextjsServerProvider>
+              <ConvexClientProvider>{children}</ConvexClientProvider>
+            </ConvexAuthNextjsServerProvider>
+          </Suspense>
         </MantineProvider>
       </body>
     </html>
+  );
+}
+
+function FullScreenLoader() {
+  return (
+    <Center h="100vh">
+      <Loader aria-label="Carregando" />
+    </Center>
   );
 }

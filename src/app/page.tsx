@@ -1,13 +1,8 @@
-import { Center, Text, Title } from "@mantine/core";
+import { redirect } from "next/navigation";
 
-// Página provisória do setup. O login (T2) assume esta rota.
+import { LOGIN_PATH } from "@/features/auth/route-access";
+
+// O proxy já manda "/" para a área do papel; isto só cobre o caso de ele não rodar.
 export default function HomePage() {
-  return (
-    <Center h="100vh">
-      <div>
-        <Title order={1}>Nexo Assist</Title>
-        <Text c="dimmed">Setup pronto. As telas chegam nas próximas tasks.</Text>
-      </div>
-    </Center>
-  );
+  redirect(LOGIN_PATH);
 }
