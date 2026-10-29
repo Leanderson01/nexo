@@ -15,6 +15,7 @@ import type * as lib_validators from "../lib/validators.js";
 import type * as seed from "../seed.js";
 import type * as seedData from "../seedData.js";
 import type * as ticketing_chaos from "../ticketing/chaos.js";
+import type * as ticketing_http from "../ticketing/http.js";
 import type * as ticketing_queries from "../ticketing/queries.js";
 import type * as ticketing_reads from "../ticketing/reads.js";
 import type * as ticketing_service from "../ticketing/service.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   seedData: typeof seedData;
   "ticketing/chaos": typeof ticketing_chaos;
+  "ticketing/http": typeof ticketing_http;
   "ticketing/queries": typeof ticketing_queries;
   "ticketing/reads": typeof ticketing_reads;
   "ticketing/service": typeof ticketing_service;
