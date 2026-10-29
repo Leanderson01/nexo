@@ -14,6 +14,8 @@ import type * as lib_guards from "../lib/guards.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as seed from "../seed.js";
 import type * as seedData from "../seedData.js";
+import type * as ticketing_chaos from "../ticketing/chaos.js";
+import type * as ticketing_similarity from "../ticketing/similarity.js";
 
 import type {
   ApiFromModules,
@@ -28,6 +30,8 @@ declare const fullApi: ApiFromModules<{
   "lib/validators": typeof lib_validators;
   seed: typeof seed;
   seedData: typeof seedData;
+  "ticketing/chaos": typeof ticketing_chaos;
+  "ticketing/similarity": typeof ticketing_similarity;
 }>;
 
 /**
