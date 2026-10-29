@@ -55,6 +55,23 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 13. ~~**O que a spec pede e o protótipo não mostra**~~ → **decidido: entra tudo, no estilo do protótipo.** Contexto: histórico de conversas e "Nova conversa" no chat, link "Ver detalhes" nos chips, card de resumo da transferência no console, filtro "Encerradas", contas de demonstração no login. Proposta: incluir tudo no estilo do protótipo.
 14. ~~**Números do login**~~ → **decidido: estáticos até o T17.** Contexto: ("8 s", "72%", "6 analistas online"): estáticos ou vindos das métricas? Proposta: estáticos até o T17 e, se ele entrar, reais.
 
+## Desvios da spec feitos no T0
+
+Valem para todas as tasks; entram no README (T18).
+
+- **Valores de enum em inglês, rótulos em português** (`src/domain/labels.ts`). Ex.: categoria `network_vpn` → "Rede e VPN", status `awaiting_employee` → "Aguardando você".
+- **Tabela `pendingActions`** no lugar do `pendingAction` embutido na conversa: o card de rascunho precisa mostrar o estado final depois de confirmado ou cancelado. A conversa guarda só `pendingActionId`; o `_id` da linha é a chave de idempotência.
+- **`prioritySignals` guardado no chamado**, para recalcular a prioridade quando uma atualização muda a gravidade (F3).
+- **`searchText` em `articles`**: o índice de busca do Convex aceita um campo só, então título, corpo e tags vão concatenados.
+- **`employeeMessageCount`** no lugar de `messageCount` (decisão 5) e **`returnNote`** para a nota do analista ao devolver.
+- **Variável `NEXT_PUBLIC_CONVEX_SITE_URL`** (nome que o `npx convex dev` gera) no lugar de `CONVEX_SITE_URL`.
+
+## Regras para as tasks paralelas
+
+- Os contratos do T0.2 estão travados. Uma task pode **acrescentar** campo opcional ou índice às tabelas dela; mudar ou remover algo existente exige registrar aqui antes.
+- Tipos novos de domínio vão em `src/domain/`; validators do Convex, em `convex/lib/validators.ts`, sempre com `assertTypesMatch`.
+- Convex local sem conta: `CONVEX_AGENT_MODE=anonymous npx convex dev`.
+
 ---
 
 ## Protótipo
