@@ -1,6 +1,11 @@
-import { ProvisionalArea } from "@/features/auth/provisional-area";
+import { ChatErrorBoundary } from "@/features/chat/chat-error-boundary";
+import { OpenLatestConversation } from "@/features/chat/open-latest-conversation";
 
-// PROVISÓRIO (T2): placeholder para testar o redirecionamento. O T5 substitui.
+/** `/chat`: abre a última conversa não encerrada ou começa uma nova (§7.2, F6). */
 export default function ChatPage() {
-  return <ProvisionalArea areaName="Chat do funcionário" />;
+  return (
+    <ChatErrorBoundary>
+      <OpenLatestConversation />
+    </ChatErrorBoundary>
+  );
 }

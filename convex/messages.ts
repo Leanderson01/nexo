@@ -5,7 +5,13 @@ import { err, ok, type Result } from "../src/domain/result";
 import { maskSensitiveData } from "../src/domain/sensitive-data";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { internalMutation, mutation, query, type MutationCtx } from "./_generated/server";
+import {
+  internalMutation,
+  mutation,
+  query,
+  type MutationCtx,
+  type QueryCtx,
+} from "./_generated/server";
 import { findOwnedConversation, readMessageLimit } from "./conversations";
 import { requireAgentServer, requireEmployee } from "./lib/guards";
 import { vMessagePart } from "./lib/validators";
@@ -32,13 +38,24 @@ export const list = query({
     const conversation = await findOwnedConversation(ctx, employee._id, conversationId);
     if (!conversation) return null;
 
-    return await ctx.db
+    const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation_createdAt", (q) => q.eq("conversationId", conversation._id))
       .order("asc")
       .collect();
+    return await Promise.all(messages.map((message) => withAnalystAuthor(ctx, message)));
   },
 });
+
+/** Mensagens do analista levam nome e nível, para a tela mostrar quem escreveu (§7.2). */
+async function withAnalystAuthor(ctx: QueryCtx, message: Doc<"messages">) {
+  const author =
+    message.role === "analyst" && message.authorId ? await ctx.db.get(message.authorId) : null;
+  return {
+    ...message,
+    analyst: author ? { name: author.name, level: author.level ?? null } : null,
+  };
+}
 
 // ---------- Mensagem do funcionário ----------
 
