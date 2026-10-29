@@ -12,6 +12,8 @@ import type * as auth from "../auth.js";
 import type * as http from "../http.js";
 import type * as lib_guards from "../lib/guards.js";
 import type * as lib_validators from "../lib/validators.js";
+import type * as seed from "../seed.js";
+import type * as seedData from "../seedData.js";
 
 import type {
   ApiFromModules,
@@ -24,6 +26,8 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/guards": typeof lib_guards;
   "lib/validators": typeof lib_validators;
+  seed: typeof seed;
+  seedData: typeof seedData;
 }>;
 
 /**
