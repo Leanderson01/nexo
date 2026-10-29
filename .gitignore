@@ -1,0 +1,19 @@
+# Dependências e build
+node_modules/
+.next/
+out/
+coverage/
+
+# Ambiente (segredos nunca entram no repo)
+.env
+.env.local
+.env*.local
+
+# Worktrees e estado local do Claude Code
+.claude/
+
+# Lixo do Windows/WSL
+*:Zone.Identifier
+
+# Especificação de trabalho (fica fora do repo por enquanto)
+nexo-assist-especificacao.md
