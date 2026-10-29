@@ -9,9 +9,11 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as conversations from "../conversations.js";
 import type * as http from "../http.js";
 import type * as lib_guards from "../lib/guards.js";
 import type * as lib_validators from "../lib/validators.js";
+import type * as messages from "../messages.js";
 import type * as seed from "../seed.js";
 import type * as seedData from "../seedData.js";
 import type * as ticketing_chaos from "../ticketing/chaos.js";
@@ -29,9 +31,11 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  conversations: typeof conversations;
   http: typeof http;
   "lib/guards": typeof lib_guards;
   "lib/validators": typeof lib_validators;
+  messages: typeof messages;
   seed: typeof seed;
   seedData: typeof seedData;
   "ticketing/chaos": typeof ticketing_chaos;
