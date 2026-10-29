@@ -1,19 +1,28 @@
 # Dependências e build
-node_modules/
-.next/
-out/
-coverage/
+/node_modules
+/.next/
+/out/
+/build
+/coverage
+*.tsbuildinfo
+next-env.d.ts
 
 # Ambiente (segredos nunca entram no repo)
-.env
-.env.local
-.env*.local
+.env*
+!.env.example
+.vercel
+
+# Convex local
+.convex/
+
+# Logs e lixo de sistema
+npm-debug.log*
+.DS_Store
+*.pem
+*:Zone.Identifier
 
 # Worktrees e estado local do Claude Code
 .claude/
-
-# Lixo do Windows/WSL
-*:Zone.Identifier
 
 # Especificação de trabalho (fica fora do repo por enquanto)
 nexo-assist-especificacao.md
