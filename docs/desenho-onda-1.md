@@ -1,8 +1,8 @@
 # Desenho da onda 1 (antes do código)
 
-Desenho fechado pelos agents da primeira leva, que foram bloqueados antes de escrever código (a sessão
-original rodava fora deste repo). Quem retomar uma task começa daqui; o que estiver aqui vale como
-decisão, salvo se contrariar a spec ou o `TASKS.md`.
+Desenho e entrega da primeira leva da onda 1 (T1, T2, T3, T5 e T6, todas na `main`). Vale como
+referência de como cada parte funciona e do que as próximas tasks usam; as seções "Entregue" no fim
+prevalecem sobre o desenho original quando divergem.
 
 ## T3: serviço de chamados + `HttpTicketGateway`
 
@@ -191,3 +191,71 @@ Desvios registrados:
 - **Contas de demonstração:** o clique preenche o e-mail e, com a senha vazia, a senha
   "demonstracao".
 - O `.env.example` ainda não cita as variáveis do Convex Auth (ficam no README, T18).
+
+## Entregue: T3 (na `main`)
+
+- **API HTTP:** `POST <NEXT_PUBLIC_CONVEX_SITE_URL>/ticketing/<op>` com `Authorization: Bearer
+<TICKETING_SERVICE_KEY>`, `X-Employee-Id` (precisa ser `employee`) e `Idempotency-Key` nas
+  escritas (sem ela, 422). Corpos: `listMine { filter? }`, `getMine { code }`,
+  `findSimilar { description, category | null }`, `create { ticket }`,
+  `addUpdate { code, update: { text, fieldChanges? } }` (autor sempre `employee`),
+  `reopen { code, reason }`, `markHandoff { code | null, conversationId }`.
+- **`resolvedAt`** é gravado ao resolver e ao fechar; voltar a um status aberto limpa.
+- **Gateway na T10:** uma instância por requisição,
+  `new HttpTicketGateway({ baseUrl: process.env.NEXT_PUBLIC_CONVEX_SITE_URL, serviceKey:
+process.env.TICKETING_SERVICE_KEY, employeeId: person._id, onAttempt })`. A chave de
+  idempotência das escritas é o `_id` da `pendingAction`.
+- **Configuração:** `TICKETING_SERVICE_KEY` no `.env.local` (só servidor, sem `NEXT_PUBLIC`) **e** no
+  Convex (`npx convex env set TICKETING_SERVICE_KEY <mesmo valor>`). Sem ela no Convex, tudo volta
+  401, que o gateway trata como `unavailable`.
+- **Para a T12:** a internal mutation `addUpdate` aceita `authorType`/`authorName` (analista renova o
+  prazo); `employeeTickets` devolve só `TicketSummary[]`, então falta uma query de detalhe com
+  histórico para o painel do funcionário.
+- **Pendências pequenas:** a chave de serviço é comparada por igualdade simples, não em tempo
+  constante; o teste do gateway contra a API real foi removido porque o `tsc -p convex` não resolve
+  o alias `@/` (a API está coberta por `t.fetch` e o gateway, por `fetch` falso).
+
+## Entregue: T5 (na `main`)
+
+- **`runTurn(input, { sleep? })`** em `src/agent/pipeline/run-turn.ts`, com `RunTurnInput`
+  `{ conversationId, assistantMessageId, userText (já mascarado), convex (autenticado como o
+funcionário), agentSecret }`. Nunca lança: falha vira `fail`. A T10 troca só o corpo do eco.
+- **Lotes de ~150 ms:** `src/agent/pipeline/streaming-message.ts` (`StreamingMessage` com `write`,
+  `flush`, `finish(parts, decisionId?)`, `fail`, `stopped`, e `createConvexMessageSink`).
+- **Escritas do agent** (`convex/messages.ts`, com segredo): `appendDelta`, `finalize` e `fail`;
+  devolvem `false` quando a mensagem já não está em `streaming`. Timeout: internal `expireTurn` em
+  60 s.
+- **`sendUserMessage`** devolve `Result<{ conversationId, userMessageId, assistantMessageId | null,
+savedText, masked }, "not_found" | "closed" | "busy" | "limit_reached" | "empty">`. A rota responde
+  202 quando o agent vai responder e 201 quando só salva (conversa com analista).
+- **Acréscimos:** campo `conversations.subject`; `messages.list` traz `analyst: { name, level }`;
+  mutation `conversations.requestAnalyst` (o "Falar com um analista" do limite, motivo `requested`,
+  com `outOfHours`); query `conversations.messageLimit`.
+- **Ids malformados, inexistentes e alheios** dão o mesmo `not_found` (`normalizeId`).
+- **Para a T11:** a parte `error` aparece sem "Tentar de novo" (a rota de retry é da T11).
+- **Para a T20:** "Meu perfil" está desabilitado na navegação.
+- **Polimento (T19):** abaixo de 768 px a lateral some e o histórico não aparece no celular; opções
+  rápidas e seletor enviam o `label` e só a última mensagem fica clicável.
+
+## Entregue: T6 (na `main`)
+
+- **`src/agent/llm/models.ts`:** `readLlmConfig(env)`, `MODEL_PRICES`, `estimateCostUsd` (com desconto
+  de cache) e `estimateTranscriptionCostUsd` (mínimo de 10 s). **`provider.ts`:**
+  `createLlmModels(config, fetch?)` → `{ fast, main, transcription }`.
+- **`@ai-sdk/groq` fixado em 4.0.63**, a versão do provider que o Mastra 1.80 embute (a 4.0.72 não
+  compila com `new Agent({ model })`). Atualizar os dois juntos.
+- **Variável nova opcional:** `TRANSCRIPTION_MODEL=whisper-large-v3-turbo`.
+- **`npm run spike:llm`** mede tudo com a chave (pendente). Guia para a T10 em
+  `docs/decisoes/mastra-api.md`; escolha e custos em `docs/decisoes/llm.md` (estimativa de
+  ~US$ 0,0012 por turno e ~US$ 0,01 por conversa de 8 mensagens).
+- **Regras para a T10:**
+  1. No `Agent`, `errorProcessorDefaults: false` e `modelSettings.maxRetries: 1`; senão o Mastra soma
+     retentativas próprias (medido: 9 requisições e ~15 s num 429).
+  2. Contexto da sessão em closure nas tools (não precisa de `requestContext`).
+  3. Histórico como união discriminada por `role`.
+  4. ENTENDER e AGIR em chamadas separadas (com tools, o Groq troca a saída estruturada por uma tool).
+  5. `stream` não lança: o erro fica em `out.error` (`classifyProviderError` para 429,
+     `isMastraTimeoutError` para timeout); `generate` lança.
+  6. `out.usage` já vem somado na 1.80; por passo, `out.steps[i].usage`.
+  7. Transcrição: `models.transcription.doGenerate({ audio, mediaType, providerOptions: { groq: {
+language: "pt" } } })` (compila, não testado).

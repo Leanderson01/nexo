@@ -13,30 +13,30 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 
 ## Quadro
 
-| Task | Descrição                           | Onda | Depende de         | Status       | Branch / commit      |
-| ---- | ----------------------------------- | ---- | ------------------ | ------------ | -------------------- |
-| T0.1 | Repositório e setup                 | 0    | —                  | a fazer      |                      |
-| T0.2 | Contratos travados                  | 0    | T0.1               | a fazer      |                      |
-| T1   | Domínio puro + testes               | 1    | T0                 | feito        | `ee40947`..`e41bcb0` |
-| T2   | Auth, seed e login                  | 1    | T0                 | feito        | `3a37742`..`aa3dc9a` |
-| T3   | Serviço de chamados + gateway       | 1    | T0                 | em andamento | `task/T3-ticketing`  |
-| T4   | Central de ajuda                    | 1    | T0                 | a fazer      |                      |
-| T5   | Chat core com agent de eco          | 1    | T0                 | em andamento | `task/T5-chat-core`  |
-| T6   | Teste do Mastra + escolha do LLM    | 1    | —                  | em andamento | `task/T6-spike-llm`  |
-| T7   | Blocos de mensagem                  | 1    | T0                 | a fazer      |                      |
-| T8   | Painel de decisão                   | 1    | T0                 | a fazer      |                      |
-| T9   | Políticas de decisão                | 1    | T0, T1             | a fazer      |                      |
-| T14a | Cenários de eval (escrita)          | 1    | T0                 | a fazer      |                      |
-| T10  | Pipeline do agent                   | 2    | T3, T4, T5, T6, T9 | a fazer      |                      |
-| T11  | Rascunho fora do LLM                | 2    | T3, T5, T7         | a fazer      |                      |
-| T12  | Console do analista                 | 2    | T2, T5, T7, T8     | a fazer      |                      |
-| T15  | Voz                                 | 2    | T5                 | a fazer      |                      |
-| T20  | Tela "Meu perfil" (só no protótipo) | 1    | T2                 | a fazer      |                      |
-| T14b | Runner de evals                     | 3    | T10, T11           | a fazer      |                      |
-| T16  | Limites e custo                     | 3    | T10                | a fazer      |                      |
-| T17  | Faixa 2                             | 3    | T10, T12           | a fazer      |                      |
-| T18  | README e deploy                     | 3    | tudo               | a fazer      |                      |
-| T19  | QA de ponta a ponta                 | 3    | tudo               | a fazer      |                      |
+| Task | Descrição                           | Onda | Depende de         | Status  | Branch / commit      |
+| ---- | ----------------------------------- | ---- | ------------------ | ------- | -------------------- |
+| T0.1 | Repositório e setup                 | 0    | —                  | feito   | `5f1f37f`            |
+| T0.2 | Contratos travados                  | 0    | T0.1               | feito   | `4b5dae1`..`4f25cb5` |
+| T1   | Domínio puro + testes               | 1    | T0                 | feito   | `ee40947`..`e41bcb0` |
+| T2   | Auth, seed e login                  | 1    | T0                 | feito   | `3a37742`..`aa3dc9a` |
+| T3   | Serviço de chamados + gateway       | 1    | T0                 | feito   | `ab067b4`..`f105990` |
+| T4   | Central de ajuda                    | 1    | T0                 | a fazer |                      |
+| T5   | Chat core com agent de eco          | 1    | T0                 | feito   | `7b27cac`..`235b877` |
+| T6   | Teste do Mastra + escolha do LLM    | 1    | —                  | feito   | `c6ba9b3`..`7498b88` |
+| T7   | Blocos de mensagem                  | 1    | T0                 | a fazer |                      |
+| T8   | Painel de decisão                   | 1    | T0                 | a fazer |                      |
+| T9   | Políticas de decisão                | 1    | T0, T1             | a fazer |                      |
+| T14a | Cenários de eval (escrita)          | 1    | T0                 | a fazer |                      |
+| T10  | Pipeline do agent                   | 2    | T3, T4, T5, T6, T9 | a fazer |                      |
+| T11  | Rascunho fora do LLM                | 2    | T3, T5, T7         | a fazer |                      |
+| T12  | Console do analista                 | 2    | T2, T5, T7, T8     | a fazer |                      |
+| T15  | Voz                                 | 2    | T5                 | a fazer |                      |
+| T20  | Tela "Meu perfil" (só no protótipo) | 1    | T2                 | a fazer |                      |
+| T14b | Runner de evals                     | 3    | T10, T11           | a fazer |                      |
+| T16  | Limites e custo                     | 3    | T10                | a fazer |                      |
+| T17  | Faixa 2                             | 3    | T10, T12           | a fazer |                      |
+| T18  | README e deploy                     | 3    | tudo               | a fazer |                      |
+| T19  | QA de ponta a ponta                 | 3    | tudo               | a fazer |                      |
 
 ## Decisões em aberto
 
@@ -56,8 +56,8 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 14. ~~**Números do login**~~ → **decidido: estáticos até o T17.** Contexto: ("8 s", "72%", "6 analistas online"): estáticos ou vindos das métricas? Proposta: estáticos até o T17 e, se ele entrar, reais.
 15. ~~**`findSimilar` só até 7 dias × F4**~~ → **decidido:** a §5.6 limita a abertos e resolvidos há até 7 dias, mas o F4 e o eval do Rafael precisam ver o INC-20077 (resolvido há 10 dias). `findSimilar` devolve abertos e resolvidos/fechados **há até 30 dias**; o domínio decide entre atualizar, reabrir e criar novo com referência.
 16. ~~**Esperas do retry (300/900/2.000 ms)**~~ → **decidido:** 3 tentativas com esperas de ~300 ms e ~900 ms (±20% de jitter) e **2.000 ms de limite por tentativa**.
-17. **Limite de taxa do Groq** (aberta): a tabela base mostra 8.000 tokens/min e 1.000 req/dia por modelo. Conferir no console o limite da chave paga; o runner de evals (T14b) precisa esperar e repetir no 429 de qualquer forma.
-18. **Modo estrito × `confidence.min(0).max(1)`** (aberta, testar na T6 com a chave): se o Groq recusar, desligar o `strictJsonSchema` só no ENTENDER ou limitar a confiança em código. O tipo do domínio não muda.
+17. **Limite de taxa do Groq** (aberta): a tabela base mostra 8.000 tokens/min e 1.000 req/dia por modelo, cerca de 1 turno completo por minuto no 120b. O `npm run spike:llm` imprime os headers `x-ratelimit-*` da chave real; rodar quando a `GROQ_API_KEY` estiver no `.env.local`. O runner de evals (T14b) precisa esperar e repetir no 429 de qualquer forma.
+18. **Modo estrito × `confidence.min(0).max(1)`** (aberta, depende da chave): o teste offline da T6 provou que o schema sai com `minimum`/`maximum` e que as duas saídas funcionam (`strictJsonSchema: false`, ou schema sem limites e limite em código). O `spike:llm` detecta a recusa e cai na primeira sozinho. O tipo do domínio não muda.
 
 ## Desvios da spec feitos no T0
 
