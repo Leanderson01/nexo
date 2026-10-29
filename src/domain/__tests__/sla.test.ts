@@ -150,38 +150,46 @@ describe("formatSlaBadge", () => {
   });
 });
 
-describe("chamados do seed ao longo de uma semana (§4.2, decisão 3)", () => {
-  // "Agora" a cada 15 minutos, de segunda 0h até domingo 23h45 em São Paulo.
-  const weekStart = saoPaulo(10, MONDAY, 0);
-  const instants = Array.from({ length: (7 * DAY) / (15 * MINUTE) }, (_, i) => {
-    return weekStart + i * 15 * MINUTE;
-  });
+// A varredura faz ~670 instantes × 5 chamados; leva cerca de 1 s, mas com a máquina carregada
+// passava do limite padrão de 5 s do Vitest.
+const WEEK_SWEEP_TIMEOUT_MS = 30_000;
 
-  it("INC-20311 (Média, há 6 dias, Aguardando analista) está sempre vencido", () => {
-    for (const now of instants) {
-      expect(isOverdue(ticket("MEDIUM", "awaiting_analyst", now - 6 * DAY), now)).toBe(true);
-    }
-  });
+describe(
+  "chamados do seed ao longo de uma semana (§4.2, decisão 3)",
+  { timeout: WEEK_SWEEP_TIMEOUT_MS },
+  () => {
+    // "Agora" a cada 15 minutos, de segunda 0h até domingo 23h45 em São Paulo.
+    const weekStart = saoPaulo(10, MONDAY, 0);
+    const instants = Array.from({ length: (7 * DAY) / (15 * MINUTE) }, (_, i) => {
+      return weekStart + i * 15 * MINUTE;
+    });
 
-  it("INC-20402, REQ-10442, INC-20395, REQ-10498 e INC-20420 nunca aparecem vencidos", () => {
-    for (const now of instants) {
-      const seedTickets = [
-        ticket("HIGH", "in_progress", now - HOUR), // INC-20402
-        ticket("LOW", "approved", now - 3 * DAY), // REQ-10442
-        ticket("MEDIUM", "open", now - 2 * DAY), // INC-20395
-        ticket("LOW", "open", now - DAY), // REQ-10498
-        ticket("CRITICAL", "in_progress", now - 30 * MINUTE), // INC-20420
-      ];
-      for (const seedTicket of seedTickets) {
-        expect(isOverdue(seedTicket, now)).toBe(false);
+    it("INC-20311 (Média, há 6 dias, Aguardando analista) está sempre vencido", () => {
+      for (const now of instants) {
+        expect(isOverdue(ticket("MEDIUM", "awaiting_analyst", now - 6 * DAY), now)).toBe(true);
       }
-    }
-  });
+    });
 
-  it("REQ-10510 (Aguardando você) mostra prazo pausado", () => {
-    const now = saoPaulo(10, WEDNESDAY, 10);
-    expect(formatSlaBadge(ticket("LOW", "awaiting_employee", now - 2 * DAY), now)).toBe(
-      "prazo pausado",
-    );
-  });
-});
+    it("INC-20402, REQ-10442, INC-20395, REQ-10498 e INC-20420 nunca aparecem vencidos", () => {
+      for (const now of instants) {
+        const seedTickets = [
+          ticket("HIGH", "in_progress", now - HOUR), // INC-20402
+          ticket("LOW", "approved", now - 3 * DAY), // REQ-10442
+          ticket("MEDIUM", "open", now - 2 * DAY), // INC-20395
+          ticket("LOW", "open", now - DAY), // REQ-10498
+          ticket("CRITICAL", "in_progress", now - 30 * MINUTE), // INC-20420
+        ];
+        for (const seedTicket of seedTickets) {
+          expect(isOverdue(seedTicket, now)).toBe(false);
+        }
+      }
+    });
+
+    it("REQ-10510 (Aguardando você) mostra prazo pausado", () => {
+      const now = saoPaulo(10, WEDNESDAY, 10);
+      expect(formatSlaBadge(ticket("LOW", "awaiting_employee", now - 2 * DAY), now)).toBe(
+        "prazo pausado",
+      );
+    });
+  },
+);
