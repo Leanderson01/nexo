@@ -17,10 +17,12 @@
     "setup:auth": "node scripts/setup-auth-env.mjs"
   },
   "dependencies": {
+    "@ai-sdk/groq": "^4.0.72",
     "@auth/core": "^0.41.3",
     "@convex-dev/auth": "^0.0.96",
     "@mantine/core": "^9.7.4",
     "@mantine/hooks": "^9.7.4",
+    "@mastra/core": "^1.80.0",
     "convex": "^1.48.0",
     "next": "^16.4.3",
     "react": "^19.3.0",
@@ -41,6 +43,7 @@
     "postcss-preset-mantine": "^1.18.0",
     "postcss-simple-vars": "^7.0.1",
     "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^5.0.5"
   }
