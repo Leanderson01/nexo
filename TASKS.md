@@ -55,6 +55,9 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 13. ~~**O que a spec pede e o protótipo não mostra**~~ → **decidido: entra tudo, no estilo do protótipo.** Contexto: histórico de conversas e "Nova conversa" no chat, link "Ver detalhes" nos chips, card de resumo da transferência no console, filtro "Encerradas", contas de demonstração no login. Proposta: incluir tudo no estilo do protótipo.
 14. ~~**Números do login**~~ → **decidido: estáticos até o T17.** Contexto: ("8 s", "72%", "6 analistas online"): estáticos ou vindos das métricas? Proposta: estáticos até o T17 e, se ele entrar, reais.
 15. ~~**`findSimilar` só até 7 dias × F4**~~ → **decidido:** a §5.6 limita a abertos e resolvidos há até 7 dias, mas o F4 e o eval do Rafael precisam ver o INC-20077 (resolvido há 10 dias). `findSimilar` devolve abertos e resolvidos/fechados **há até 30 dias**; o domínio decide entre atualizar, reabrir e criar novo com referência.
+16. ~~**Esperas do retry (300/900/2.000 ms)**~~ → **decidido:** 3 tentativas com esperas de ~300 ms e ~900 ms (±20% de jitter) e **2.000 ms de limite por tentativa**.
+17. **Limite de taxa do Groq** (aberta): a tabela base mostra 8.000 tokens/min e 1.000 req/dia por modelo. Conferir no console o limite da chave paga; o runner de evals (T14b) precisa esperar e repetir no 429 de qualquer forma.
+18. **Modo estrito × `confidence.min(0).max(1)`** (aberta, testar na T6 com a chave): se o Groq recusar, desligar o `strictJsonSchema` só no ENTENDER ou limitar a confiança em código. O tipo do domínio não muda.
 
 ## Desvios da spec feitos no T0
 
@@ -68,6 +71,9 @@ Valem para todas as tasks; entram no README (T18).
 - **Variável `NEXT_PUBLIC_CONVEX_SITE_URL`** (nome que o `npx convex dev` gera) no lugar de `CONVEX_SITE_URL`.
 
 ## Regras para as tasks paralelas
+
+- **Antes de retomar T3, T5 ou T6, leia `docs/desenho-onda-1.md`**: o desenho já foi fechado lá.
+- **Rode o Claude Code a partir deste repo** (`~/workspace/nexo`). Uma sessão aberta em outro repo não consegue escrever nas worktrees daqui.
 
 - Os contratos do T0.2 estão travados. Uma task pode **acrescentar** campo opcional ou índice às tabelas dela; mudar ou remover algo existente exige registrar aqui antes.
 - Tipos novos de domínio vão em `src/domain/`; validators do Convex, em `convex/lib/validators.ts`, sempre com `assertTypesMatch`.
