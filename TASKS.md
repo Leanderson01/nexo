@@ -23,7 +23,7 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 | T4 | Central de ajuda | 1 | T0 | a fazer | |
 | T5 | Chat core com agent de eco | 1 | T0 | a fazer | |
 | T6 | Teste do Mastra + escolha do LLM | 1 | — | a fazer | |
-| T7 | Blocos de mensagem | 1 | T0, protótipo | bloqueada | |
+| T7 | Blocos de mensagem | 1 | T0 | a fazer | |
 | T8 | Painel de decisão | 1 | T0 | a fazer | |
 | T9 | Políticas de decisão | 1 | T0, T1 | a fazer | |
 | T14a | Cenários de eval (escrita) | 1 | T0 | a fazer | |
@@ -31,6 +31,7 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 | T11 | Rascunho fora do LLM | 2 | T3, T5, T7 | a fazer | |
 | T12 | Console do analista | 2 | T2, T5, T7, T8 | a fazer | |
 | T15 | Voz | 2 | T5 | a fazer | |
+| T20 | Tela "Meu perfil" (só no protótipo) | 1 | T2 | a fazer | |
 | T14b | Runner de evals | 3 | T10, T11 | a fazer | |
 | T16 | Limites e custo | 3 | T10 | a fazer | |
 | T17 | Faixa 2 | 3 | T10, T12 | a fazer | |
@@ -45,8 +46,29 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 4. **Códigos sequenciais:** falta a tabela `counters` no modelo de dados (incluída no T0.2).
 5. **Limite de 30:** conta só as mensagens do funcionário ou todas?
 6. **Reabertura renova `lastActivityAt`?**
-7. **Protótipo (Anexo C):** necessário para T7, T8 e T12.
-8. ~~**Provedor de LLM**~~ → **Groq** (única chave disponível). Candidatos a validar no T6: `openai/gpt-oss-20b` (rápido, saída estruturada strict) e `openai/gpt-oss-120b` (principal, tool calling); reserva: Kimi K2 ou Qwen3. Transcrição também pelo Groq (Whisper). Pendente: medir PT-BR e o limite de taxa do plano da chave.
+7. ~~**Protótipo (Anexo C)**~~ → recebido; telas em `docs/prototipo/` e divergências na seção "Protótipo" abaixo.
+8. ~~**Provedor de LLM**~~ → **Groq** (única chave disponível). Candidatos a validar no T6: `openai/gpt-oss-20b` (rápido, saída estruturada strict) e `openai/gpt-oss-120b` (principal, tool calling); reserva: Kimi K2 ou Qwen3. Transcrição também pelo Groq (Whisper). Chave paga. Pendente: medir PT-BR e conferir o limite de taxa do plano.
+9. **UI com Mantine** (decidido). Conferir a versão atual no T0.1; tema próprio (azul primário, serifada só no título do login, sans no resto).
+10. **Seed × protótipo:** no protótipo, Ana Souza é **funcionária** (Financeiro) e dona do INC-20311, e Rafael Lima é **analista N2**. Na spec, Ana Ribeiro é analista N1, Rafael Lima é funcionário e o INC-20311 é da Mariana. O protótipo também mostra chamados que o seed não tem (INC-20298, INC-19877, INC-19410).
+11. **Devolver ao agent antes de assumir:** a tela 5 mostra "Devolver ao agent" em `waiting_analyst`, mas a FSM da spec só permite `return` a partir de `with_analyst`.
+12. **Extras que só o protótipo tem:** busca na fila, presença ("online", "digitando..."), confirmação de leitura (✓✓), contador de não lidas, status "Disponível" do analista, encaminhamento por nível ("Suporte N2"), subcategoria ("Hardware › Notebook"), atalho ⌘↵ no Confirmar, número do rascunho ("D-381"). Proposta: não lidas, busca, ⌘↵ e número do rascunho entram; presença, digitando e leitura ficam na faixa 2.
+13. **O que a spec pede e o protótipo não mostra:** histórico de conversas e "Nova conversa" no chat, link "Ver detalhes" nos chips, card de resumo da transferência no console, filtro "Encerradas", contas de demonstração no login. Proposta: incluir tudo no estilo do protótipo.
+14. **Números do login** ("8 s", "72%", "6 analistas online"): estáticos ou vindos das métricas? Proposta: estáticos até o T17 e, se ele entrar, reais.
+
+---
+
+## Protótipo
+
+Telas em `docs/prototipo/`. Elas são a referência visual; quando divergirem da spec em **comportamento**, vale a spec até decidirmos na seção acima.
+
+| Arquivo | Tela | Tasks |
+|---|---|---|
+| `01-login.png` | Login: painel escuro com chat de exemplo e números; formulário com mostrar senha, "Esqueci minha senha", "Manter conectado" | T2 |
+| `02-chat-rascunho.png` | Chat: navegação lateral, chips de ação, opções rápidas, card de rascunho, contador "18/30" | T5, T7, T11 |
+| `03-chat-consulta.png` | Chat: seletor de chamados em lista com status e data, card de chamado vencido, oferta de analista | T7, T10 |
+| `04-perfil.png` | Meu perfil: nome, e-mail gerenciado pela TI, redefinir senha | T20 |
+| `05-console-fila.png` | Console: fila com abas e motivos, conversa aguardando, barra "Assumir atendimento", chamados do funcionário | T12 |
+| `06-console-atendendo.png` | Console: analista atendendo, eventos de transferência e de assumir, Devolver e Encerrar | T12 |
 
 ---
 
@@ -179,6 +201,10 @@ Depende de: T2, T5, T7, T8.
 - Fila com filtros (estado, motivo), ordenação (críticas, depois espera), tempo real com destaque e contador.
 - Conversa: card de resumo fixo, histórico com painel de decisão, "Agent pausado", Assumir, mensagens do analista, Devolver com nota, Encerrar, modo leitura para outros analistas.
 - Painel do funcionário: dados, chamados com vencidos no topo, detalhe e histórico.
+
+### T20 Tela "Meu perfil"
+Depende de: T2. Só existe no protótipo (tela 4).
+- Nome, e-mail com selo "Gerenciado pela TI", data da última troca de senha e "Redefinir senha" (simulado, só exibe o aviso do link enviado).
 
 ### T15 Voz (faixa 1)
 Depende de: T5 (campo de mensagem).
