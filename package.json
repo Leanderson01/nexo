@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "seed": "convex run seed:run",
-    "setup:auth": "node scripts/setup-auth-env.mjs"
+    "setup:auth": "node scripts/setup-auth-env.mjs",
+    "spike:llm": "tsx scripts/spike-llm.ts"
   },
   "dependencies": {
     "@ai-sdk/groq": "4.0.63",
