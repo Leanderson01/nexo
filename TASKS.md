@@ -13,30 +13,30 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 
 ## Quadro
 
-| Task | Descrição                           | Onda | Depende de         | Status  | Branch / commit |
-| ---- | ----------------------------------- | ---- | ------------------ | ------- | --------------- |
-| T0.1 | Repositório e setup                 | 0    | —                  | a fazer |                 |
-| T0.2 | Contratos travados                  | 0    | T0.1               | a fazer |                 |
-| T1   | Domínio puro + testes               | 1    | T0                 | a fazer |                 |
-| T2   | Auth, seed e login                  | 1    | T0                 | a fazer |                 |
-| T3   | Serviço de chamados + gateway       | 1    | T0                 | a fazer |                 |
-| T4   | Central de ajuda                    | 1    | T0                 | a fazer |                 |
-| T5   | Chat core com agent de eco          | 1    | T0                 | a fazer |                 |
-| T6   | Teste do Mastra + escolha do LLM    | 1    | —                  | a fazer |                 |
-| T7   | Blocos de mensagem                  | 1    | T0                 | a fazer |                 |
-| T8   | Painel de decisão                   | 1    | T0                 | a fazer |                 |
-| T9   | Políticas de decisão                | 1    | T0, T1             | a fazer |                 |
-| T14a | Cenários de eval (escrita)          | 1    | T0                 | a fazer |                 |
-| T10  | Pipeline do agent                   | 2    | T3, T4, T5, T6, T9 | a fazer |                 |
-| T11  | Rascunho fora do LLM                | 2    | T3, T5, T7         | a fazer |                 |
-| T12  | Console do analista                 | 2    | T2, T5, T7, T8     | a fazer |                 |
-| T15  | Voz                                 | 2    | T5                 | a fazer |                 |
-| T20  | Tela "Meu perfil" (só no protótipo) | 1    | T2                 | a fazer |                 |
-| T14b | Runner de evals                     | 3    | T10, T11           | a fazer |                 |
-| T16  | Limites e custo                     | 3    | T10                | a fazer |                 |
-| T17  | Faixa 2                             | 3    | T10, T12           | a fazer |                 |
-| T18  | README e deploy                     | 3    | tudo               | a fazer |                 |
-| T19  | QA de ponta a ponta                 | 3    | tudo               | a fazer |                 |
+| Task | Descrição                           | Onda | Depende de         | Status       | Branch / commit           |
+| ---- | ----------------------------------- | ---- | ------------------ | ------------ | ------------------------- |
+| T0.1 | Repositório e setup                 | 0    | —                  | a fazer      |                           |
+| T0.2 | Contratos travados                  | 0    | T0.1               | a fazer      |                           |
+| T1   | Domínio puro + testes               | 1    | T0                 | em andamento | `task/T1-dominio`         |
+| T2   | Auth, seed e login                  | 1    | T0                 | em andamento | `task/T2-auth-seed-login` |
+| T3   | Serviço de chamados + gateway       | 1    | T0                 | em andamento | `task/T3-ticketing`       |
+| T4   | Central de ajuda                    | 1    | T0                 | a fazer      |                           |
+| T5   | Chat core com agent de eco          | 1    | T0                 | em andamento | `task/T5-chat-core`       |
+| T6   | Teste do Mastra + escolha do LLM    | 1    | —                  | em andamento | `task/T6-spike-llm`       |
+| T7   | Blocos de mensagem                  | 1    | T0                 | a fazer      |                           |
+| T8   | Painel de decisão                   | 1    | T0                 | a fazer      |                           |
+| T9   | Políticas de decisão                | 1    | T0, T1             | a fazer      |                           |
+| T14a | Cenários de eval (escrita)          | 1    | T0                 | a fazer      |                           |
+| T10  | Pipeline do agent                   | 2    | T3, T4, T5, T6, T9 | a fazer      |                           |
+| T11  | Rascunho fora do LLM                | 2    | T3, T5, T7         | a fazer      |                           |
+| T12  | Console do analista                 | 2    | T2, T5, T7, T8     | a fazer      |                           |
+| T15  | Voz                                 | 2    | T5                 | a fazer      |                           |
+| T20  | Tela "Meu perfil" (só no protótipo) | 1    | T2                 | a fazer      |                           |
+| T14b | Runner de evals                     | 3    | T10, T11           | a fazer      |                           |
+| T16  | Limites e custo                     | 3    | T10                | a fazer      |                           |
+| T17  | Faixa 2                             | 3    | T10, T12           | a fazer      |                           |
+| T18  | README e deploy                     | 3    | tudo               | a fazer      |                           |
+| T19  | QA de ponta a ponta                 | 3    | tudo               | a fazer      |                           |
 
 ## Decisões em aberto
 
@@ -54,6 +54,7 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 12. ~~**Extras que só o protótipo tem**~~ → **decidido conforme a proposta abaixo**; nível ("Suporte N2") e subcategoria são só texto visual, sem regra de negócio. Contexto: busca na fila, presença ("online", "digitando..."), confirmação de leitura (✓✓), contador de não lidas, status "Disponível" do analista, encaminhamento por nível ("Suporte N2"), subcategoria ("Hardware › Notebook"), atalho ⌘↵ no Confirmar, número do rascunho ("D-381"). Proposta: não lidas, busca, ⌘↵ e número do rascunho entram; presença, digitando e leitura ficam na faixa 2.
 13. ~~**O que a spec pede e o protótipo não mostra**~~ → **decidido: entra tudo, no estilo do protótipo.** Contexto: histórico de conversas e "Nova conversa" no chat, link "Ver detalhes" nos chips, card de resumo da transferência no console, filtro "Encerradas", contas de demonstração no login. Proposta: incluir tudo no estilo do protótipo.
 14. ~~**Números do login**~~ → **decidido: estáticos até o T17.** Contexto: ("8 s", "72%", "6 analistas online"): estáticos ou vindos das métricas? Proposta: estáticos até o T17 e, se ele entrar, reais.
+15. ~~**`findSimilar` só até 7 dias × F4**~~ → **decidido:** a §5.6 limita a abertos e resolvidos há até 7 dias, mas o F4 e o eval do Rafael precisam ver o INC-20077 (resolvido há 10 dias). `findSimilar` devolve abertos e resolvidos/fechados **há até 30 dias**; o domínio decide entre atualizar, reabrir e criar novo com referência.
 
 ## Desvios da spec feitos no T0
 
