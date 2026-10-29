@@ -13,30 +13,30 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 
 ## Quadro
 
-| Task | Descrição                           | Onda | Depende de         | Status       | Branch / commit           |
-| ---- | ----------------------------------- | ---- | ------------------ | ------------ | ------------------------- |
-| T0.1 | Repositório e setup                 | 0    | —                  | a fazer      |                           |
-| T0.2 | Contratos travados                  | 0    | T0.1               | a fazer      |                           |
-| T1   | Domínio puro + testes               | 1    | T0                 | feito        | `ee40947`..`e41bcb0`      |
-| T2   | Auth, seed e login                  | 1    | T0                 | em andamento | `task/T2-auth-seed-login` |
-| T3   | Serviço de chamados + gateway       | 1    | T0                 | em andamento | `task/T3-ticketing`       |
-| T4   | Central de ajuda                    | 1    | T0                 | a fazer      |                           |
-| T5   | Chat core com agent de eco          | 1    | T0                 | em andamento | `task/T5-chat-core`       |
-| T6   | Teste do Mastra + escolha do LLM    | 1    | —                  | em andamento | `task/T6-spike-llm`       |
-| T7   | Blocos de mensagem                  | 1    | T0                 | a fazer      |                           |
-| T8   | Painel de decisão                   | 1    | T0                 | a fazer      |                           |
-| T9   | Políticas de decisão                | 1    | T0, T1             | a fazer      |                           |
-| T14a | Cenários de eval (escrita)          | 1    | T0                 | a fazer      |                           |
-| T10  | Pipeline do agent                   | 2    | T3, T4, T5, T6, T9 | a fazer      |                           |
-| T11  | Rascunho fora do LLM                | 2    | T3, T5, T7         | a fazer      |                           |
-| T12  | Console do analista                 | 2    | T2, T5, T7, T8     | a fazer      |                           |
-| T15  | Voz                                 | 2    | T5                 | a fazer      |                           |
-| T20  | Tela "Meu perfil" (só no protótipo) | 1    | T2                 | a fazer      |                           |
-| T14b | Runner de evals                     | 3    | T10, T11           | a fazer      |                           |
-| T16  | Limites e custo                     | 3    | T10                | a fazer      |                           |
-| T17  | Faixa 2                             | 3    | T10, T12           | a fazer      |                           |
-| T18  | README e deploy                     | 3    | tudo               | a fazer      |                           |
-| T19  | QA de ponta a ponta                 | 3    | tudo               | a fazer      |                           |
+| Task | Descrição                           | Onda | Depende de         | Status       | Branch / commit      |
+| ---- | ----------------------------------- | ---- | ------------------ | ------------ | -------------------- |
+| T0.1 | Repositório e setup                 | 0    | —                  | a fazer      |                      |
+| T0.2 | Contratos travados                  | 0    | T0.1               | a fazer      |                      |
+| T1   | Domínio puro + testes               | 1    | T0                 | feito        | `ee40947`..`e41bcb0` |
+| T2   | Auth, seed e login                  | 1    | T0                 | feito        | `3a37742`..`aa3dc9a` |
+| T3   | Serviço de chamados + gateway       | 1    | T0                 | em andamento | `task/T3-ticketing`  |
+| T4   | Central de ajuda                    | 1    | T0                 | a fazer      |                      |
+| T5   | Chat core com agent de eco          | 1    | T0                 | em andamento | `task/T5-chat-core`  |
+| T6   | Teste do Mastra + escolha do LLM    | 1    | —                  | em andamento | `task/T6-spike-llm`  |
+| T7   | Blocos de mensagem                  | 1    | T0                 | a fazer      |                      |
+| T8   | Painel de decisão                   | 1    | T0                 | a fazer      |                      |
+| T9   | Políticas de decisão                | 1    | T0, T1             | a fazer      |                      |
+| T14a | Cenários de eval (escrita)          | 1    | T0                 | a fazer      |                      |
+| T10  | Pipeline do agent                   | 2    | T3, T4, T5, T6, T9 | a fazer      |                      |
+| T11  | Rascunho fora do LLM                | 2    | T3, T5, T7         | a fazer      |                      |
+| T12  | Console do analista                 | 2    | T2, T5, T7, T8     | a fazer      |                      |
+| T15  | Voz                                 | 2    | T5                 | a fazer      |                      |
+| T20  | Tela "Meu perfil" (só no protótipo) | 1    | T2                 | a fazer      |                      |
+| T14b | Runner de evals                     | 3    | T10, T11           | a fazer      |                      |
+| T16  | Limites e custo                     | 3    | T10                | a fazer      |                      |
+| T17  | Faixa 2                             | 3    | T10, T12           | a fazer      |                      |
+| T18  | README e deploy                     | 3    | tudo               | a fazer      |                      |
+| T19  | QA de ponta a ponta                 | 3    | tudo               | a fazer      |                      |
 
 ## Decisões em aberto
 
@@ -77,7 +77,8 @@ Valem para todas as tasks; entram no README (T18).
 
 - Os contratos do T0.2 estão travados. Uma task pode **acrescentar** campo opcional ou índice às tabelas dela; mudar ou remover algo existente exige registrar aqui antes.
 - Tipos novos de domínio vão em `src/domain/`; validators do Convex, em `convex/lib/validators.ts`, sempre com `assertTypesMatch`.
-- Convex local sem conta: `CONVEX_AGENT_MODE=anonymous npx convex dev`.
+- Convex local sem conta: `CONVEX_AGENT_MODE=anonymous npx convex dev`. **Com várias worktrees ao mesmo tempo, dê portas próprias a cada uma** (`--local-cloud-port 3240 --local-site-port 3241`), senão todas disputam a 3212.
+- Primeira vez num deployment novo: `npm run setup:auth` (chaves do Convex Auth) e `npm run seed`.
 
 ---
 

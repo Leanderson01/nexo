@@ -155,3 +155,39 @@ Pontos registrados:
   `resolvedAt` também ao fechar**.
 - A seed foi conferida por um teste que varre a semana em passos de 15 min: INC-20311 sempre vencido;
   INC-20402, REQ-10442, INC-20395, REQ-10498 e INC-20420 nunca.
+
+## T2: auth, seed e login (na `main`)
+
+Como rodar: `npm ci` → `CONVEX_AGENT_MODE=anonymous npx convex dev` → `npm run setup:auth` (gera
+`JWT_PRIVATE_KEY`, `JWKS` e `SITE_URL` no deployment) → `npm run seed` → `npm run dev`.
+
+O que as outras tasks usam:
+
+- **Token no servidor do Next (T5):** `createConvexClientForCurrentUser()` em
+  `src/features/auth/server.ts` devolve um `ConvexHttpClient` com `setAuth`, ou `null` sem sessão
+  (a rota responde 401).
+- **No cliente:** o `ConvexClientProvider` já envolve o app; `api.auth.currentPerson` devolve
+  `{ name, email, role, department, level }` ou `null`.
+- **Sair:** `<SignOutButton />` em `src/features/auth/sign-out-button.tsx` (aceita props do Button).
+- **Rotas protegidas:** regras em `src/features/auth/route-access.ts` (`HOME_BY_ROLE`,
+  `decideRedirect`). O proxy decide `/`, `/login`, `/chat/**` e `/console/**`; `/api/*` passa direto
+  e cada rota autentica sozinha. **Página nova protegida (ex.: perfil da T20) precisa entrar ali.**
+- **Páginas provisórias:** `src/app/chat/page.tsx` e `src/app/console/page.tsx` (marcadas
+  PROVISÓRIO). T5 e T12 substituem e podem apagar `src/features/auth/provisional-area.tsx`.
+- **`convex/http.ts`** só registra as rotas do auth; a T3 acrescenta `registerTicketingRoutes(http)`.
+- **Testes com convex-test:** começam com `/// <reference types="vite/client" />`; o helper `loginAs`
+  em `convex/__tests__/guards.test.ts` simula a sessão.
+- **Guards:** ganharam `getCurrentPerson(ctx)` (pessoa ou `null`).
+
+Desvios registrados:
+
+- **"Manter conectado":** o Convex Auth só aceita uma duração de cookie global. O login grava o
+  cookie `nexo-remember`, e o proxy escolhe entre duas instâncias do middleware (30 dias × sessão).
+- **Cache Components:** o provider de servidor do Convex Auth lê cookies e `Date.now()`, então fica
+  num `<Suspense>` com `connection()`. Efeito: um loader breve antes de toda página.
+- **Seed:** rodar de novo devolve chamados e a conversa do Pedro ao estado inicial; pessoas e
+  artigos são atualizados; contadores ficam com o maior valor. A conversa do Pedro inclui o rascunho
+  D-380 já confirmado, para o card aparecer coerente.
+- **Contas de demonstração:** o clique preenche o e-mail e, com a senha vazia, a senha
+  "demonstracao".
+- O `.env.example` ainda não cita as variáveis do Convex Auth (ficam no README, T18).
