@@ -17,7 +17,7 @@
     "setup:auth": "node scripts/setup-auth-env.mjs"
   },
   "dependencies": {
-    "@ai-sdk/groq": "^4.0.72",
+    "@ai-sdk/groq": "4.0.63",
     "@auth/core": "^0.41.3",
     "@convex-dev/auth": "^0.0.96",
     "@mantine/core": "^9.7.4",
