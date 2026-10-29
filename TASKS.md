@@ -40,12 +40,12 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 
 ## Decisões em aberto
 
-1. **Seed da Mariana em `waiting_analyst`:** quem entra como Mariana cai numa conversa com o agent pausado e não consegue testar o chamado vencido.
-2. **Chamado vencido × chamado em foco:** a `OverdueTicketPolicy` roda no DECIDIR, antes do `selectTicket` do AGIR. Proposta: resolver o `ticketRef` em código entre ENTENDER e DECIDIR.
-3. **REQ-10442 pode aparecer vencido** dependendo da hora (Baixa, 50h úteis, atividade há exatos 7 dias, `Aprovado` não pausa o prazo).
-4. **Códigos sequenciais:** falta a tabela `counters` no modelo de dados (incluída no T0.2).
-5. **Limite de 30:** conta só as mensagens do funcionário ou todas?
-6. **Reabertura renova `lastActivityAt`?**
+1. ~~**Seed da Mariana em `waiting_analyst`**~~ → **decidido: a conversa inicial do seed é do Pedro**, transferida pelo crítico INC-20420 (motivo `critical`). Desvio da §4.4. Contexto: quem entra como Mariana cai numa conversa com o agent pausado e não consegue testar o chamado vencido.
+2. ~~**Chamado vencido × chamado em foco**~~ → **decidido: resolver o chamado em foco em código entre ENTENDER e DECIDIR** (a partir do `ticketRef` e da lista de chamados do funcionário). Contexto: a `OverdueTicketPolicy` roda no DECIDIR, antes do `selectTicket` do AGIR. Proposta: resolver o `ticketRef` em código entre ENTENDER e DECIDIR.
+3. ~~**REQ-10442 pode aparecer vencido**~~ → **decidido: última atividade "há 3 dias"** no seed. Contexto: dependendo da hora (Baixa, 50h úteis, atividade há exatos 7 dias, `Aprovado` não pausa o prazo).
+4. ~~**Códigos sequenciais**~~ → **decidido:** falta a tabela `counters` no modelo de dados (incluída no T0.2).
+5. ~~**Limite de 30**~~ → **decidido: conta só as mensagens do funcionário** (são as que geram custo).
+6. ~~**Reabertura renova `lastActivityAt`?**~~ → **decidido: sim**, o prazo recomeça junto com o atendimento.
 7. ~~**Protótipo (Anexo C)**~~ → recebido; telas em `docs/prototipo/` e divergências na seção "Protótipo" abaixo.
 8. ~~**Provedor de LLM**~~ → **Groq** (única chave disponível). Candidatos a validar no T6: `openai/gpt-oss-20b` (rápido, saída estruturada strict) e `openai/gpt-oss-120b` (principal, tool calling); reserva: Kimi K2 ou Qwen3. Transcrição também pelo Groq (Whisper). Chave paga. Pendente: medir PT-BR e conferir o limite de taxa do plano.
 9. **UI com Mantine** (decidido). Conferir a versão atual no T0.1; tema próprio (azul primário, serifada só no título do login, sans no resto).
@@ -128,13 +128,13 @@ Depende de: T0.
 - Convex Auth com credenciais customizadas (qualquer senha para e-mail do seed). Verificar API atual.
 - Guards reais: `requireEmployee`, `requireAnalyst`, `requireAgentServer`.
 - Redirecionamento por papel (`/chat` × `/console`), sessão persistente, sair.
-- Seed idempotente com datas relativas: pessoas, 10 chamados + `ticketUpdates`, 8 artigos, conversa inicial da Mariana (§4).
+- Seed idempotente com datas relativas: pessoas, 10 chamados + `ticketUpdates`, 8 artigos (§4). Ajustes: REQ-10442 com atividade há 3 dias e conversa inicial do **Pedro** pelo INC-20420 (decisões 1 e 3).
 - Tela de login (§7.1) com contas de demonstração recolhíveis.
 
 ### T3 Serviço de chamados + `HttpTicketGateway` (F3)
 Depende de: T0 (usa T1 quando entrar; até lá, stub).
 - `convex/ticketing/http.ts`: API HTTP autenticada por `TICKETING_SERVICE_KEY`, modo caos (`TICKETING_FAILURE_RATE`, `TICKETING_LATENCY_MS`).
-- `service.ts`: create/addUpdate/reopen/markHandoff com idempotência e códigos sequenciais por tipo; `lastActivityAt` só renova com atividade do suporte.
+- `service.ts`: create/addUpdate/reopen/markHandoff com idempotência e códigos sequenciais por tipo; `lastActivityAt` só renova com atividade do suporte e com a reabertura.
 - `queries.ts`: leituras reativas com guard de dono; "não encontrado" idêntico para inexistente e alheio.
 - `HttpTicketGateway`: retry 300/900/2000 ms com jitter, timeout, erros tipados, vinculado ao `employeeId`.
 - **Testes:** retry com falha simulada, idempotência, timeout; guard com `convex-test`.
@@ -145,7 +145,7 @@ Depende de: T0. Pequena; pode ir junto com T3 ou T2.
 
 ### T5 Chat core em tempo real, com agent de eco (F4)
 Depende de: T0 (guards stub até T2).
-- Mutations: `sendUserMessage` (FSM, limite de 30, `agentBusy`, máscara), `appendDelta`/`finalize` com `requireAgentServer`.
+- Mutations: `sendUserMessage` (FSM, limite de 30 mensagens do funcionário, `agentBusy`, máscara), `appendDelta`/`finalize` com `requireAgentServer`.
 - Job agendado que libera turno travado após 60 s.
 - Rotas `POST /api/conversations` e `POST /api/conversations/:id/messages` (202 + `after()`), autenticando como o usuário.
 - Agent falso que faz eco em streaming (lotes de ~150 ms), para provar o mecanismo.
@@ -183,6 +183,7 @@ Depende de: T0.
 
 ### T10 Pipeline do agent (F5)
 Depende de: T3, T4, T5, T6, T9.
+- Resolução do chamado em foco em código entre ENTENDER e DECIDIR (decisão 2).
 - `context-loader` (12 mensagens + `rollingSummary` + estado + rascunho + chamado em foco).
 - ENTENDER (modelo rápido, uma retentativa com lembrete do schema), níveis de confiança e `clarificationAttempts`.
 - DECIDIR (T9) com curto-circuito.
