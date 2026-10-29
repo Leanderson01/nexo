@@ -1,0 +1,35 @@
+import type { CreateConversationError } from "../../../convex/conversations";
+import type { SendUserMessageError } from "../../../convex/messages";
+
+// Erros esperados das rotas do chat: o código vem do `Result` da mutation; aqui ficam o
+// status HTTP e o texto que a tela mostra. A mesma tabela serve à rota e ao cliente.
+
+export type ChatApiErrorCode =
+  SendUserMessageError | CreateConversationError | "unauthorized" | "invalid_body" | "unavailable";
+
+export interface ChatApiErrorBody {
+  error: { code: ChatApiErrorCode; message: string };
+}
+
+export const CHAT_API_ERRORS: Record<ChatApiErrorCode, { status: number; message: string }> = {
+  not_found: { status: 404, message: "Não encontramos essa conversa." },
+  closed: { status: 409, message: "Esta conversa foi encerrada. Comece uma nova conversa." },
+  busy: { status: 409, message: "Espere o Nexo Assist terminar de responder." },
+  limit_reached: {
+    status: 409,
+    message: "Esta conversa chegou ao limite de mensagens. Comece uma nova conversa.",
+  },
+  empty: { status: 400, message: "Escreva alguma coisa antes de enviar." },
+  invalid_body: { status: 400, message: "Não entendemos o pedido. Recarregue a página." },
+  unauthorized: { status: 401, message: "Sua sessão expirou. Entre novamente." },
+  unavailable: {
+    status: 503,
+    message: "Não conseguimos falar com o servidor agora. Tente de novo em instantes.",
+  },
+};
+
+export function chatApiError(code: ChatApiErrorCode): Response {
+  const { status, message } = CHAT_API_ERRORS[code];
+  const body: ChatApiErrorBody = { error: { code, message } };
+  return Response.json(body, { status });
+}

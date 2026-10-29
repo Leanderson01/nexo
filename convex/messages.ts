@@ -45,6 +45,7 @@ export const list = query({
 export type SendUserMessageError = "not_found" | "closed" | "busy" | "limit_reached" | "empty";
 
 export interface SentUserMessage {
+  conversationId: Id<"conversations">;
   userMessageId: Id<"messages">;
   /** Mensagem do assistente em `streaming`; null quando a conversa está com analista. */
   assistantMessageId: Id<"messages"> | null;
@@ -97,7 +98,13 @@ export const sendUserMessage = mutation({
       ? await startAgentTurn(ctx, conversation._id, now)
       : null;
 
-    return ok({ userMessageId, assistantMessageId, savedText, masked });
+    return ok({
+      conversationId: conversation._id,
+      userMessageId,
+      assistantMessageId,
+      savedText,
+      masked,
+    });
   },
 });
 
