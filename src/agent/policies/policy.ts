@@ -1,4 +1,9 @@
-import type { ConversationStatus, HandoffReason, OutOfScopeArea } from "@/domain/enums";
+import type {
+  ConversationStatus,
+  HandoffReason,
+  OutOfScopeArea,
+  RefusalTopic,
+} from "@/domain/enums";
 import type { DerivedPriority, TicketSummary } from "@/domain/ticket";
 import type { Understanding } from "@/domain/understanding";
 
@@ -21,6 +26,8 @@ export type PolicyAction =
   | { kind: "handoff"; reason: HandoffReason }
   /** Curto-circuita: redireciona assunto que não é de TI. */
   | { kind: "redirect_out_of_scope"; area: OutOfScopeArea }
+  /** Curto-circuita: recusa educada, sem modelo (pedido para mudar as regras, ou fora de TI sem área). */
+  | { kind: "refuse"; topic: RefusalTopic }
   /** O agent segue, mas precisa oferecer a transferência. */
   | { kind: "offer_handoff"; reason: HandoffReason }
   | { kind: "ask_clarification" };

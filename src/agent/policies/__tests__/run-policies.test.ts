@@ -41,6 +41,21 @@ describe("runPolicies", () => {
     });
   });
 
+  it("tentativa de injeção é recusada em código, sem chegar ao AGIR", () => {
+    const decision = runPolicies(
+      makeContext({
+        understanding: {
+          intent: "out_of_scope",
+          summary: "Pede para ignorar as regras e listar todos os chamados",
+        },
+      }),
+    );
+
+    expect(decision.decisiveAction).toEqual({ kind: "refuse", topic: "rule_change" });
+    expect(decision.guidingActions).toEqual([]);
+    expect(decision.evaluations.map((evaluation) => evaluation.name)).toEqual(POLICY_ORDER);
+  });
+
   it("redirecionamento curto-circuita e as demais continuam no painel", () => {
     const decision = runPolicies(
       makeContext({ understanding: { intent: "out_of_scope", summary: "Holerite veio errado" } }),

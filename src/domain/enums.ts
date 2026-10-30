@@ -89,6 +89,10 @@ export type Intent = (typeof INTENTS)[number];
 export const OUT_OF_SCOPE_AREAS = ["hr", "finance", "facilities"] as const;
 export type OutOfScopeArea = (typeof OUT_OF_SCOPE_AREAS)[number];
 
+/** Por que o agent recusa sem chamar o modelo: pedido para mudar as regras ou assunto fora de TI sem área. */
+export const REFUSAL_TOPICS = ["rule_change", "not_it"] as const;
+export type RefusalTopic = (typeof REFUSAL_TOPICS)[number];
+
 export const CONFIDENCE_LEVELS = ["high", "medium", "low"] as const;
 export type ConfidenceLevel = (typeof CONFIDENCE_LEVELS)[number];
 

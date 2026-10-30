@@ -17,7 +17,10 @@ export const DECISION_POLICIES: readonly Policy[] = [
 ];
 
 /** Ações que encerram o turno sem chamar o modelo principal. */
-export type DecisiveAction = Extract<PolicyAction, { kind: "handoff" | "redirect_out_of_scope" }>;
+export type DecisiveAction = Extract<
+  PolicyAction,
+  { kind: "handoff" | "redirect_out_of_scope" | "refuse" }
+>;
 /** Ações que o AGIR precisa respeitar, mas que não encerram o turno. */
 export type GuidingAction = Extract<PolicyAction, { kind: "offer_handoff" | "ask_clarification" }>;
 
@@ -33,7 +36,7 @@ export interface PolicyDecision {
 /**
  * DECIDIR (§6.3). Avalia todas as políticas, sem parar na primeira, para o painel mostrar
  * cada uma. Precedência: vence a primeira ação decisiva na ordem de `DECISION_POLICIES`
- * (fora de escopo > pedido explícito > baixa confiança esgotada). Sem ação decisiva, o AGIR
+ * (fora de escopo ou recusa > pedido explícito > baixa confiança esgotada). Sem ação decisiva, o AGIR
  * recebe todas as não decisivas, na mesma ordem (crítico > vencido > esclarecimento).
  */
 export function runPolicies(
@@ -63,7 +66,9 @@ export function runPolicies(
 }
 
 function isDecisive(action: PolicyAction): action is DecisiveAction {
-  return action.kind === "handoff" || action.kind === "redirect_out_of_scope";
+  return (
+    action.kind === "handoff" || action.kind === "redirect_out_of_scope" || action.kind === "refuse"
+  );
 }
 
 function isGuiding(action: PolicyAction): action is GuidingAction {

@@ -6,10 +6,9 @@ import type { Policy, PolicyResult, TurnContext } from "./policy";
 /**
  * §6.3, item 1: assunto que não é de TI é redirecionado à área certa, sem chamado.
  *
- * Só curto-circuita quando a área é conhecida. Pedido para mudar as regras e assunto sem área
- * ficam como "não se aplica" (o contrato não tem ação de recusa): o AGIR responde com uma recusa
- * educada, guiado pelo prompt de sistema e por esta nota, e as tools seguem limitadas ao
- * funcionário. Ver `classify-out-of-scope.ts`.
+ * Sempre curto-circuita: área conhecida vira redirecionamento; pedido para mudar as regras
+ * (tentativa de injeção) ou assunto fora de TI sem área vira recusa educada, escrita em código,
+ * sem chamar o modelo principal. Ver `classify-out-of-scope.ts`.
  */
 export const outOfScopePolicy: Policy = {
   name: "OutOfScopePolicy",
@@ -30,13 +29,16 @@ export const outOfScopePolicy: Policy = {
       }
       case "rule_change":
         return {
-          outcome: "not_applicable",
-          note: `Pedido para mudar as regras do atendimento (citou "${classification.matchedTerm}"), não um assunto de outra área: o agent recusa educadamente e só mostra os chamados do próprio funcionário.`,
+          outcome: "triggered",
+          action: { kind: "refuse", topic: "rule_change" },
+          explanation: `Pedido para mudar as regras do atendimento (citou "${classification.matchedTerm}"): recusa educada, sem chamar o modelo; só os chamados do próprio funcionário podem ser mostrados.`,
         };
       case "unknown_area":
         return {
-          outcome: "not_applicable",
-          note: "Fora de TI, mas sem área identificada (RH, Financeiro ou Facilities): o agent explica que atende só TI, sem abrir chamado.",
+          outcome: "triggered",
+          action: { kind: "refuse", topic: "not_it" },
+          explanation:
+            "Fora de TI, sem área identificada (RH, Financeiro ou Facilities): explica que o Nexo Assist atende só TI, sem abrir chamado.",
         };
     }
   },
