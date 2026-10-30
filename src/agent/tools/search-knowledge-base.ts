@@ -96,6 +96,7 @@ function guideArticle(article: ArticleMatch, rank: number, session: ToolSession)
   if (rank === 0) {
     session.workspace.topArticle = {
       part: { type: "article", slug: article.slug, title: article.title, excerpt: article.excerpt },
+      body: article.body,
       status: applicability.status,
       appliesTo: applicability.status === "applies" ? [] : shownAppliesTo(applicability),
       knownValue:

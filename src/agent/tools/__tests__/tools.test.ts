@@ -121,6 +121,7 @@ describe("proposeTicketDraft", () => {
     workspace.similarTickets = new Map();
     workspace.topArticle = {
       part: { type: "article", slug: "vpn-erro-809", title: "VPN com erro 809", excerpt: "" },
+      body: "Reinstale o cliente de VPN.",
       status: "applies",
       appliesTo: [],
       knownValue: null,

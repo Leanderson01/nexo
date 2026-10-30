@@ -5,6 +5,9 @@ import { BLOCKED_QUESTION, IMPACT_QUESTION, updateQuestionText } from "@/domain/
 
 import { readConversationFacts } from "../conversation-facts";
 import {
+  ARTICLE_BRIDGE_FALLBACK,
+  articleBridge,
+  articleOrientation,
   classifyQuestion,
   closedQuestionOptions,
   inapplicableArticleSentence,
@@ -194,6 +197,27 @@ describe("reply-conduct", () => {
     expect(withoutQuestions("Encontrei dois chamados. Qual deles?")).toBe(
       "Encontrei dois chamados.",
     );
+  });
+
+  it("orientação do artigo montada do corpo: os passos inventados ficam de fora (QA R1)", () => {
+    const invented =
+      "Para solicitar um novo monitor, siga estes passos:\n1. Acesse o portal de requisições da Nexo.\n2. Selecione a categoria Hardware e escolha Monitor.\nIsso resolveu?";
+    const body =
+      "Monitores, teclados e headsets são pedidos por requisição. O prazo de entrega é de 5 dias úteis após a aprovação.";
+    const result = articleOrientation(invented, { body });
+    expect(result).toBe(`${ARTICLE_BRIDGE_FALLBACK}\n\n${body}\n\nIsso resolveu?`);
+    expect(result).not.toMatch(/Selecione|Hardware|portal de requisições/);
+  });
+
+  it("a ponte curta do modelo fica quando não orienta nada", () => {
+    expect(
+      articleBridge("Isso costuma acontecer depois de tentativas erradas. 1. Abra o portal."),
+    ).toBe("Isso costuma acontecer depois de tentativas erradas.");
+    expect(articleBridge("Reinstale o cliente de VPN. Isso resolveu?")).toBe(
+      ARTICLE_BRIDGE_FALLBACK,
+    );
+    expect(articleBridge("Siga os passos abaixo:")).toBe(ARTICLE_BRIDGE_FALLBACK);
+    expect(articleBridge("O bloqueio acontece após 3 tentativas.")).toBe(ARTICLE_BRIDGE_FALLBACK);
   });
 
   it('com o seletor, "não encontrei" sai do texto (QA R1, F2)', () => {

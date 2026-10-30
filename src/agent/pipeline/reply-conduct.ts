@@ -191,6 +191,41 @@ export function withFinalQuestion(text: string, question: string): string {
   return joinSentences([...statements, appended(question)]);
 }
 
+/** Ponte em código quando a do modelo não serve. */
+export const ARTICLE_BRIDGE_FALLBACK = "Encontrei uma orientação na central de ajuda para isso.";
+const MAX_BRIDGE_LENGTH = 140;
+/** Frase que orienta (passo), em vez de só fazer a ponte. */
+const INSTRUCTS =
+  /\b(acesse|abra|clique|selecione|escolha|instale|reinstale|reinicie|preencha|envie|use|utilize|entre|aguarde|verifique|confira|siga|digite|tente|desligue|ligue|conecte|troque|solicite|pe[cç]a|v[aá] at[eé]|baixe|atualize|limpe|redefina)\b/i;
+
+/**
+ * A ponte curta do modelo: a primeira frase, se ela não orienta nada (sem passo, sem número,
+ * sem anunciar uma lista), não pergunta e não promete o que é decidido em código.
+ */
+export function articleBridge(text: string): string {
+  const first = splitSentences(text)[0];
+  if (!first) return ARTICLE_BRIDGE_FALLBACK;
+  const sentence = first.text;
+  const usable =
+    !first.isQuestion &&
+    sentence.length <= MAX_BRIDGE_LENGTH &&
+    !/\d/.test(sentence) &&
+    !/:\s*$/.test(sentence) &&
+    !INSTRUCTS.test(sentence) &&
+    !DECIDED_IN_CODE.test(sentence) &&
+    !/\bpassos?\b/i.test(sentence);
+  return usable ? sentence : ARTICLE_BRIDGE_FALLBACK;
+}
+
+/**
+ * A orientação baseada no artigo, montada em código (QA R1: o modelo inventava passos além do
+ * artigo, como "Selecione a categoria Hardware e escolha Monitor"): a ponte curta, o corpo do
+ * artigo como está e "Isso resolveu?".
+ */
+export function articleOrientation(text: string, article: { body: string }): string {
+  return `${articleBridge(text)}\n\n${article.body.trim()}\n\n${ARTICLE_QUESTION}`;
+}
+
 /** A resposta segue o artigo: passos numerados ou a pergunta se resolveu, ajudou, funcionou. */
 export function looksLikeArticleAnswer(text: string): boolean {
   if (/^\s*\d+[.)]\s/m.test(text)) return true;

@@ -80,7 +80,7 @@ import { readConversationFacts, type ConversationFacts } from "./conversation-fa
 import { applyReturnNoteRules } from "./return-note";
 import { continueIntake, verifyUnderstanding } from "./verify-understanding";
 import {
-  ARTICLE_QUESTION,
+  articleOrientation,
   classifyQuestion,
   closedQuestionOptions,
   correction,
@@ -91,7 +91,6 @@ import {
   questionsIn,
   stripMarkdown,
   withCodeQuestion,
-  withFinalQuestion,
   withoutNotFound,
   withoutQuestions,
   YES_NO,
@@ -687,6 +686,22 @@ async function conductReply(
     workspace.hasTicketSelector() ||
     options.overdueOffer;
 
+  // Com o rascunho na resposta, "Isso resolveu?" não cabe (QA R1: ficava solto, sem botões).
+  if (workspace.draft !== null) {
+    const worked = questionsIn(modelText(turn)).filter(
+      (question) => classifyQuestion(question) === "article_worked",
+    );
+    if (worked.length > 0) {
+      replaceModelText(turn, withoutQuestionsMatching(modelText(turn), worked));
+      turn.corrections.push(
+        correction(
+          "one_question",
+          `A resposta trazia o rascunho e também "${worked[0]}"; a pergunta saiu (o card do rascunho é a pergunta do turno).`,
+        ),
+      );
+    }
+  }
+
   // Atualização que depende de um sinal que a fala não confirmou (QA R1, F3): pergunta em
   // código, com as opções da abertura, em vez de seguir sem o sinal.
   if (workspace.updateNeedsSignal && workspace.draft === null) {
@@ -730,14 +745,15 @@ async function conductReply(
     understanding.intent !== "ticket_status" &&
     looksLikeArticleAnswer(modelText(turn))
   ) {
+    // Os passos vêm do corpo do artigo, montados em código; o modelo só faz a ponte curta.
     const text = modelText(turn);
-    const fixed = withFinalQuestion(text, ARTICLE_QUESTION);
+    const fixed = articleOrientation(text, top);
     if (fixed !== text.trim()) {
       replaceModelText(turn, fixed);
       turn.corrections.push(
         correction(
-          "article_answer",
-          `A resposta seguiu o artigo "${top.part.title}" sem terminar em "Isso resolveu?": a pergunta, o card e as opções Sim e Não entraram em código.`,
+          "article_steps",
+          `A orientação saiu do corpo do artigo "${top.part.title}", montada em código com "Isso resolveu?", o card e as opções Sim e Não; o texto do modelo ("${text.trim().slice(0, 160)}") ficou de fora para não ir além do artigo.`,
         ),
       );
     }

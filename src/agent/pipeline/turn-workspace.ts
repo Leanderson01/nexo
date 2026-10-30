@@ -15,6 +15,8 @@ export type DerivedPriorityRecord = NonNullable<NonNullable<DecisionRecord["deri
 /** O artigo mais relevante: vale, falta confirmar a condição ou não vale (e por quê). */
 export interface TopArticle {
   part: ArticlePart;
+  /** O corpo do artigo: a orientação ao funcionário sai daqui, não do texto do modelo. */
+  body: string;
   status: "applies" | "needs_confirmation" | "does_not_apply";
   appliesTo: string[];
   knownValue: string | null;
