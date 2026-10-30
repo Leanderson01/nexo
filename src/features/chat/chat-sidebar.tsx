@@ -17,17 +17,34 @@ import { useNewConversation } from "./use-new-conversation";
 
 /** Navegação lateral do protótipo + histórico de conversas e "Nova conversa" (decisão 13). */
 export function ChatSidebar() {
+  return (
+    <nav className={classes.sidebar} aria-label="Navegação">
+      <NexoBrand />
+      <ChatNavigation />
+    </nav>
+  );
+}
+
+export function NexoBrand() {
+  return (
+    <div className={classes.brand}>
+      <span className={classes.brandMark}>
+        <NexoMark />
+      </span>
+      Nexo Assist
+    </div>
+  );
+}
+
+/**
+ * O conteúdo da navegação: telas, histórico, "Nova conversa", a pessoa e "Sair". A lateral
+ * (a partir de 768 px) e a gaveta do celular (`MobileNavigation`) mostram o mesmo.
+ */
+export function ChatNavigation() {
   const activeItem = activeNavItem(usePathname());
 
   return (
-    <nav className={classes.sidebar} aria-label="Navegação">
-      <div className={classes.brand}>
-        <span className={classes.brandMark}>
-          <NexoMark />
-        </span>
-        Nexo Assist
-      </div>
-
+    <>
       <NavLink
         component={Link}
         href={CHAT_PATH}
@@ -45,7 +62,7 @@ export function ChatSidebar() {
 
       <ConversationHistory />
       <CurrentPerson />
-    </nav>
+    </>
   );
 }
 

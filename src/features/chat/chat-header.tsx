@@ -4,6 +4,7 @@ import type { ConversationStatus } from "@/domain/enums";
 import classes from "./chat.module.css";
 import { conversationStatusText, type AnalystInfo } from "./chat-texts";
 import { ChevronRightIcon } from "./icons";
+import { MobileNavigation } from "./mobile-navigation";
 
 const STATUS_COLORS: Record<ConversationStatus, string> = {
   agent: "green",
@@ -33,8 +34,12 @@ export function PageHeader({ current, children }: { current: string; children?: 
   return (
     <header className={classes.header}>
       <div className={classes.breadcrumb}>
-        <span>Service desk de TI</span>
-        <ChevronRightIcon size={12} />
+        <MobileNavigation />
+        {/* No celular sobra pouco espaço: fica só a tela atual, ao lado do menu. */}
+        <span className={classes.breadcrumbRoot}>
+          Service desk de TI
+          <ChevronRightIcon size={12} />
+        </span>
         <span className={classes.breadcrumbCurrent}>{current}</span>
       </div>
       {children}

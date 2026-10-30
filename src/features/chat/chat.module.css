@@ -89,6 +89,34 @@
   border-top: 1px solid var(--mantine-color-gray-2);
 }
 
+/* ---------- Celular: menu (☰) no cabeçalho e a navegação numa gaveta ---------- */
+
+.mobileOnly {
+  @media (min-width: $mantine-breakpoint-sm) {
+    display: none;
+  }
+}
+
+.drawerContent {
+  display: flex;
+  flex-direction: column;
+}
+
+.drawerBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 10px 12px;
+}
+
+.drawerNavigation {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .main {
   display: flex;
   flex-direction: column;
@@ -103,16 +131,31 @@
   justify-content: space-between;
   gap: 12px;
   height: 52px;
-  padding: 0 24px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--mantine-color-gray-2);
   font-size: 13px;
+
+  @media (min-width: $mantine-breakpoint-sm) {
+    padding: 0 24px;
+  }
 }
 
 .breadcrumb {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   color: var(--mantine-color-gray-6);
+}
+
+.breadcrumbRoot {
+  display: none;
+  align-items: center;
+  gap: 6px;
+
+  @media (min-width: $mantine-breakpoint-sm) {
+    display: inline-flex;
+  }
 }
 
 .breadcrumbCurrent {
