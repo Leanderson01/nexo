@@ -12,7 +12,7 @@ import { isOverdue, type SlaTicket } from "@/domain/sla";
 import { isOpen } from "@/domain/ticket-rules";
 import { conversationEventText } from "@/features/chat/chat-texts";
 import type { UpdatedTicket } from "@/features/notifications/notification-texts";
-import type { ConsoleActionError } from "../../../convex/console";
+import type { ConsoleActionError, TicketUpdateError } from "../../../convex/console";
 
 // Textos e cores do console do analista (§7.4, §7.5, protótipos 05 e 06). Funções puras,
 // para testar sem a tela.
@@ -168,6 +168,12 @@ export const CONSOLE_ACTION_ERROR_TEXTS: Record<ConsoleActionError, string> = {
     "A conversa mudou de estado enquanto isso (outro analista pode ter assumido). Confira e tente de novo.",
   not_assigned: "Só quem assumiu o atendimento pode fazer isso.",
   empty: "Escreva uma mensagem antes de enviar.",
+};
+
+export const TICKET_UPDATE_ERROR_TEXTS: Record<TicketUpdateError, string> = {
+  not_found: "Não encontramos esse chamado entre os do funcionário.",
+  closed: "Esse chamado está fechado e não recebe atualizações.",
+  empty: "Escreva a atualização antes de registrar.",
 };
 
 // ---------- Painel do funcionário ----------

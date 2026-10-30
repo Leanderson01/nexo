@@ -23,6 +23,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import classes from "./console.module.css";
 import { firstName, overdueFirst, ticketCountsText, updateAuthorText } from "./console-texts";
 import { ChevronLeftIcon, CloseIcon } from "./icons";
+import { TicketUpdateForm } from "./ticket-update-form";
 
 export interface PanelEmployee {
   _id: Id<"people">;
@@ -268,6 +269,15 @@ function TicketDetailView({
             </DetailField>
             <DetailField label="Aberto em">{formatDateTime(ticket.createdAt)}</DetailField>
           </Stack>
+
+          {ticket.status !== "closed" && (
+            <TicketUpdateForm
+              key={ticket.code}
+              employeeId={employeeId}
+              code={ticket.code}
+              currentStatus={ticket.status}
+            />
+          )}
 
           <div className={classes.panelSection}>Histórico</div>
           {ticket.updates.length === 0 ? (
