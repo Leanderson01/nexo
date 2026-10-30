@@ -345,3 +345,29 @@ language: "pt" } } })` (compila, não testado).
   `chat-header.tsx`.
 - Para a T19: no celular a lateral some e não há como chegar ao perfil nem sair; a query
   `conversations.listMine` lança "Sessão expirada" no instante do logout (o redirecionamento funciona).
+
+## Onda 2
+
+### T11: rascunho fora do LLM
+
+- Rotas (401 sem sessão; erros `{ error: { code, message } }`, tabela em
+  `src/features/drafts/draft-api-errors.ts`):
+  - `POST …/pending-action/confirm { pendingActionId }` → `{ ticketCode, alreadyConfirmed, transferred }`;
+    executa pelo `HttpTicketGateway` com a chave = `_id` da `pendingAction`, grava o card do chamado com o
+    prazo da primeira resposta, marca `confirmed`; com `handoffOnConfirm`, transfere (`critical`) e chama
+    `markHandoff`. Legado fora do ar: erro retryável na conversa e o rascunho continua pendente.
+  - `POST …/pending-action/cancel { pendingActionId }` → evento `draft_cancelled`; crítico transfere mesmo assim.
+  - `PATCH …/pending-action { pendingActionId, action }` → só título, descrição, categoria, afetados e sinais;
+    a prioridade é recalculada em código.
+  - `POST …/retry` → repete o último turno com erro retryável (202) ou, se o erro foi de confirmação, confirma
+    de novo (200).
+- Convex: `convex/pendingActions.ts` (do funcionário: `loadForEmployee`, `edit`; do servidor, com segredo:
+  `completeConfirm`, `recordConfirmFailure`, `cancel`) e `convex/retry.ts`. Serviços em `src/features/drafts/`.
+- Campo novo: `messages.failedPendingActionId` (o "Tentar de novo" de uma confirmação que falhou confirma de
+  novo, sem LLM).
+- **Para a T10:** propor rascunho = inserir em `pendingActions` (`pending`, `handoffOnConfirm` no crítico,
+  `draftNumber` pelo contador `draft`), marcar o anterior como `superseded`, apontar
+  `conversations.pendingActionId` e mandar a parte `{ type: "draft", pendingActionId }`. Falha de turno sai
+  com `fail(..., retryable: true)`; o retry usa o texto da última mensagem `user`.
+- Pendências pequenas: corrida rara (rascunho vira `superseded` entre a gravação no legado e o
+  `completeConfirm`) só gera log; o aviso de erro do chat ainda é o `Alert` azul.
