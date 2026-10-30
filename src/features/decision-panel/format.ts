@@ -21,6 +21,22 @@ export const INTENT_LABELS: Record<Intent, string> = {
   unclear: "Não ficou claro",
 };
 
+/**
+ * O que a pessoa quer, em uma frase, para abrir o "O que entendi". O resumo do modelo às
+ * vezes repete a fala do funcionário; a intenção escrita assim deixa claro o que foi entendido.
+ */
+export const INTENT_SENTENCES: Record<Intent, string> = {
+  question: "Quer tirar uma dúvida.",
+  ticket_status: "Quer saber como está um chamado.",
+  open_ticket: "Quer abrir um chamado.",
+  update_ticket: "Quer complementar um chamado.",
+  confirm_or_edit_draft: "Está confirmando ou corrigindo o rascunho.",
+  talk_to_analyst: "Quer falar com um analista.",
+  out_of_scope: "Pediu algo fora da TI.",
+  greeting_or_smalltalk: "Cumprimentou ou puxou conversa.",
+  unclear: "Não deu para entender o que precisa.",
+};
+
 export const DECISION_OUTCOME_LABELS: Record<DecisionOutcome, string> = {
   answered: "Respondeu",
   asked_clarification: "Pediu um esclarecimento",
@@ -58,6 +74,40 @@ export const POLICY_OUTCOME_LABELS: Record<PolicyOutcome, string> = {
   triggered: "disparou",
   not_applicable: "não se aplica",
 };
+
+/** Nomes legíveis das políticas da §6.3; o nome técnico fica só no "ver JSON". */
+const POLICY_LABELS: Record<string, string> = {
+  OutOfScopePolicy: "Fora de escopo",
+  ExplicitHandoffPolicy: "Pedido de analista",
+  CriticalPolicy: "Caso crítico",
+  OverdueTicketPolicy: "Chamado vencido",
+  LowConfidencePolicy: "Baixa confiança",
+};
+
+/**
+ * "CriticalPolicy" → "Caso crítico". Política que não está na lista (uma nova) perde o
+ * sufixo "Policy" e ganha espaços ("NewThingPolicy" → "New thing"), em vez de aparecer crua.
+ */
+export function policyLabel(name: string): string {
+  const known = POLICY_LABELS[name];
+  if (known) return known;
+  const words = name
+    .replace(/Policy$/, "")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * Tira do texto as referências internas do projeto ("(decisão 22)", "(§6.3)"), que fazem
+ * sentido no código mas não para quem lê o painel.
+ */
+export function withoutInternalRefs(text: string): string {
+  return text
+    .replace(/\s*\((?:decis(?:ão|ões)|§)\s*[\d.,\se§]+\)/gi, "")
+    .replace(/\s+([.,;:])/g, "$1")
+    .trim();
+}
 
 // ---------- O que entendi ----------
 

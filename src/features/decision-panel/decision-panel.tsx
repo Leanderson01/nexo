@@ -12,6 +12,7 @@ import classes from "./decision-panel.module.css";
 import {
   DECISION_OUTCOME_LABELS,
   INTENT_LABELS,
+  INTENT_SENTENCES,
   POLICY_OUTCOME_LABELS,
   describeEntities,
   describePrioritySignals,
@@ -23,6 +24,8 @@ import {
   formatPriorityDeadline,
   formatTokens,
   formatTurnNotes,
+  policyLabel,
+  withoutInternalRefs,
   type EntityRow,
 } from "./format";
 
@@ -85,7 +88,7 @@ export function DecisionPanel({ record }: { record: DecisionRecord }) {
       </Section>
       <Section id="rationale">
         <Text size="sm" className={classes.prose}>
-          {record.rationale}
+          {withoutInternalRefs(record.rationale)}
         </Text>
         {formatTurnNotes(record).map((note) => (
           <Text key={note} size="sm" c="dimmed" mt={6}>
@@ -167,7 +170,11 @@ function UnderstandingSection({
   const entities = describeEntities(understanding);
   return (
     <>
-      <Text size="sm" fw={500} className={classes.prose}>
+      {/* A intenção em frase vem primeiro: o resumo do modelo às vezes só repete a fala. */}
+      <Text size="sm" fw={600} className={classes.prose}>
+        {INTENT_SENTENCES[understanding.intent]}
+      </Text>
+      <Text size="sm" className={classes.summary}>
         {understanding.summary}
       </Text>
       <FieldList
@@ -194,13 +201,13 @@ function PoliciesSection({ policies }: { policies: PolicyEvaluation[] }) {
       {policies.map((policy) => (
         <li key={policy.name} className={classes.policy} data-outcome={policy.outcome}>
           <Text size="sm">
-            <span className={classes.policyName}>{policy.name}:</span>{" "}
+            <span className={classes.policyName}>{policyLabel(policy.name)}:</span>{" "}
             <span className={classes.policyOutcome}>{POLICY_OUTCOME_LABELS[policy.outcome]}</span>
             {policy.outcome === "triggered" ? "." : null}
           </Text>
           {policy.explanation && (
             <Text size="sm" c={policy.outcome === "triggered" ? undefined : "dimmed"}>
-              {policy.explanation}
+              {withoutInternalRefs(policy.explanation)}
             </Text>
           )}
         </li>
@@ -231,12 +238,10 @@ function ActionItem({ action, step }: { action: ToolCallTrace; step: number }) {
     <li className={classes.action} data-status={action.status}>
       <span className={classes.actionStep}>{step}</span>
       <div className={classes.actionBody}>
-        <Group gap={6} wrap="wrap">
-          <Text size="sm" fw={600}>
-            {capitalize(action.label)}
-          </Text>
-          <Code className={classes.toolName}>{action.tool}</Code>
-        </Group>
+        {/* Só o rótulo ("Buscou na central de ajuda"); o nome técnico da tool fica no "ver JSON". */}
+        <Text size="sm" fw={600}>
+          {capitalize(action.label)}
+        </Text>
         <FieldList
           rows={[
             { label: "Entrada", value: action.inputSummary },
@@ -310,7 +315,7 @@ function ConfidenceSection({ confidence }: { confidence: DecisionRecord["confide
         </Text>
       </Group>
       <Text size="sm" className={classes.prose}>
-        {confidence.reason}
+        {withoutInternalRefs(confidence.reason)}
       </Text>
     </>
   );

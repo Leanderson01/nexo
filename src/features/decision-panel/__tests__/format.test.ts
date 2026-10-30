@@ -12,7 +12,39 @@ import {
   formatPriorityDeadline,
   formatTokens,
   formatTurnNotes,
+  policyLabel,
+  withoutInternalRefs,
 } from "../format";
+
+describe("policyLabel", () => {
+  test("nomes legíveis das políticas da §6.3", () => {
+    expect(policyLabel("OutOfScopePolicy")).toBe("Fora de escopo");
+    expect(policyLabel("ExplicitHandoffPolicy")).toBe("Pedido de analista");
+    expect(policyLabel("CriticalPolicy")).toBe("Caso crítico");
+    expect(policyLabel("OverdueTicketPolicy")).toBe("Chamado vencido");
+    expect(policyLabel("LowConfidencePolicy")).toBe("Baixa confiança");
+  });
+
+  test("política desconhecida perde o sufixo e ganha espaços; nome já legível fica", () => {
+    expect(policyLabel("BusinessHoursPolicy")).toBe("Business hours");
+    expect(policyLabel("Caso crítico")).toBe("Caso crítico");
+  });
+});
+
+describe("withoutInternalRefs", () => {
+  test("tira (decisão N) e (§x.y) do texto", () => {
+    expect(
+      withoutInternalRefs(
+        'O funcionário aceitou a oferta: transfere com o motivo "chamado vencido" (decisão 22).',
+      ),
+    ).toBe('O funcionário aceitou a oferta: transfere com o motivo "chamado vencido".');
+    expect(withoutInternalRefs("Confiança baixa depois de 2 perguntas (decisões 19 e 25).")).toBe(
+      "Confiança baixa depois de 2 perguntas.",
+    );
+    expect(withoutInternalRefs("Sem chamado em foco (§6.3).")).toBe("Sem chamado em foco.");
+    expect(withoutInternalRefs("Prazo de 3 dias úteis.")).toBe("Prazo de 3 dias úteis.");
+  });
+});
 
 describe("formatTurnNotes", () => {
   test("turno normal não tem nota", () => {

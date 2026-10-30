@@ -92,4 +92,29 @@ describe("DecisionPanel", () => {
     expect(text).toContain("Sem avaliação: o turno falhou antes de medir a segurança.");
     expect(text).toContain("US$ 0,00");
   });
+
+  test("sem jargão: nome técnico da política e da tool fora do texto, intenção em frase", () => {
+    const record: DecisionRecord = {
+      ...overdueTicketDecision,
+      policies: [
+        { name: "CriticalPolicy", outcome: "not_applicable", explanation: "Sem sinais." },
+        {
+          name: "OverdueTicketPolicy",
+          outcome: "triggered",
+          explanation: "Aceitou a oferta de analista (decisão 22).",
+        },
+      ],
+    };
+    const text = textOf(render(record));
+    expect(text).toContain("Caso crítico: não se aplica");
+    expect(text).toContain("Chamado vencido: disparou");
+    expect(text).toContain("Aceitou a oferta de analista.");
+    expect(text).not.toContain("decisão 22");
+    expect(text).not.toMatch(/CriticalPolicy|OverdueTicketPolicy/);
+    for (const action of record.actions) {
+      // O nome técnico só aparece no JSON (que está no HTML, mas recolhido): fora dele, não.
+      expect(text.split("ver JSON")[0]).not.toContain(action.tool);
+    }
+    expect(text).toContain("Quer saber como está um chamado.");
+  });
 });

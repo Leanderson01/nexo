@@ -56,6 +56,15 @@
   line-height: 1.5;
 }
 
+/* O resumo do modelo, abaixo da intenção: em segundo plano, como uma citação. */
+.summary {
+  margin-top: 4px;
+  padding-left: 10px;
+  border-left: 2px solid var(--nexo-color-border);
+  color: var(--nexo-color-text-secondary);
+  line-height: 1.5;
+}
+
 /* ---------- Pares rótulo/valor ---------- */
 
 .fields {
@@ -150,10 +159,6 @@
   gap: 6px;
   min-width: 0;
   flex: 1;
-}
-
-.toolName {
-  font-size: 12px;
 }
 
 .actionMeta {
