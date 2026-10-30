@@ -81,14 +81,26 @@ export function observeStep(
   return { reply: toObservedReply(replies), decision: decisionOf(replies, after.decisions) };
 }
 
-/** Partes `text` concatenadas (uma mensagem por parágrafo) e todas as partes, em ordem. */
+/**
+ * Partes `text` concatenadas (uma mensagem por parágrafo) e todas as partes, em ordem. O
+ * texto é comparado como a pessoa o lê (ver `asReadText`); as partes ficam como gravadas.
+ */
 export function toObservedReply(messages: SnapshotMessage[]): ObservedReply | null {
   if (messages.length === 0) return null;
   const text = messages
     .map((message) => textOf(message.parts))
     .filter((piece) => piece !== "")
     .join("\n\n");
-  return { text, parts: messages.flatMap((message) => message.parts) };
+  return { text: asReadText(text), parts: messages.flatMap((message) => message.parts) };
+}
+
+/**
+ * O modelo às vezes escreve "3 dias úteis" com espaço fino inseparável (U+202F) ou espaço
+ * inseparável (U+00A0). Na tela é igual a um espaço, mas um padrão como /3 dias úteis/ não
+ * casaria. Também junta acentos decompostos (NFC).
+ */
+export function asReadText(text: string): string {
+  return text.normalize("NFC").replace(/[\u00A0\u2007\u202F]/g, " ");
 }
 
 function textOf(parts: MessagePart[]): string {

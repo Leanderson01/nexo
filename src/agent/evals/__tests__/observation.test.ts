@@ -138,6 +138,16 @@ describe("observeStep", () => {
     );
   });
 
+  it("lê espaços inseparáveis como espaço comum, para os padrões de texto casarem", () => {
+    const after = snapshot({
+      messages: [
+        message("m2", "assistant", [{ type: "text", text: "prazo de 3\u202Fdias\u00A0úteis" }], 11),
+      ],
+    });
+
+    expect(observeStep(new Set(), after).reply?.text).toBe("prazo de 3 dias úteis");
+  });
+
   it("botão do rascunho: resposta sem DecisionRecord", () => {
     const after = snapshot({
       messages: [message("m2", "assistant", [{ type: "ticket", code: "INC-20500" }], 11)],
