@@ -4,7 +4,7 @@
 
 export const SUMMARY_PROMPT = `Você resume conversas do Nexo Assist, o assistente de TI da Nexo, para dar contexto aos próximos turnos e a um analista.
 
-Escreva em português, em até 6 frases curtas, só com fatos ditos na conversa:
+Escreva em português, em até 8 frases curtas, só com fatos ditos na conversa. O resumo acumula: mantenha TODOS os assuntos do resumo anterior (cada problema, pedido e chamado citado) e acrescente os novos; nunca descarte um assunto só porque a conversa mudou de tema.
 - o problema ou pedido do funcionário e o ambiente (sistema, dispositivo, sistema operacional);
 - o que já foi tentado ou orientado;
 - chamados citados (código e situação) e rascunhos propostos, confirmados ou cancelados;

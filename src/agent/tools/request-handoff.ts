@@ -3,6 +3,8 @@ import { z } from "zod";
 import { handOffToAnalyst } from "@/agent/pipeline/hand-off";
 import { HANDOFF_REASONS } from "@/domain/enums";
 
+import { problemStatement } from "@/domain/ticket-description";
+
 import type { AgentTool, ToolSession } from "./tool-session";
 
 const input = z.object({
@@ -42,7 +44,11 @@ export function requestHandoffTool(session: ToolSession): AgentTool<Input, Outpu
         store: session.store,
         tickets,
         conversationId: session.conversationId,
-        handoff: { reason, summary: summary.trim(), ...(ticketCode && { ticketCode }) },
+        handoff: {
+          reason,
+          summary: withReportedProblem(summary, session),
+          ...(ticketCode && { ticketCode }),
+        },
       });
       if (!result.ok) {
         return {
@@ -58,4 +64,15 @@ export function requestHandoffTool(session: ToolSession): AgentTool<Input, Outpu
       };
     },
   };
+}
+
+/** O resumo do modelo mais a fala do funcionário sobre o problema, que não depende dele. */
+function withReportedProblem(summary: string, session: ToolSession): string {
+  const problem = problemStatement(session.facts.employeeTexts, "").trim();
+  const tried = session.facts.articlesTried.map(
+    (title) => `Artigo "${title}" tentado, sem resolver.`,
+  );
+  return [summary.trim(), problem ? `Problema relatado: "${problem}"` : null, ...tried]
+    .filter((line) => line !== null && line !== "")
+    .join("\n");
 }

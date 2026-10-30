@@ -19,6 +19,9 @@ export interface ConversationFacts {
   previousAskedIntake: boolean;
   /** A mensagem atual responde (com uma opção ou um sim/não legível) essa pergunta. */
   answeredIntakeNow: boolean;
+  /** Artigos e chamados que o funcionário viu em card na janela (para o resumo do analista). */
+  shownArticles: string[];
+  shownTicketCodes: string[];
 }
 
 const SAID_NO = /^nao\b(?! sei)/;
@@ -61,6 +64,18 @@ export function readConversationFacts(
     lastAssistant = null;
   }
 
+  const shownParts = messages
+    .filter((message) => message.role === "assistant")
+    .flatMap((message) => message.parts);
+  const shownArticles = unique(
+    shownParts.flatMap((part) => (part.type === "article" ? [part.title] : [])),
+  );
+  const shownTicketCodes = unique(
+    shownParts.flatMap((part) =>
+      part.type === "ticket" ? [part.code] : part.type === "ticketSelector" ? part.codes : [],
+    ),
+  );
+
   const previous = previousAssistantText(messages);
   const previousQuestion = previous === null ? null : intakeQuestionIn(previous);
   return {
@@ -70,7 +85,13 @@ export function readConversationFacts(
     previousAskedIntake: previousQuestion !== null,
     answeredIntakeNow:
       previousQuestion !== null && readIntakeAnswer(previousQuestion, userText) !== null,
+    shownArticles,
+    shownTicketCodes,
   };
+}
+
+function unique(values: string[]): string[] {
+  return [...new Set(values)];
 }
 
 function setAnswer<Name extends keyof SaidSignals>(

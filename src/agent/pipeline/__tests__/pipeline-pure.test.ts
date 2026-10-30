@@ -65,6 +65,22 @@ describe("respostas em código", () => {
       'Motivo: Agent pediu ajuda.\nPedido atual: Mensagem vaga.\nChamado em foco: INC-20311.\nÚltimas mensagens do funcionário: "Está dando problema." / "Continua estranho."',
     );
   });
+
+  it("o resumo da transferência traz o problema real, o que já foi feito e os chamados", () => {
+    const summary = buildHandoffSummary({
+      reason: "overdue",
+      requestSummary: null,
+      rollingSummary: null,
+      ticketCode: "INC-20311",
+      recentEmployeeTexts: ["Sim, chamar um analista"],
+      problem: "E o meu chamado do notebook?",
+      consulted: ["consultou seus chamados"],
+      ticketCodes: ["INC-20311", "REQ-10442"],
+    });
+    expect(summary).toBe(
+      'Motivo: Chamado vencido.\nProblema relatado: "E o meu chamado do notebook?"\nChamado em foco: INC-20311.\nOutros chamados citados: REQ-10442.\nJá feito pelo Nexo Assist: consultou seus chamados.\nÚltimas mensagens do funcionário: "Sim, chamar um analista"',
+    );
+  });
 });
 
 describe("contexto do turno", () => {

@@ -3,7 +3,8 @@ import type { HandoffReason, OutOfScopeArea, RefusalTopic } from "@/domain/enums
 import { HANDOFF_REASON_LABELS } from "@/domain/labels";
 import type { MessagePart } from "@/domain/message-parts";
 import { PASSWORD_PLACEHOLDER, TOKEN_PLACEHOLDER } from "@/domain/sensitive-data";
-import type { TicketCode } from "@/domain/ticket";
+import type { TicketCode, TicketSummary } from "@/domain/ticket";
+import { explainOverdue } from "@/agent/policies/overdue-ticket-policy";
 
 // Respostas escritas em código, sem o modelo principal: curtos-circuitos do DECIDIR
 // (transferir, redirecionar, recusar), o aviso de dado sensível e as mensagens de erro (§10).
@@ -103,6 +104,14 @@ export const MODEL_FAILURE_REPLY: CodeReply = {
   ],
 };
 
+/**
+ * Chamado vencido (§8 F2 passo 3), em código: diz que está vencido, explica o prazo com a
+ * mesma base do card (a última atividade) e oferece o analista; as opções entram à parte.
+ */
+export function overdueOfferText(ticket: TicketSummary, now: number): string {
+  return `O ${ticket.code} está vencido: ${explainOverdue(ticket, now).replace(`${ticket.code} `, "")} Quer que eu chame um analista para cuidar dele?`;
+}
+
 /** Resumo do caso que acompanha toda transferência (§3.3), montado em código. */
 export function buildHandoffSummary(options: {
   reason: HandoffReason;
@@ -110,11 +119,23 @@ export function buildHandoffSummary(options: {
   rollingSummary: string | null;
   ticketCode: TicketCode | null;
   recentEmployeeTexts: string[];
+  /** A mensagem em que o funcionário contou o problema (não "Sim, chamar um analista"). */
+  problem?: string | null;
+  /** O que o agent já consultou ou mostrou: tools do turno, artigos e chamados vistos. */
+  consulted?: string[];
+  /** Chamados citados na conversa (cards, seletor, foco). */
+  ticketCodes?: TicketCode[];
 }): string {
+  const otherTickets = (options.ticketCodes ?? []).filter((code) => code !== options.ticketCode);
   const lines = [
     `Motivo: ${HANDOFF_REASON_LABELS[options.reason]}.`,
+    options.problem ? `Problema relatado: "${options.problem}"` : null,
     options.requestSummary ? `Pedido atual: ${options.requestSummary}` : null,
     options.ticketCode ? `Chamado em foco: ${options.ticketCode}.` : null,
+    otherTickets.length > 0 ? `Outros chamados citados: ${otherTickets.join(", ")}.` : null,
+    options.consulted && options.consulted.length > 0
+      ? `Já feito pelo Nexo Assist: ${options.consulted.join("; ")}.`
+      : null,
     options.rollingSummary ? `Resumo da conversa: ${options.rollingSummary}` : null,
     options.recentEmployeeTexts.length > 0
       ? `Últimas mensagens do funcionário: ${options.recentEmployeeTexts.map((text) => `"${text}"`).join(" / ")}`

@@ -20,6 +20,7 @@ import {
   buildHandoffSummary,
   LEGACY_UNAVAILABLE_REPLY,
   MODEL_FAILURE_REPLY,
+  overdueOfferText,
   sensitiveDataNotice,
   shortCircuitReply,
   type CodeReply,
@@ -85,6 +86,7 @@ import {
 } from "./reply-conduct";
 import { replyUsesNote, RETURN_NOTE_RETRY_INSTRUCTION } from "./return-note";
 import { nextMissingSignal } from "@/domain/intake-questions";
+import { problemStatement } from "@/domain/ticket-description";
 
 // Um turno do agent (§6.1), disparado pela rota de mensagens depois do 202 (`after()`, §5.7):
 //
@@ -307,10 +309,14 @@ async function answerInCode(
         reason: action.reason,
         summary: buildHandoffSummary({
           reason: action.reason,
-          requestSummary: understanding.summary,
+          // "Sim, chamar um analista" não é o pedido: o problema vem da fala do funcionário.
+          requestSummary: understanding.intent === "talk_to_analyst" ? null : understanding.summary,
           rollingSummary: turn.context.rollingSummary,
           ticketCode,
           recentEmployeeTexts: recentEmployeeTexts(turn.context),
+          problem: reportedProblem(turn.facts),
+          consulted: consultedSoFar(turn),
+          ticketCodes: turn.facts.shownTicketCodes,
         }),
         ...(ticketCode && { ticketCode }),
       },
@@ -511,7 +517,12 @@ async function answerWithModel(
   }
 
   // As opções da oferta de analista são fixas em código (decisão 22 lê a resposta).
-  if (overdueOffer) workspace.offerQuickReplies([ACCEPT_HANDOFF_OFFER, DECLINE_HANDOFF_OFFER]);
+  if (overdueOffer) {
+    workspace.offerQuickReplies([ACCEPT_HANDOFF_OFFER, DECLINE_HANDOFF_OFFER]);
+    // O prazo vencido é explicado em código, com a mesma base do card (QA: o texto dizia
+    // "4 dias" e o card "há 6 dias").
+    replaceModelText(turn, overdueOfferText(overdueOffer, turn.now));
+  }
   // Condução em código (QA C1): perguntas conhecidas com texto e opções daqui, uma por turno.
   const basedOnArticle = await conductReply(turn, {
     understanding,
@@ -1101,6 +1112,27 @@ function derivedPriorityRecord(decision: TurnDecision, now: number) {
   if (!decision.derivedPriority) return null;
   const { priority, reason } = decision.derivedPriority;
   return { value: priority, reason, dueAt: computeDueAt(priority, now) };
+}
+
+/** A fala em que o funcionário contou o problema (a mais longa da janela), se houver. */
+function reportedProblem(facts: ConversationFacts): string | null {
+  const problem = problemStatement(facts.employeeTexts, "");
+  return problem.trim() === "" ? null : problem;
+}
+
+/** O que já foi consultado, mostrado e tentado na conversa, para o analista não repetir. */
+function consultedSoFar(turn: Turn): string[] {
+  const { facts, workspace } = turn;
+  return [
+    ...new Set([
+      ...workspace.traces.filter((trace) => trace.status === "ok").map((trace) => trace.label),
+      ...facts.shownArticles.map((title) =>
+        facts.articlesTried.includes(title)
+          ? `artigo "${title}" tentado, sem resolver`
+          : `artigo "${title}" mostrado`,
+      ),
+    ]),
+  ];
 }
 
 function recentEmployeeTexts(context: LoadedContext): string[] {
