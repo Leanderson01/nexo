@@ -10,8 +10,15 @@ import { QuickReplies } from "@/features/chat/blocks/quick-replies";
 import { LiveActionChips } from "@/features/chat/blocks/reply-header";
 import { toReplySegments } from "@/features/chat/blocks/reply-segments";
 import { TypingBubble } from "@/features/chat/blocks/typing-bubble";
-import { ArrowsSwapIcon, HeadsetIcon } from "@/features/chat/icons";
 import { MessagePartView, type PartActions } from "@/features/chat/message-part-view";
+import {
+  AgentIcon,
+  EndIcon,
+  HeadsetIcon,
+  ICON_SIZE,
+  TicketIcon,
+  TransferIcon,
+} from "@/shared/icons";
 import type { api } from "../../../convex/_generated/api";
 import classes from "./console.module.css";
 import { analystLevelText, consoleEventText } from "./console-texts";
@@ -47,14 +54,18 @@ export function ConsoleMessageItem({
     case "user":
       return (
         <div className={classes.employeeRow}>
-          <TextBubble text={joinText(message.parts)} createdAt={message.createdAt} />
+          <TextBubble
+            text={joinText(message.parts)}
+            createdAt={message.createdAt}
+            author="employee"
+          />
         </div>
       );
     case "assistant":
       return (
         <div className={classes.replyRow}>
           <div className={classes.replyAuthor}>
-            Nexo Assist <span className={classes.iaBadge}>IA</span>
+            Nexo Assist <span className={classes.authorTag}>IA</span>
             {message.decisionId && message.status !== "streaming" && (
               <LiveActionChips
                 messageId={message._id}
@@ -73,7 +84,9 @@ export function ConsoleMessageItem({
           <div className={classes.replyAuthor}>
             {message.analyst?.name ?? "Analista"}
             {message.analyst && (
-              <span className={classes.levelBadge}>{analystLevelText(message.analyst.level)}</span>
+              <span className={classes.authorTag} data-team>
+                {analystLevelText(message.analyst.level)}
+              </span>
             )}
           </div>
           <ReplyParts message={message} author="analyst" chosenText={chosenText} />
@@ -102,13 +115,13 @@ function TextBubble({
 }: {
   text: string;
   createdAt: number;
-  author?: "agent" | "analyst";
+  author: "employee" | "agent" | "analyst";
   children?: React.ReactNode;
 }) {
   return (
     <div className={classes.bubble} data-author={author}>
-      {text}
-      {children}
+      {text !== "" && <span className={classes.bubbleText}>{text}</span>}
+      {children && <div className={classes.bubbleExtra}>{children}</div>}
       <span className={classes.bubbleTime}>{formatTime(createdAt)}</span>
     </div>
   );
@@ -153,7 +166,7 @@ function ReplyParts({
 function SystemLine({ part, createdAt }: { part: MessagePart; createdAt: number }) {
   if (part.type === "handoff") {
     return (
-      <EventLine icon={<ArrowsSwapIcon size={12} />}>
+      <EventLine icon={<TransferIcon size={ICON_SIZE.sm} />}>
         Transferida para analista · {HANDOFF_REASON_LABELS[part.reason]}
         {part.outOfHours && " · fora do horário"} · {formatTime(createdAt)}
       </EventLine>
@@ -176,7 +189,18 @@ function SystemLine({ part, createdAt }: { part: MessagePart; createdAt: number 
 }
 
 function eventIcon(kind: ConversationEvent) {
-  return kind === "assigned" ? <HeadsetIcon size={12} /> : <ArrowsSwapIcon size={12} />;
+  switch (kind) {
+    case "assigned":
+      return <HeadsetIcon size={ICON_SIZE.sm} />;
+    case "returned_to_agent":
+      return <AgentIcon size={ICON_SIZE.sm} />;
+    case "closed":
+      return <EndIcon size={ICON_SIZE.sm} />;
+    case "ticket_updated":
+      return <TicketIcon size={ICON_SIZE.sm} />;
+    default:
+      return <TransferIcon size={ICON_SIZE.sm} />;
+  }
 }
 
 function EventLine({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {

@@ -8,8 +8,10 @@ import type {
   TicketUpdateAuthor,
 } from "@/domain/enums";
 import { HANDOFF_REASON_LABELS, TICKET_STATUS_LABELS } from "@/domain/labels";
+import { localDay } from "@/domain/local-day";
 import { isOverdue, type SlaTicket } from "@/domain/sla";
 import { isOpen } from "@/domain/ticket-rules";
+import { formatShortDate, formatTime } from "@/features/chat/blocks/block-texts";
 import { conversationEventText } from "@/features/chat/chat-texts";
 import type { UpdatedTicket } from "@/features/notifications/notification-texts";
 import type { ConsoleActionError, TicketUpdateError } from "../../../convex/console";
@@ -21,13 +23,40 @@ const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
 
-/** Cor (nome do Mantine) de cada motivo de transferência na fila. */
-export const HANDOFF_REASON_COLORS: Record<HandoffReason, string> = {
-  critical: "red",
-  overdue: "orange",
-  low_confidence: "yellow",
-  requested: "blue",
+/**
+ * Tons de status da fundação visual (`--nexo-color-status-<tom>-dot/-text/-bg`): âmbar para o
+ * que espera, azul para o que está em andamento, verde para o que vai bem, vermelho para a
+ * transferência e cinza para o que acabou.
+ */
+export type StatusTone = "warning" | "progress" | "success" | "danger" | "neutral";
+
+/** Tom de cada motivo de transferência. No protótipo, a conversa transferida aparece em vermelho. */
+export const HANDOFF_REASON_TONES: Record<HandoffReason, StatusTone> = {
+  critical: "danger",
+  requested: "danger",
+  overdue: "warning",
+  low_confidence: "warning",
 };
+
+/** Tom do status do chamado no painel do funcionário. */
+export const TICKET_STATUS_TONES: Record<TicketStatus, StatusTone> = {
+  open: "progress",
+  in_progress: "progress",
+  awaiting_analyst: "warning",
+  awaiting_employee: "warning",
+  approved: "success",
+  resolved: "neutral",
+  closed: "neutral",
+};
+
+const AVATAR_COLOR_COUNT = 7;
+
+/** Par de cores do avatar de iniciais (`--nexo-avatar-N`), fixo para cada nome. */
+export function avatarColorIndex(name: string): number {
+  let hash = 0;
+  for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) % 1_000_003;
+  return hash % AVATAR_COLOR_COUNT;
+}
 
 export function firstName(name: string): string {
   return name.split(" ")[0] ?? name;
@@ -55,6 +84,26 @@ export function elapsedText(since: number, now: number): string {
   return days === 1 ? "1 dia" : `${days} dias`;
 }
 
+/** O dia de São Paulo anterior ao de `now`, como "2026-10-29". */
+function yesterday(now: number): string {
+  return localDay(now - DAY_MS);
+}
+
+/** Horário do item da fila, como no protótipo: "agora", "10:05", "ontem" ou "16 out". */
+export function queueTimeText(timestamp: number, now: number): string {
+  if (now - timestamp < MINUTE_MS) return "agora";
+  if (localDay(timestamp) === localDay(now)) return formatTime(timestamp);
+  if (localDay(timestamp) === yesterday(now)) return "ontem";
+  return formatShortDate(timestamp);
+}
+
+/** Separador de dia no histórico: "Hoje", "Ontem" ou "16 out". */
+export function dayLabel(timestamp: number, now: number): string {
+  if (localDay(timestamp) === localDay(now)) return "Hoje";
+  if (localDay(timestamp) === yesterday(now)) return "Ontem";
+  return formatShortDate(timestamp);
+}
+
 export interface QueueStatusInput {
   status: ConversationStatus;
   reason: HandoffReason | null;
@@ -63,28 +112,37 @@ export interface QueueStatusInput {
   isMine: boolean;
 }
 
-/** Linha colorida do item da fila: o motivo, quem atende ou o estado. */
-export function queueStatusLine(item: QueueStatusInput): { text: string; color: string } {
+export interface StatusLine {
+  text: string;
+  tone: StatusTone;
+  /** Pinta o texto com o tom; senão só o ponto ("Agent atendendo" tem o texto neutro). */
+  colorText: boolean;
+}
+
+/** Linha de status do item da fila: o motivo, quem atende ou o estado. */
+export function queueStatusLine(item: QueueStatusInput): StatusLine {
   switch (item.status) {
     case "waiting_analyst": {
       const reason = item.reason ?? "requested";
       const label = HANDOFF_REASON_LABELS[reason];
       return {
         text: item.ticketCode ? `${label} · ${item.ticketCode}` : label,
-        color: HANDOFF_REASON_COLORS[reason],
+        tone: HANDOFF_REASON_TONES[reason],
+        colorText: true,
       };
     }
     case "with_analyst":
       return item.isMine
-        ? { text: "Você está atendendo", color: "blue" }
+        ? { text: "Você está atendendo", tone: "progress", colorText: true }
         : {
             text: `Com ${firstName(item.assignedAnalystName ?? "outro analista")}`,
-            color: "gray",
+            tone: "neutral",
+            colorText: false,
           };
     case "agent":
-      return { text: "Agent atendendo", color: "green" };
+      return { text: "Agent atendendo", tone: "success", colorText: false };
     case "closed":
-      return { text: "Encerrada", color: "gray" };
+      return { text: "Encerrada", tone: "neutral", colorText: false };
   }
 }
 
@@ -108,21 +166,21 @@ export function conversationBadge(
   status: ConversationStatus,
   assignedAnalystName: string | null,
   isMine: boolean,
-): { label: string; color: string } {
+): { label: string; tone: StatusTone } {
   switch (status) {
     case "waiting_analyst":
-      return { label: "Aguardando atendente", color: "yellow" };
+      return { label: "Aguardando atendente", tone: "warning" };
     case "with_analyst":
       return isMine
-        ? { label: "Em atendimento", color: "blue" }
+        ? { label: "Em atendimento", tone: "progress" }
         : {
             label: `Em atendimento por ${firstName(assignedAnalystName ?? "outro analista")}`,
-            color: "gray",
+            tone: "neutral",
           };
     case "agent":
-      return { label: "Com o agent", color: "green" };
+      return { label: "Com o agent", tone: "success" };
     case "closed":
-      return { label: "Encerrada", color: "gray" };
+      return { label: "Encerrada", tone: "neutral" };
   }
 }
 
@@ -150,7 +208,9 @@ export function consoleEventText(
         ? `${actorName} atualizou o ${ticket.code}${ticket.status ? `: ${TICKET_STATUS_LABELS[ticket.status]}` : ""}`
         : conversationEventText(kind, actorName, ticket);
     case "assigned":
-      return `${conversationEventText(kind, actorName)} · agent pausado`;
+      return actorName
+        ? `${actorName} assumiu · agent pausado`
+        : "Analista assumiu · agent pausado";
     case "returned_to_agent":
       return actorName ? `${actorName} devolveu ao agent` : "Devolvida ao agent";
     case "closed":
@@ -177,6 +237,18 @@ export const TICKET_UPDATE_ERROR_TEXTS: Record<TicketUpdateError, string> = {
 };
 
 // ---------- Painel do funcionário ----------
+
+/**
+ * Segunda linha de um chamado no painel: "INC-20298 · Em andamento" ou, encerrado,
+ * "INC-19877 · Resolvido em 02 set". O prazo só aparece quando pede atenção (vencido ou
+ * vencendo), como `slaNote`.
+ */
+export function ticketStatusText(ticket: { status: TicketStatus; resolvedAt?: number }): string {
+  const label = TICKET_STATUS_LABELS[ticket.status];
+  return !isOpen(ticket.status) && ticket.resolvedAt
+    ? `${label} em ${formatShortDate(ticket.resolvedAt)}`
+    : label;
+}
 
 /** "3 abertos · 2 encerrados". */
 export function ticketCountsText(statuses: TicketStatus[]): string {

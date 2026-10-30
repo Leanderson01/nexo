@@ -2,14 +2,18 @@ import { describe, expect, test } from "vitest";
 
 import type { SlaTicket } from "@/domain/sla";
 import {
+  avatarColorIndex,
   consoleEventText,
   conversationBadge,
+  dayLabel,
   elapsedText,
   initials,
   lastMessagePreview,
   overdueFirst,
   queueStatusLine,
+  queueTimeText,
   ticketCountsText,
+  ticketStatusText,
 } from "../console-texts";
 
 const MINUTE = 60_000;
@@ -50,7 +54,7 @@ describe("queueStatusLine", () => {
         reason: "critical",
         ticketCode: "INC-20420",
       }),
-    ).toEqual({ text: "Caso crítico · INC-20420", color: "red" });
+    ).toEqual({ text: "Caso crítico · INC-20420", tone: "danger", colorText: true });
   });
 
   test("em atendimento: por mim ou por outro analista", () => {
@@ -66,7 +70,8 @@ describe("queueStatusLine", () => {
   test("com o agent e encerrada", () => {
     expect(queueStatusLine({ ...base, status: "agent" })).toEqual({
       text: "Agent atendendo",
-      color: "green",
+      tone: "success",
+      colorText: false,
     });
     expect(queueStatusLine({ ...base, status: "closed" }).text).toBe("Encerrada");
   });
@@ -94,7 +99,7 @@ describe("conversationBadge", () => {
 describe("consoleEventText", () => {
   test("fala do ponto de vista do analista", () => {
     expect(consoleEventText("assigned", "Ana Ribeiro (Suporte N1)")).toBe(
-      "Ana Ribeiro (Suporte N1) assumiu a conversa · agent pausado",
+      "Ana Ribeiro (Suporte N1) assumiu · agent pausado",
     );
     expect(consoleEventText("returned_to_agent", "Ana Ribeiro (Suporte N1)")).toBe(
       "Ana Ribeiro (Suporte N1) devolveu ao agent",
@@ -117,5 +122,39 @@ describe("painel do funcionário", () => {
     ];
 
     expect(overdueFirst(tickets, now).map((ticket) => ticket.code)).toEqual(["B", "A", "C"]);
+  });
+
+  test("segunda linha do chamado: o status ou quando foi resolvido", () => {
+    expect(ticketStatusText({ status: "in_progress" })).toBe("Em andamento");
+    expect(ticketStatusText({ status: "resolved", resolvedAt: Date.UTC(2026, 8, 2, 15) })).toBe(
+      "Resolvido em 02 set",
+    );
+  });
+});
+
+describe("horários e dias", () => {
+  const now = Date.UTC(2026, 9, 30, 15); // quinta, 12h em São Paulo
+
+  test("item da fila: agora, hora de hoje, ontem ou a data", () => {
+    expect(queueTimeText(now - 20_000, now)).toBe("agora");
+    expect(queueTimeText(now - 2 * HOUR, now)).toBe("10:00");
+    expect(queueTimeText(now - DAY, now)).toBe("ontem");
+    expect(queueTimeText(now - 5 * DAY, now)).toBe("25 out");
+  });
+
+  test("separador do histórico: Hoje, Ontem ou a data", () => {
+    expect(dayLabel(now - HOUR, now)).toBe("Hoje");
+    expect(dayLabel(now - DAY, now)).toBe("Ontem");
+    expect(dayLabel(now - 30 * DAY, now)).toBe("30 set");
+  });
+});
+
+describe("avatarColorIndex", () => {
+  test("a mesma pessoa tem sempre a mesma cor, entre as 7 da fundação", () => {
+    expect(avatarColorIndex("Pedro Santos")).toBe(avatarColorIndex("Pedro Santos"));
+    for (const name of ["Ana", "Carla Mendes", "Bruno Tavares", "Ölga Ürsula"]) {
+      expect(avatarColorIndex(name)).toBeGreaterThanOrEqual(0);
+      expect(avatarColorIndex(name)).toBeLessThan(7);
+    }
   });
 });

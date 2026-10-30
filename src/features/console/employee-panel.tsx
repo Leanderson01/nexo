@@ -1,28 +1,36 @@
 "use client";
 
-import { ActionIcon, Alert, Skeleton, Stack, Text } from "@mantine/core";
+import { ActionIcon, Alert, Skeleton, Stack } from "@mantine/core";
 import { useQuery } from "convex/react";
 import { useState } from "react";
 
 import type { ConversationStatus } from "@/domain/enums";
 import { PRIORITY_LABELS, TICKET_CATEGORY_LABELS, TICKET_STATUS_LABELS } from "@/domain/labels";
-import { formatSlaBadge, getSlaState, isOverdue } from "@/domain/sla";
+import { formatSlaBadge, getSlaState, type SlaState } from "@/domain/sla";
 import type { TicketSummary } from "@/domain/ticket";
-import {
-  PRIORITY_COLORS,
-  SLA_STATE_COLORS,
-  TICKET_STATUS_COLORS,
-  formatDateTime,
-  formatTime,
-} from "@/features/chat/blocks/block-texts";
-import { DotLabel } from "@/features/chat/blocks/dot-label";
+import { formatDateTime, formatTime } from "@/features/chat/blocks/block-texts";
 import { useNow } from "@/features/chat/blocks/use-now";
-import { ArrowsSwapIcon, ChevronRightIcon, HeadsetIcon } from "@/features/chat/icons";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CloseIcon,
+  HeadsetIcon,
+  ICON_SIZE,
+  TransferIcon,
+} from "@/shared/icons";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import classes from "./console.module.css";
-import { firstName, overdueFirst, ticketCountsText, updateAuthorText } from "./console-texts";
-import { ChevronLeftIcon, CloseIcon } from "./icons";
+import {
+  TICKET_STATUS_TONES,
+  firstName,
+  overdueFirst,
+  ticketCountsText,
+  ticketStatusText,
+  updateAuthorText,
+  type StatusTone,
+} from "./console-texts";
+import { StatusLabel } from "./status-label";
 import { TicketUpdateForm } from "./ticket-update-form";
 
 export interface PanelEmployee {
@@ -38,12 +46,20 @@ export interface PanelConversation {
   relatedTicketCode: string | null;
   handoffAt: number | null;
   assignedAnalystName: string | null;
+  /** Quando o analista atual assumiu (o evento no histórico). */
+  assignedAt: number | null;
 }
 
+/** Prazo que pede atenção vira tom; "no prazo", pausado e encerrado não aparecem. */
+const SLA_ALERT_TONES: Partial<Record<SlaState, StatusTone>> = {
+  overdue: "danger",
+  due_soon: "warning",
+};
+
 /**
- * Painel "Chamados do Pedro" (§7.4, protótipos 05 e 06): dados do funcionário, o chamado
- * desta conversa, os outros com status e prazo (vencidos no topo) e, ao clicar, o detalhe
- * com o histórico de atualizações.
+ * Painel "Chamados do Pedro" (§7.4, protótipos 05 e 06): o chamado desta conversa, os outros
+ * com status e prazo (vencidos no topo) e, ao clicar, o detalhe com o histórico de
+ * atualizações.
  */
 export function EmployeePanel({
   employee,
@@ -67,8 +83,14 @@ export function EmployeePanel({
             {tickets ? ticketCountsText(tickets.map((ticket) => ticket.status)) : " "}
           </div>
         </div>
-        <ActionIcon variant="subtle" color="gray" onClick={onClose} aria-label="Fechar painel">
-          <CloseIcon size={16} />
+        <ActionIcon
+          variant="subtle"
+          color="gray"
+          size={32}
+          onClick={onClose}
+          aria-label="Fechar painel"
+        >
+          <CloseIcon size={ICON_SIZE.lg} />
         </ActionIcon>
       </div>
 
@@ -81,27 +103,15 @@ export function EmployeePanel({
             now={now}
             onBack={() => setOpenCode(null)}
           />
+        ) : tickets === undefined ? (
+          <TicketsSkeleton />
         ) : (
-          <>
-            <div className={classes.employeeData}>
-              <Text size="sm" fw={600}>
-                {employee.name}
-              </Text>
-              <Text size="xs" c="dimmed">
-                {employee.department} · {employee.email}
-              </Text>
-            </div>
-            {tickets === undefined ? (
-              <TicketsSkeleton />
-            ) : (
-              <TicketLists
-                tickets={tickets}
-                conversation={conversation}
-                now={now}
-                onOpen={setOpenCode}
-              />
-            )}
-          </>
+          <TicketLists
+            tickets={tickets}
+            conversation={conversation}
+            now={now}
+            onOpen={setOpenCode}
+          />
         )}
       </div>
     </aside>
@@ -133,15 +143,16 @@ function TicketLists({
           <button type="button" className={classes.thisTicket} onClick={() => onOpen(current.code)}>
             <div className={classes.thisTicketTop}>
               <span>{current.code}</span>
-              <DotLabel color={TICKET_STATUS_COLORS[current.status]} colorText>
+              <StatusLabel tone={TICKET_STATUS_TONES[current.status]}>
                 {TICKET_STATUS_LABELS[current.status]}
-              </DotLabel>
+              </StatusLabel>
             </div>
             <div className={classes.thisTicketTitle}>{current.title}</div>
-            <Text size="xs" c="dimmed">
+            <div className={classes.thisTicketMeta}>
               {TICKET_CATEGORY_LABELS[current.category]} · prioridade{" "}
-              {PRIORITY_LABELS[current.priority].toLowerCase()} · {formatSlaBadge(current, now)}
-            </Text>
+              {PRIORITY_LABELS[current.priority].toLowerCase()}
+              <SlaAlert ticket={current} now={now} />
+            </div>
             <ConversationLine conversation={conversation} />
           </button>
         </>
@@ -149,9 +160,7 @@ function TicketLists({
 
       <div className={classes.panelSection}>{current ? "Outros chamados" : "Chamados"}</div>
       {others.length === 0 ? (
-        <Text size="xs" c="dimmed">
-          Nenhum outro chamado.
-        </Text>
+        <p className={classes.panelEmpty}>Nenhum outro chamado.</p>
       ) : (
         others.map((ticket) => (
           <TicketRow key={ticket.code} ticket={ticket} now={now} onOpen={onOpen} />
@@ -161,21 +170,34 @@ function TicketLists({
   );
 }
 
+/** " · vencido há 3 dias", em cor, só quando o prazo pede atenção. */
+function SlaAlert({ ticket, now }: { ticket: TicketSummary; now: number }) {
+  const tone = SLA_ALERT_TONES[getSlaState(ticket, now)];
+  if (!tone) return null;
+  return (
+    <span className={classes.slaAlert} data-tone={tone}>
+      {" · "}
+      {formatSlaBadge(ticket, now)}
+    </span>
+  );
+}
+
 function ConversationLine({ conversation }: { conversation: PanelConversation }) {
   if (conversation.status === "with_analyst" && conversation.assignedAnalystName) {
     return (
       <div className={classes.thisTicketFooter}>
-        <span>
-          <HeadsetIcon size={12} /> Assumido por {conversation.assignedAnalystName}
+        <span className={classes.thisTicketFooterText}>
+          <HeadsetIcon size={ICON_SIZE.sm} /> Assumido por {conversation.assignedAnalystName}
         </span>
+        {conversation.assignedAt !== null && <span>{formatTime(conversation.assignedAt)}</span>}
       </div>
     );
   }
   if (conversation.handoffAt === null) return null;
   return (
     <div className={classes.thisTicketFooter}>
-      <span>
-        <ArrowsSwapIcon size={12} /> Transferido para um analista
+      <span className={classes.thisTicketFooterText}>
+        <TransferIcon size={ICON_SIZE.sm} /> Transferido para um analista
       </span>
       <span>{formatTime(conversation.handoffAt)}</span>
     </div>
@@ -191,23 +213,20 @@ function TicketRow({
   now: number;
   onOpen: (code: string) => void;
 }) {
-  const overdue = isOverdue(ticket, now);
   return (
     <button type="button" className={classes.ticketRow} onClick={() => onOpen(ticket.code)}>
       <span
         className={classes.ticketDot}
-        style={{ color: `var(--mantine-color-${TICKET_STATUS_COLORS[ticket.status]}-6)` }}
+        data-tone={TICKET_STATUS_TONES[ticket.status]}
         aria-hidden
       />
       <span className={classes.ticketRowTitle}>{ticket.title}</span>
       <span className={classes.ticketChevron}>
-        <ChevronRightIcon size={14} />
+        <ChevronRightIcon size={ICON_SIZE.md} />
       </span>
       <span className={classes.ticketRowMeta}>
-        {ticket.code} · {TICKET_STATUS_LABELS[ticket.status]} ·{" "}
-        <span className={overdue ? classes.overdueTag : undefined}>
-          {formatSlaBadge(ticket, now)}
-        </span>
+        {ticket.code} · {ticketStatusText(ticket)}
+        <SlaAlert ticket={ticket} now={now} />
       </span>
     </button>
   );
@@ -231,7 +250,7 @@ function TicketDetailView({
   return (
     <>
       <button type="button" className={classes.backButton} onClick={onBack}>
-        <ChevronLeftIcon size={14} /> Chamados de {firstName(employeeName)}
+        <ChevronLeftIcon size={ICON_SIZE.sm} /> Chamados de {firstName(employeeName)}
       </button>
       {ticket === undefined ? (
         <TicketsSkeleton />
@@ -243,32 +262,25 @@ function TicketDetailView({
         <Stack gap="sm">
           <div className={classes.thisTicketTop}>
             <span>{ticket.code}</span>
-            <DotLabel color={TICKET_STATUS_COLORS[ticket.status]} colorText>
+            <StatusLabel tone={TICKET_STATUS_TONES[ticket.status]}>
               {TICKET_STATUS_LABELS[ticket.status]}
-            </DotLabel>
+            </StatusLabel>
           </div>
-          <Text fw={600}>{ticket.title}</Text>
-          <Text size="sm" c="dark.4">
-            {ticket.description}
-          </Text>
-          <Stack gap={4}>
+          <div className={classes.detailTitle}>{ticket.title}</div>
+          <p className={classes.detailDescription}>{ticket.description}</p>
+          <dl className={classes.detailFields}>
             <DetailField label="Categoria">{TICKET_CATEGORY_LABELS[ticket.category]}</DetailField>
-            <DetailField label="Prioridade">
-              <DotLabel color={PRIORITY_COLORS[ticket.priority]}>
-                {PRIORITY_LABELS[ticket.priority]}
-              </DotLabel>
-            </DetailField>
+            <DetailField label="Prioridade">{PRIORITY_LABELS[ticket.priority]}</DetailField>
             <DetailField label="Prazo">
               <span
-                style={{
-                  color: `var(--mantine-color-${SLA_STATE_COLORS[getSlaState(ticket, now)]}-7)`,
-                }}
+                className={classes.slaAlert}
+                data-tone={SLA_ALERT_TONES[getSlaState(ticket, now)]}
               >
                 {formatSlaBadge(ticket, now)}
               </span>
             </DetailField>
             <DetailField label="Aberto em">{formatDateTime(ticket.createdAt)}</DetailField>
-          </Stack>
+          </dl>
 
           {ticket.status !== "closed" && (
             <TicketUpdateForm
@@ -281,9 +293,7 @@ function TicketDetailView({
 
           <div className={classes.panelSection}>Histórico</div>
           {ticket.updates.length === 0 ? (
-            <Text size="xs" c="dimmed">
-              Nenhuma atualização ainda.
-            </Text>
+            <p className={classes.panelEmpty}>Nenhuma atualização ainda.</p>
           ) : (
             <ol className={classes.timeline}>
               {[...ticket.updates].reverse().map((update, index) => (
@@ -310,19 +320,17 @@ function TicketDetailView({
 
 function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <Text size="xs" component="div">
-      <Text span size="xs" c="dimmed" w={80} display="inline-block">
-        {label}
-      </Text>
-      {children}
-    </Text>
+    <div className={classes.detailField}>
+      <dt>{label}</dt>
+      <dd>{children}</dd>
+    </div>
   );
 }
 
 function TicketsSkeleton() {
   return (
     <Stack gap="sm" mt="md" aria-label="Carregando os chamados">
-      <Skeleton height={70} radius="md" />
+      <Skeleton height={120} radius="lg" />
       <Skeleton height={14} width="70%" />
       <Skeleton height={14} width="55%" />
     </Stack>

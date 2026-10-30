@@ -1,6 +1,6 @@
 "use client";
 
-import { ActionIcon, Avatar, Menu, Text, Tooltip, UnstyledButton } from "@mantine/core";
+import { Menu, Text, Tooltip, UnstyledButton } from "@mantine/core";
 import { useQuery } from "convex/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -8,12 +8,11 @@ import { Suspense } from "react";
 
 import { NexoMark } from "@/features/auth/login/icons";
 import { SignOutButton } from "@/features/auth/sign-out-button";
-import { ChatBubbleIcon } from "@/features/chat/icons";
+import { BellIcon, BellOffIcon, ChartIcon, ConversationsIcon, ICON_SIZE } from "@/shared/icons";
 import { api } from "../../../convex/_generated/api";
 import classes from "./console.module.css";
-import { initials } from "./console-texts";
 import { ConversationQueue, QueueSkeleton } from "./conversation-queue";
-import { BellIcon, BellOffIcon, ChartBarsIcon } from "./icons";
+import { InitialsAvatar } from "./initials-avatar";
 import { useFreshConversations } from "./use-fresh-conversations";
 import { useQueueAlerts } from "./use-queue-alerts";
 
@@ -41,7 +40,7 @@ export function ConsoleFrame({ children }: { children: React.ReactNode }) {
     <div className={classes.shell}>
       <nav className={classes.rail} aria-label="Navegação do console">
         <span className={classes.railBrand}>
-          <NexoMark />
+          <NexoMark size={22} />
         </span>
         {/* O trilho e a fila leem a rota (usePathname/useParams): com Cache Components, vão num Suspense. */}
         <Suspense fallback={<RailLinks waitingCount={waitingCount} pathname={null} />}>
@@ -80,7 +79,7 @@ function RailLinks({ waitingCount, pathname }: { waitingCount: number; pathname:
           data-active={pathname !== null && !onMetrics ? true : undefined}
           aria-label={`Conversas: ${waitingCount} aguardando analista`}
         >
-          <ChatBubbleIcon size={18} />
+          <ConversationsIcon size={ICON_SIZE.lg} />
           {waitingCount > 0 && <span className={classes.railBadge}>{waitingCount}</span>}
         </Link>
       </Tooltip>
@@ -91,7 +90,7 @@ function RailLinks({ waitingCount, pathname }: { waitingCount: number; pathname:
           data-active={onMetrics ? true : undefined}
           aria-label="Métricas do atendimento"
         >
-          <ChartBarsIcon size={18} />
+          <ChartIcon size={ICON_SIZE.lg} />
         </Link>
       </Tooltip>
     </>
@@ -103,18 +102,15 @@ function SoundToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   const label = on ? "Desligar o som de conversa nova" : "Ligar o som de conversa nova";
   return (
     <Tooltip label={label} position="right" withArrow>
-      <ActionIcon
-        variant="subtle"
-        color={on ? "blue" : "gray"}
-        size={34}
-        radius="md"
+      <UnstyledButton
+        className={classes.railItem}
+        data-on={on || undefined}
         onClick={onToggle}
         aria-label={label}
         aria-pressed={on}
-        mb={8}
       >
-        {on ? <BellIcon size={18} /> : <BellOffIcon size={18} />}
-      </ActionIcon>
+        {on ? <BellIcon size={ICON_SIZE.lg} /> : <BellOffIcon size={ICON_SIZE.lg} />}
+      </UnstyledButton>
     </Tooltip>
   );
 }
@@ -126,14 +122,14 @@ function AccountMenu() {
     <Menu position="right-end" withArrow>
       <Menu.Target>
         <UnstyledButton className={classes.avatarButton} aria-label="Sua conta">
-          <Avatar size={30} radius="xl" color="blue">
-            {person ? initials(person.name) : ""}
-          </Avatar>
+          {/* O analista sempre no azul da marca; o ponto verde repete o "Disponível" da fila. */}
+          <InitialsAvatar name={person?.name ?? ""} size={32} colorIndex={0} />
+          <span className={classes.onlineDot} aria-hidden />
         </UnstyledButton>
       </Menu.Target>
       <Menu.Dropdown>
         <Menu.Label>
-          <Text size="sm" fw={600} c="dark.7">
+          <Text size="sm" fw={600} c="var(--nexo-color-text)">
             {person?.name}
           </Text>
           <Text size="xs" c="dimmed">

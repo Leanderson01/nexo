@@ -1,6 +1,6 @@
 "use client";
 
-import { Avatar, Menu, Skeleton, Stack, TextInput, UnstyledButton } from "@mantine/core";
+import { Menu, Skeleton, Stack, TextInput, UnstyledButton } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
 import { useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
@@ -10,19 +10,19 @@ import { useState } from "react";
 
 import { HANDOFF_REASONS, type ConsoleTab, type HandoffReason } from "@/domain/enums";
 import { CONSOLE_TAB_LABELS, HANDOFF_REASON_LABELS } from "@/domain/labels";
-import { formatSlaBadge } from "@/domain/sla";
-import { DotLabel } from "@/features/chat/blocks/dot-label";
+import { formatSlaBadge, getSlaState } from "@/domain/sla";
 import { useNow } from "@/features/chat/blocks/use-now";
+import { FilterIcon, ICON_SIZE, SearchIcon } from "@/shared/icons";
 import { api } from "../../../convex/_generated/api";
 import classes from "./console.module.css";
 import {
-  HANDOFF_REASON_COLORS,
-  elapsedText,
-  initials,
+  HANDOFF_REASON_TONES,
   lastMessagePreview,
   queueStatusLine,
+  queueTimeText,
 } from "./console-texts";
-import { FilterIcon, SearchIcon } from "./icons";
+import { InitialsAvatar } from "./initials-avatar";
+import { StatusLabel } from "./status-label";
 
 /** As abas do protótipo; "Encerradas" fica no menu de filtros, para caber na largura da fila. */
 const OPEN_TABS: ConsoleTab[] = ["all", "for_you", "with_agent", "mine"];
@@ -76,10 +76,11 @@ export function ConversationQueue({
       <div className={classes.queueTools}>
         <TextInput
           size="sm"
-          radius="md"
+          variant="filled"
+          classNames={{ input: classes.searchInput }}
           placeholder="Pesquisar conversa ou chamado"
           aria-label="Pesquisar por funcionário, assunto ou código do chamado"
-          leftSection={<SearchIcon size={14} />}
+          leftSection={<SearchIcon size={ICON_SIZE.md} />}
           rightSection={
             <QueueFilterMenu
               reason={reason}
@@ -116,13 +117,13 @@ export function ConversationQueue({
           Filtro:
           {tab === "closed" && <span>{CONSOLE_TAB_LABELS.closed}</span>}
           {reason && (
-            <DotLabel color={HANDOFF_REASON_COLORS[reason]} colorText>
+            <StatusLabel tone={HANDOFF_REASON_TONES[reason]}>
               {HANDOFF_REASON_LABELS[reason]}
-            </DotLabel>
+            </StatusLabel>
           )}
           <UnstyledButton
             fz={12}
-            c="blue.7"
+            c="var(--nexo-color-primary)"
             onClick={() => {
               setReason(null);
               if (tab === "closed") setTab("all");
@@ -189,10 +190,10 @@ function QueueFilterMenu({
       <Menu.Target>
         <UnstyledButton
           aria-label="Filtrar por motivo ou ver encerradas"
-          c={reason ? "blue.7" : "gray.6"}
-          style={{ display: "grid", placeItems: "center" }}
+          className={classes.filterButton}
+          data-active={reason !== null || undefined}
         >
-          <FilterIcon size={14} />
+          <FilterIcon size={ICON_SIZE.md} />
         </UnstyledButton>
       </Menu.Target>
       <Menu.Dropdown>
@@ -200,7 +201,9 @@ function QueueFilterMenu({
         <Menu.Item onClick={() => onReasonChange(null)}>Todos os motivos</Menu.Item>
         {HANDOFF_REASONS.map((value) => (
           <Menu.Item key={value} onClick={() => onReasonChange(value)}>
-            <DotLabel color={HANDOFF_REASON_COLORS[value]}>{HANDOFF_REASON_LABELS[value]}</DotLabel>
+            <StatusLabel tone={HANDOFF_REASON_TONES[value]} colorText={false}>
+              {HANDOFF_REASON_LABELS[value]}
+            </StatusLabel>
           </Menu.Item>
         ))}
         <Menu.Divider />
@@ -230,8 +233,10 @@ function QueueRow({
     assignedAnalystName: item.assignedAnalystName,
     isMine: item.isMine,
   });
-  // Quem espera mostra há quanto tempo; o resto, quando foi a última mensagem.
-  const time = elapsedText(item.waitingSince ?? item.lastMessageAt, now);
+  const time = queueTimeText(item.lastMessageAt, now);
+  // O prazo do chamado só entra na linha quando pede atenção (vencido ou vencendo).
+  const slaState = item.ticket ? getSlaState(item.ticket, now) : null;
+  const showSla = slaState === "overdue" || slaState === "due_soon";
 
   return (
     <Link
@@ -242,15 +247,9 @@ function QueueRow({
       aria-current={active ? "page" : undefined}
       onClick={onOpen}
     >
-      <Avatar
-        className={classes.queueAvatar}
-        size={36}
-        radius="xl"
-        color="initials"
-        name={item.employeeName}
-      >
-        {initials(item.employeeName)}
-      </Avatar>
+      <span className={classes.queueAvatar}>
+        <InitialsAvatar name={item.employeeName} size={44} />
+      </span>
       <span className={classes.queueName}>{item.employeeName}</span>
       <span className={classes.queueTime} data-unread={item.unread > 0 || undefined}>
         {time}
@@ -264,12 +263,10 @@ function QueueRow({
         <span />
       )}
       <span className={classes.queueMeta}>
-        <DotLabel color={statusLine.color} colorText>
+        <StatusLabel tone={statusLine.tone} colorText={statusLine.colorText}>
           {statusLine.text}
-        </DotLabel>
-        {item.ticket && item.status !== "closed" && (
-          <span className={classes.slaNote}>{formatSlaBadge(item.ticket, now)}</span>
-        )}
+          {item.ticket && showSla && ` · ${formatSlaBadge(item.ticket, now)}`}
+        </StatusLabel>
       </span>
     </Link>
   );
@@ -277,13 +274,16 @@ function QueueRow({
 
 function QueueItemsSkeleton() {
   return (
-    <Stack gap="md" p={8} aria-label="Carregando a fila">
+    <Stack gap={0} aria-label="Carregando a fila">
       {[0, 1, 2].map((index) => (
-        <Stack key={index} gap={6}>
-          <Skeleton height={12} width="50%" />
-          <Skeleton height={10} width="85%" />
-          <Skeleton height={10} width="40%" />
-        </Stack>
+        <div key={index} className={classes.queueItemSkeleton}>
+          <Skeleton circle height={44} />
+          <Stack gap={8} style={{ flex: 1 }}>
+            <Skeleton height={12} width="50%" />
+            <Skeleton height={10} width="85%" />
+            <Skeleton height={10} width="40%" />
+          </Stack>
+        </div>
       ))}
     </Stack>
   );

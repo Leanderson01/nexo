@@ -3,8 +3,6 @@
 import {
   ActionIcon,
   Alert,
-  Avatar,
-  Badge,
   Button,
   Group,
   Menu,
@@ -17,31 +15,45 @@ import {
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import Link from "next/link";
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { Fragment, useEffect, useRef, useState, type RefObject } from "react";
 
 import { CONFIDENCE_LEVEL_LABELS, HANDOFF_REASON_LABELS } from "@/domain/labels";
+import { localDay } from "@/domain/local-day";
 import { ConversationBlockReads } from "@/features/chat/blocks/block-reads";
 import { findChosenText } from "@/features/chat/blocks/reply-segments";
-import { DotLabel } from "@/features/chat/blocks/dot-label";
 import { useNow } from "@/features/chat/blocks/use-now";
-import { HeadsetIcon } from "@/features/chat/icons";
 import {
   DecisionPanelDrawer,
   useDecisionPanel,
 } from "@/features/decision-panel/decision-panel-drawer";
+import {
+  AgentIcon,
+  EndIcon,
+  HandIcon,
+  HeadsetIcon,
+  ICON_SIZE,
+  MoreIcon,
+  SendMessageIcon,
+  TicketIcon,
+} from "@/shared/icons";
 import { api } from "../../../convex/_generated/api";
 import classes from "./console.module.css";
 import { ConsoleMessageItem, type ConsoleMessage } from "./console-message";
 import {
-  HANDOFF_REASON_COLORS,
+  HANDOFF_REASON_TONES,
   confidenceText,
   conversationBadge,
+  dayLabel,
   elapsedText,
   firstName,
 } from "./console-texts";
 import { EmployeePanel } from "./employee-panel";
-import { HandIcon, PauseIcon, ReturnIcon, SendIcon, StopIcon, TicketIcon } from "./icons";
+import { InitialsAvatar } from "./initials-avatar";
+import { StatusLabel } from "./status-label";
 import { useConsoleActions } from "./use-console-actions";
+
+/** Botões de ação do atendimento: no print, mais justos que o `sm` padrão do tema (18 px). */
+const ACTION_BUTTON_PADDING = 14;
 
 type ConsoleConversationData = NonNullable<FunctionReturnType<typeof api.console.getConversation>>;
 
@@ -55,6 +67,7 @@ export function ConsoleConversation({ conversationId }: { conversationId: string
   const messages = useQuery(api.console.listMessages, { conversationId });
   const [panelOpen, setPanelOpen] = useState(true);
   const decisionPanel = useDecisionPanel();
+  const now = useNow();
   const scrollerRef = useRef<HTMLDivElement>(null);
   useScrollToBottom(scrollerRef, messages);
   useMarkRead(conversationId, conversation, messages);
@@ -75,15 +88,19 @@ export function ConsoleConversation({ conversationId }: { conversationId: string
         />
 
         <div className={classes.scroller} ref={scrollerRef}>
+          {conversation.handoff && <TransferSummary conversation={conversation} />}
           <div className={classes.column}>
-            {conversation.handoff && <TransferSummary conversation={conversation} />}
             {messages.map((message: ConsoleMessage, index) => (
-              <ConsoleMessageItem
-                key={message._id}
-                message={message}
-                chosenText={findChosenText(messages, index)}
-                onShowDetails={decisionPanel.open}
-              />
+              <Fragment key={message._id}>
+                {startsNewDay(messages, index) && (
+                  <DaySeparator timestamp={message.createdAt} now={now} />
+                )}
+                <ConsoleMessageItem
+                  message={message}
+                  chosenText={findChosenText(messages, index)}
+                  onShowDetails={decisionPanel.open}
+                />
+              </Fragment>
             ))}
           </div>
         </div>
@@ -99,6 +116,7 @@ export function ConsoleConversation({ conversationId }: { conversationId: string
             relatedTicketCode: conversation.relatedTicketCode,
             handoffAt: conversation.handoff?.at ?? null,
             assignedAnalystName: conversation.assignedAnalyst?.name ?? null,
+            assignedAt: findAssignedAt(messages),
           }}
           onClose={() => setPanelOpen(false)}
         />
@@ -107,6 +125,30 @@ export function ConsoleConversation({ conversationId }: { conversationId: string
       <DecisionPanelDrawer decisionId={decisionPanel.decisionId} onClose={decisionPanel.close} />
     </ConversationBlockReads>
   );
+}
+
+/** Uma mensagem abre um dia novo quando é a primeira ou quando o dia mudou desde a anterior. */
+function startsNewDay(messages: ConsoleMessage[], index: number): boolean {
+  const previous = messages[index - 1];
+  const current = messages[index];
+  if (!previous || !current) return true;
+  return localDay(previous.createdAt) !== localDay(current.createdAt);
+}
+
+function DaySeparator({ timestamp, now }: { timestamp: number; now: number }) {
+  return (
+    <div className={classes.daySeparator} role="separator">
+      <span>{dayLabel(timestamp, now)}</span>
+    </div>
+  );
+}
+
+/** Quando o analista atual assumiu: o último evento "assumiu" do histórico. */
+function findAssignedAt(messages: ConsoleMessage[]): number | null {
+  const assigned = messages.findLast((message) =>
+    message.parts.some((part) => part.type === "event" && part.kind === "assigned"),
+  );
+  return assigned?.createdAt ?? null;
 }
 
 // ---------- Cabeçalho ----------
@@ -122,6 +164,7 @@ function ConversationHeader({
 }) {
   const { employee, status, relatedTicketCode, isMine } = conversation;
   const badge = conversationBadge(status, conversation.assignedAnalyst?.name ?? null, isMine);
+  // O "online" do protótipo fica de fora (decisão 12): departamento e chamado.
   const subtitle = [employee.department, relatedTicketCode].filter(Boolean).join(" · ");
   const actions = useConsoleActions(conversation._id);
   const [dialog, setDialog] = useState<"return" | "close" | null>(null);
@@ -136,9 +179,11 @@ function ConversationHeader({
 
   return (
     <header className={classes.header}>
-      <Avatar name={employee.name} color="initials" radius="xl" size={36} />
-      <div>
-        <div className={classes.headerName}>{employee.name}</div>
+      <InitialsAvatar name={employee.name} size={40} />
+      <div className={classes.headerText}>
+        <div className={classes.headerName} title={employee.email}>
+          {employee.name}
+        </div>
         <div className={classes.headerSub}>{subtitle}</div>
       </div>
       <div className={classes.headerActions}>
@@ -146,44 +191,43 @@ function ConversationHeader({
           // Devolver e Encerrar, no cabeçalho, enquanto o analista atende (protótipo 06).
           <>
             <Button
+              px={ACTION_BUTTON_PADDING}
               variant="default"
-              size="xs"
-              leftSection={<ReturnIcon size={14} />}
+              leftSection={<AgentIcon />}
               onClick={() => setDialog("return")}
             >
               Devolver ao agent
             </Button>
             <Button
+              px={ACTION_BUTTON_PADDING}
               variant="light"
               color="red"
-              size="xs"
-              leftSection={<StopIcon size={14} />}
+              leftSection={<EndIcon />}
               onClick={() => setDialog("close")}
             >
               Encerrar atendimento
             </Button>
           </>
         ) : (
-          <Badge color={badge.color} variant="light" radius="sm" tt="none" size="lg" fw={500}>
+          <span className={classes.stateBadge} data-tone={badge.tone}>
+            {status === "waiting_analyst" && <AgentIcon size={ICON_SIZE.sm} />}
             {badge.label}
-          </Badge>
+          </span>
         )}
         <Menu position="bottom-end" withArrow>
           <Menu.Target>
-            <ActionIcon variant="subtle" color="gray" aria-label="Mais ações">
-              <span aria-hidden style={{ fontSize: 18, lineHeight: 1 }}>
-                ⋮
-              </span>
+            <ActionIcon variant="subtle" color="gray" size={36} aria-label="Mais ações">
+              <MoreIcon size={ICON_SIZE.lg} />
             </ActionIcon>
           </Menu.Target>
           <Menu.Dropdown>
-            <Menu.Item leftSection={<TicketIcon size={14} />} onClick={onTogglePanel}>
+            <Menu.Item leftSection={<TicketIcon size={ICON_SIZE.sm} />} onClick={onTogglePanel}>
               {panelOpen ? "Esconder chamados" : "Mostrar chamados"}
             </Menu.Item>
             {canCloseFromMenu && (
               <Menu.Item
                 color="red"
-                leftSection={<StopIcon size={14} />}
+                leftSection={<EndIcon size={ICON_SIZE.sm} />}
                 onClick={() => setDialog("close")}
               >
                 Encerrar conversa
@@ -236,9 +280,9 @@ function TransferSummary({ conversation }: { conversation: ConsoleConversationDa
     <section className={classes.summary} aria-label="Resumo da transferência">
       <div className={classes.summaryTitle}>
         Resumo da transferência
-        <DotLabel color={HANDOFF_REASON_COLORS[handoff.reason]} colorText>
+        <StatusLabel tone={HANDOFF_REASON_TONES[handoff.reason]}>
           {HANDOFF_REASON_LABELS[handoff.reason]}
-        </DotLabel>
+        </StatusLabel>
         <button
           type="button"
           className={classes.summaryToggle}
@@ -297,9 +341,7 @@ function ConversationFooter({ conversation }: { conversation: ConsoleConversatio
         : "Conversa encerrada. O funcionário pode iniciar uma nova conversa.";
   return (
     <footer className={classes.footer}>
-      <Text size="sm" c="dimmed" ta="center">
-        {note}
-      </Text>
+      <p className={classes.footerNote}>{note}</p>
     </footer>
   );
 }
@@ -321,25 +363,27 @@ function WaitingFooter({ conversation }: { conversation: ConsoleConversationData
       )}
       <div className={classes.waitingBar}>
         <span className={classes.waitingIcon}>
-          <HandIcon size={16} />
+          <HandIcon size={ICON_SIZE.md} />
         </span>
-        <div>
+        <div className={classes.waitingText}>
           <div className={classes.waitingTitle}>{firstName(name)} espera um atendente</div>
           <div className={classes.waitingSub}>
             Agent pausado
-            {waitingSince !== null && ` · aguardando há ${elapsedText(waitingSince, now)}`}
+            {waitingSince !== null && ` · espera há ${elapsedText(waitingSince, now)}`}
           </div>
         </div>
         <div className={classes.footerActions}>
           <Button
+            px={ACTION_BUTTON_PADDING}
             variant="default"
-            leftSection={<ReturnIcon size={14} />}
+            leftSection={<AgentIcon />}
             onClick={() => setReturning(true)}
           >
             Devolver ao agent
           </Button>
           <Button
-            leftSection={<HeadsetIcon size={14} />}
+            px={ACTION_BUTTON_PADDING}
+            leftSection={<HeadsetIcon />}
             loading={actions.running === "assign"}
             onClick={() => void actions.assign()}
           >
@@ -349,6 +393,8 @@ function WaitingFooter({ conversation }: { conversation: ConsoleConversationData
       </div>
       <Textarea
         disabled
+        variant="filled"
+        classNames={{ input: classes.composerInput }}
         placeholder="Assuma o atendimento para responder"
         aria-label="Mensagem para o funcionário"
         autosize
@@ -397,12 +443,11 @@ function AnalystComposer({
           {actions.error}
         </Alert>
       )}
-      <div className={classes.pausedNote}>
-        <PauseIcon size={12} /> Agent pausado enquanto você atende
-      </div>
       <div className={classes.composer}>
         <Textarea
-          style={{ flex: 1 }}
+          className={classes.composerField}
+          variant="filled"
+          classNames={{ input: classes.composerInput }}
           autosize
           minRows={1}
           maxRows={6}
@@ -418,14 +463,15 @@ function AnalystComposer({
           }}
         />
         <ActionIcon
-          size={38}
+          size={44}
           radius="xl"
+          className={classes.sendButton}
           aria-label="Enviar mensagem"
           loading={actions.running === "send"}
           disabled={text.trim() === ""}
           onClick={() => void send()}
         >
-          <SendIcon size={16} />
+          <SendMessageIcon size={ICON_SIZE.lg} />
         </ActionIcon>
       </div>
     </footer>
@@ -563,7 +609,7 @@ function ConversationLoading() {
   return (
     <section className={classes.conversation} aria-label="Carregando a conversa">
       <header className={classes.header}>
-        <Skeleton circle height={36} />
+        <Skeleton circle height={40} />
         <Stack gap={6}>
           <Skeleton height={12} width={140} />
           <Skeleton height={10} width={100} />
