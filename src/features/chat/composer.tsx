@@ -16,11 +16,11 @@ interface ComposerProps {
   onSend: (text: string) => Promise<boolean>;
   onNewConversation: (options: { inheritSummary: boolean }) => void;
   isCreatingConversation: boolean;
-  /** Só existe com a conversa em `agent`: "Falar com um analista" no limite. */
+  /** Só existe com a conversa em `agent`: "Falar com um analista" no limite e no teto diário. */
   onRequestAnalyst?: () => void;
 }
 
-/** Campo de mensagem com os cinco estados da §7.2 e o contador sempre visível. */
+/** Campo de mensagem com os estados da §7.2 (e o teto diário) e o contador sempre visível. */
 export function Composer(props: ComposerProps) {
   const { state, isSending } = props;
   const [text, setText] = useState("");
@@ -114,6 +114,16 @@ function ComposerNotice(props: ComposerProps) {
           </Button>
           {props.onRequestAnalyst && (
             <Button size="xs" variant="default" onClick={props.onRequestAnalyst}>
+              Falar com um analista
+            </Button>
+          )}
+        </BlockedNotice>
+      );
+    case "daily_limit":
+      return (
+        <BlockedNotice message="O Nexo Assist atingiu o limite de uso de hoje. Você pode falar com um analista ou tentar amanhã.">
+          {props.onRequestAnalyst && (
+            <Button size="xs" onClick={props.onRequestAnalyst}>
               Falar com um analista
             </Button>
           )}

@@ -1,7 +1,7 @@
 import type { ConversationStatus } from "@/domain/enums";
 
 // Estados do campo de mensagem (§7.2), decididos num lugar só. A ordem importa:
-// encerrada vence tudo, depois o limite, depois o turno em andamento.
+// encerrada vence tudo, depois o limite, depois o turno em andamento, depois o teto diário.
 
 export type ComposerState =
   /** Livre, o agent responde. */
@@ -13,19 +13,25 @@ export type ComposerState =
   /** Bloqueado; oferece "Nova conversa (com resumo desta)" e "Falar com um analista". */
   | "limit_reached"
   /** Bloqueado; oferece "Nova conversa". */
-  | "closed";
+  | "closed"
+  /** Com o agent e o teto diário de custo atingido (§12.3); oferece "Falar com um analista". */
+  | "daily_limit";
 
 export interface ComposerConversation {
   status: ConversationStatus;
   agentBusy: boolean;
   employeeMessageCount: number;
   messageLimit: number;
+  /** Teto diário de custo do LLM atingido: o agent não responde até a meia-noite. */
+  dailyLimitReached: boolean;
 }
 
 export function getComposerState(conversation: ComposerConversation): ComposerState {
   if (conversation.status === "closed") return "closed";
   if (conversation.employeeMessageCount >= conversation.messageLimit) return "limit_reached";
   if (conversation.agentBusy) return "agent_busy";
+  // Com analista o teto não importa: a conversa segue sem o modelo.
+  if (conversation.status === "agent" && conversation.dailyLimitReached) return "daily_limit";
   if (conversation.status === "waiting_analyst" || conversation.status === "with_analyst") {
     return "analyst";
   }

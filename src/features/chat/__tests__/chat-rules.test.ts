@@ -8,6 +8,7 @@ const base: ComposerConversation = {
   agentBusy: false,
   employeeMessageCount: 3,
   messageLimit: 30,
+  dailyLimitReached: false,
 };
 
 describe("getComposerState (§7.2)", () => {
@@ -18,6 +19,17 @@ describe("getComposerState (§7.2)", () => {
     ["com analista", { status: "with_analyst" }, "analyst"],
     ["limite atingido", { employeeMessageCount: 30 }, "limit_reached"],
     ["encerrada", { status: "closed" }, "closed"],
+    ["teto diário com o agent", { dailyLimitReached: true }, "daily_limit"],
+    [
+      "teto diário não afeta o analista",
+      { status: "with_analyst", dailyLimitReached: true },
+      "analyst",
+    ],
+    [
+      "turno em andamento termina antes do aviso",
+      { agentBusy: true, dailyLimitReached: true },
+      "agent_busy",
+    ],
     ["encerrada vence o limite", { status: "closed", employeeMessageCount: 30 }, "closed"],
     [
       "limite vence o turno em andamento",
