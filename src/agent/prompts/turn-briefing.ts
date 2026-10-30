@@ -167,7 +167,7 @@ function decisionLines(input: TurnBriefingInput): string[] {
       "Complemento de um problema que já tem chamado: chame findSimilarTickets agora e proponha a atualização (ou a reabertura) neste turno, sem perguntar impacto.",
     );
   }
-  const known = knownSignalsLine(input.understanding);
+  const known = knownSignalsLine(input.understanding, hasApplicableArticle(input));
   if (known) lines.push(known);
   if (input.sensitiveNoticeWritten) {
     lines.push("O aviso sobre a senha removida já foi escrito no começo da resposta; não repita.");
@@ -176,12 +176,23 @@ function decisionLines(input: TurnBriefingInput): string[] {
 }
 
 /** Impacto e bloqueio já ditos: perguntar de novo é falha de condução (§8 F4). */
-function knownSignalsLine(understanding: Understanding): string | null {
+function knownSignalsLine(understanding: Understanding, articleFirst: boolean): string | null {
   const { impact, blocked, deadlineToday } = understanding.ticketSignals;
   if (impact === null || blocked === null) return null;
   const urgency =
     deadlineToday === null ? "" : `, compromisso hoje: ${deadlineToday ? "sim" : "não"}`;
-  return `Impacto (${impact}), bloqueio (${blocked ? "sim" : "não"})${urgency} já informados: NÃO pergunte isso de novo. Se for abrir chamado, siga direto para findSimilarTickets e a proposta neste turno.`;
+  // Com sinais completos, o modelo às vezes pulava o artigo que vale para o caso (F1).
+  const article = articleFirst
+    ? " Se o artigo que vale para o caso ainda não foi tentado nesta conversa, oriente o artigo primeiro."
+    : "";
+  return `Impacto (${impact}), bloqueio (${blocked ? "sim" : "não"})${urgency} já informados: NÃO pergunte isso de novo.${article} Se for abrir chamado, siga direto para findSimilarTickets e a proposta neste turno.`;
+}
+
+/** Há artigo que vale para o caso e nenhum chamado parecido para seguir no lugar dele. */
+function hasApplicableArticle(input: TurnBriefingInput): boolean {
+  const applicable =
+    input.articles?.some((article) => article.applicability === "applies") ?? false;
+  return applicable && (input.similarTickets?.length ?? 0) === 0;
 }
 
 function guidingLine(action: GuidingAction, input: TurnBriefingInput): string {

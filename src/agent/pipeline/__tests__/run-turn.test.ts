@@ -402,7 +402,59 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
     expect(briefing).toContain("INC-20311");
   });
 
-  it("se a nova tentativa também só promete, a resposta vira o aviso honesto", async () => {
+  it("caso crítico sem rascunho ganha nova tentativa, que propõe", async () => {
+    const turn = setup({ userText: "O sistema de vendas caiu para o time todo." });
+    turn.understands({
+      intent: "open_ticket",
+      summary: "Sistema de vendas fora do ar para a equipe.",
+      ticketSignals: { ...PRINTER_SIGNALS, category: "software", impact: "team", blocked: true },
+    });
+    turn.groq.reply(streamText(MAIN, ["Desde quando o sistema está fora do ar?"], USAGE));
+    turn.groq.reply(
+      streamToolCall(
+        MAIN,
+        {
+          id: "call_1",
+          name: "findSimilarTickets",
+          arguments: { description: "sistema de vendas fora do ar", category: "software" },
+        },
+        USAGE,
+      ),
+    );
+    turn.groq.reply(
+      streamToolCall(
+        MAIN,
+        {
+          id: "call_2",
+          name: "proposeTicketDraft",
+          arguments: {
+            kind: "INC",
+            category: "software",
+            title: "Sistema de vendas fora do ar",
+            description: "O sistema de vendas caiu para a equipe.",
+            affected: null,
+            impact: "team",
+            blocked: true,
+            deadlineToday: null,
+            referenceCode: null,
+          },
+        },
+        USAGE,
+      ),
+    );
+    turn.groq.reply(streamText(MAIN, ["É um caso crítico. Confira e confirme o rascunho."], USAGE));
+
+    await turn.run();
+
+    expect(turn.store.drafts[0]).toMatchObject({ handoffOnConfirm: true });
+    expect(turn.sink.text).toBe("É um caso crítico. Confira e confirme o rascunho.");
+    expect(turn.store.decisions[0].corrections).toEqual([
+      expect.objectContaining({ rule: "critical_without_draft" }),
+    ]);
+    expect(JSON.stringify(turn.groq.requests[2].messages)).toContain("CASO CRÍTICO: o rascunho");
+  });
+
+  it("se as duas novas tentativas também só prometem, a resposta vira o aviso honesto", async () => {
     const turn = setup({ userText: "A impressora continua sem imprimir." });
     turn.understands({
       intent: "open_ticket",
@@ -411,9 +463,11 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
     });
     turn.groq.reply(streamText(MAIN, [CLAIM], USAGE));
     turn.groq.reply(streamText(MAIN, [CLAIM], USAGE));
+    turn.groq.reply(streamText(MAIN, [CLAIM], USAGE));
 
     await turn.run();
 
+    expect(turn.groq.requests).toHaveLength(4); // ENTENDER, AGIR e duas novas tentativas
     expect(turn.store.drafts).toHaveLength(0);
     expect(turn.sink.text).toBe(DRAFT_CLAIM_FALLBACK_TEXT);
     expect(turn.store.decisions[0].corrections?.[0].rule).toBe("draft_claim_without_draft");

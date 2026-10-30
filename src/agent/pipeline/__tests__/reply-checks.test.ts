@@ -4,13 +4,16 @@ import {
   checkTicketCodes,
   claimsPreparedDraft,
   DRAFT_CLAIM_FALLBACK_TEXT,
+  draftRetryInstruction,
   extractTicketCodes,
   isNoTicketFound,
-  needsDraftRetry,
+  draftRetryReason,
+  promisesDraftCard,
   NOT_FOUND_TEXT,
   offerToOpenTicket,
   OPEN_TICKET_OPTION,
   resolveDraftRetry,
+  retrySucceeded,
 } from "../reply-checks";
 
 describe("extractTicketCodes", () => {
@@ -67,12 +70,13 @@ describe("checkTicketCodes", () => {
   });
 });
 
-describe("claimsPreparedDraft / needsDraftRetry", () => {
+describe("claimsPreparedDraft", () => {
   it.each([
     "Você já tem o INC-20395 aberto. Preparei uma atualização para ele. Confira e confirme no card.",
     "Confira o rascunho que preparei e confirme.",
     "Confira a atualização e confirme.",
     "A reabertura está no card, é só confirmar.",
+    "Vou preparar um rascunho de incidente.",
   ])('"%s" afirma que há rascunho', (text) => {
     expect(claimsPreparedDraft(text)).toBe(true);
   });
@@ -85,35 +89,106 @@ describe("claimsPreparedDraft / needsDraftRetry", () => {
   ])('"%s" não afirma', (text) => {
     expect(claimsPreparedDraft(text)).toBe(false);
   });
+});
 
-  it("só pede nova tentativa quando nenhum rascunho foi proposto nem está pendente", () => {
-    const text = "Preparei uma atualização. Confira no card.";
-    expect(needsDraftRetry({ text, draftProposed: false, pendingDraftExists: false })).toBe(true);
-    expect(needsDraftRetry({ text, draftProposed: true, pendingDraftExists: false })).toBe(false);
-    expect(needsDraftRetry({ text, draftProposed: false, pendingDraftExists: true })).toBe(false);
+describe("promisesDraftCard", () => {
+  it('"confira o card" sem nenhum card na resposta promete o rascunho', () => {
+    expect(promisesDraftCard("Por favor, confira o card que será exibido.", false)).toBe(true);
+  });
+
+  it('"confira o card" com o card do chamado na resposta é sobre ele', () => {
+    expect(promisesDraftCard("Confira o card do chamado abaixo.", true)).toBe(false);
   });
 });
 
-describe("resolveDraftRetry", () => {
+describe("draftRetryReason", () => {
+  const base = {
+    text: "Preparei uma atualização. Confira no card.",
+    draftProposed: false,
+    pendingDraftExists: false,
+    otherCardShown: false,
+    criticalCase: false,
+  };
+
+  it("promessa sem rascunho pede nova tentativa", () => {
+    expect(draftRetryReason(base)).toBe("claim");
+  });
+
+  it("caso crítico sem rascunho pede nova tentativa, mesmo sem promessa", () => {
+    expect(draftRetryReason({ ...base, text: "Desde quando?", criticalCase: true })).toBe(
+      "critical",
+    );
+  });
+
+  it("não pede com o rascunho proposto ou pendente, nem sem promessa", () => {
+    expect(draftRetryReason({ ...base, draftProposed: true })).toBeNull();
+    expect(draftRetryReason({ ...base, pendingDraftExists: true, criticalCase: true })).toBeNull();
+    expect(draftRetryReason({ ...base, text: "Qual é o seu Windows?" })).toBeNull();
+  });
+});
+
+describe("draftRetryInstruction", () => {
+  it("cita o texto anterior e, com os parecidos já procurados, manda direto à proposta", () => {
+    const instruction = draftRetryInstruction({
+      reason: "claim",
+      previousText: "Preparei o rascunho.",
+      similarConsulted: true,
+    });
+    expect(instruction).toContain('"Preparei o rascunho."');
+    expect(instruction).toContain("findSimilarTickets já foi chamada");
+    expect(
+      draftRetryInstruction({
+        reason: "critical",
+        previousText: "Desde quando?",
+        similarConsulted: false,
+      }),
+    ).toMatch(/CASO CRÍTICO[^]*chame findSimilarTickets e depois/);
+  });
+});
+
+describe("retrySucceeded / resolveDraftRetry", () => {
+  const claim = { reason: "claim" as const, otherCardShown: false };
+
   it("usa o texto da nova tentativa quando ela propôs o rascunho", () => {
     const result = resolveDraftRetry({
+      ...claim,
       retryText: "Preparei a atualização. Confira no card.",
       draftProposed: true,
     });
     expect(result.text).toBe("Preparei a atualização. Confira no card.");
+    expect(result.correction).toMatchObject({ rule: "draft_claim_without_draft" });
     expect(result.correction.explanation).toContain("propôs o rascunho");
   });
 
-  it("aceita a nova tentativa que pergunta em vez de prometer", () => {
-    const result = resolveDraftRetry({ retryText: "Quem é afetado?", draftProposed: false });
-    expect(result.text).toBe("Quem é afetado?");
+  it("fora do crítico, aceita a nova tentativa que pergunta em vez de prometer", () => {
+    expect(retrySucceeded({ ...claim, retryText: "Quem é afetado?", draftProposed: false })).toBe(
+      true,
+    );
+    expect(
+      resolveDraftRetry({ ...claim, retryText: "Quem é afetado?", draftProposed: false }).text,
+    ).toBe("Quem é afetado?");
+  });
+
+  it("no crítico, só o rascunho resolve", () => {
+    const critical = { reason: "critical" as const, otherCardShown: false };
+    expect(retrySucceeded({ ...critical, retryText: "Desde quando?", draftProposed: false })).toBe(
+      false,
+    );
+    const result = resolveDraftRetry({
+      ...critical,
+      retryText: "Desde quando?",
+      draftProposed: false,
+    });
+    expect(result.text).toBe(DRAFT_CLAIM_FALLBACK_TEXT);
+    expect(result.correction.rule).toBe("critical_without_draft");
   });
 
   it("promessa repetida sem rascunho, ou falha, vira o aviso honesto", () => {
     expect(
-      resolveDraftRetry({ retryText: "Preparei de novo, confira.", draftProposed: false }).text,
+      resolveDraftRetry({ ...claim, retryText: "Preparei de novo, confira.", draftProposed: false })
+        .text,
     ).toBe(DRAFT_CLAIM_FALLBACK_TEXT);
-    expect(resolveDraftRetry({ retryText: null, draftProposed: false }).text).toBe(
+    expect(resolveDraftRetry({ ...claim, retryText: null, draftProposed: false }).text).toBe(
       DRAFT_CLAIM_FALLBACK_TEXT,
     );
   });

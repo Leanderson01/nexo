@@ -81,6 +81,7 @@ export function checkTicketCodes(input: CodeCheckInput): CodeCheckResult | null 
 const DRAFT_CLAIM = new RegExp(
   [
     String.raw`\bpreparei\b`,
+    String.raw`\b(vou|estou) prepar(ar|ando)\b`,
     String.raw`\bdeixei pront[oa]\b`,
     String.raw`\b(confira|confirme|revise)\b[^.!?\n]*\b(rascunho|atualiza\w*|reabertura)\b`,
     String.raw`\b(rascunho|atualiza\w*|reabertura)\b[^.!?\n]*\bno card\b`,
@@ -88,56 +89,103 @@ const DRAFT_CLAIM = new RegExp(
   "i",
 );
 
+/** "Confira o card", sem dizer qual: só é legítimo se a resposta mostra algum card. */
+const POINTS_TO_CARD = /\b(confira|confirme|revise|verifique)\b[^.!?\n]*\bcard\b/i;
+
 /** O texto diz que preparou um rascunho, uma atualização ou uma reabertura para conferir. */
 export function claimsPreparedDraft(text: string): boolean {
   return DRAFT_CLAIM.test(text);
 }
 
 /**
- * O texto promete um card de rascunho, mas nenhuma tool de proposta rodou: o turno precisa de
- * uma nova tentativa do AGIR. Com rascunho pendente de outro turno, falar dele é legítimo.
+ * O texto promete um card de rascunho: diz que preparou, ou manda conferir um card quando a
+ * resposta não mostra nenhum outro card (de chamado ou seletor).
  */
-export function needsDraftRetry(input: {
+export function promisesDraftCard(text: string, otherCardShown: boolean): boolean {
+  return claimsPreparedDraft(text) || (!otherCardShown && POINTS_TO_CARD.test(text));
+}
+
+/**
+ * Por que o turno precisa de uma nova tentativa do AGIR, ou `null`:
+ * - `claim`: o texto promete um card de rascunho, mas nenhuma tool de proposta rodou;
+ * - `critical`: a CriticalPolicy mandou propor o rascunho neste turno (§6.3) e ele não saiu.
+ * Com rascunho pendente de outro turno, falar dele é legítimo e não há nova tentativa.
+ */
+export type DraftRetryReason = "claim" | "critical";
+
+export function draftRetryReason(input: {
   text: string;
   draftProposed: boolean;
   pendingDraftExists: boolean;
-}): boolean {
-  if (input.draftProposed || input.pendingDraftExists) return false;
-  return claimsPreparedDraft(input.text);
+  /** A resposta mostra card de chamado, de artigo ou seletor. */
+  otherCardShown: boolean;
+  criticalCase: boolean;
+}): DraftRetryReason | null {
+  if (input.draftProposed || input.pendingDraftExists) return null;
+  if (input.criticalCase) return "critical";
+  return promisesDraftCard(input.text, input.otherCardShown) ? "claim" : null;
 }
 
 /** Instrução extra da nova tentativa, no fim do contexto do turno. */
-export function draftRetryInstruction(firstText: string): string {
+export function draftRetryInstruction(input: {
+  reason: DraftRetryReason;
+  previousText: string;
+  similarConsulted: boolean;
+}): string {
+  const tools = input.similarConsulted
+    ? "findSimilarTickets já foi chamada neste turno: chame direto a tool de proposta certa (proposeTicketUpdate, proposeReopen ou proposeTicketDraft)"
+    : "chame findSimilarTickets e depois a tool de proposta certa (proposeTicketUpdate, proposeReopen ou proposeTicketDraft)";
+  const previous = `Na tentativa anterior deste turno você respondeu "${input.previousText.trim()}"`;
+  if (input.reason === "critical") {
+    return `## Correção (decidida em código)
+CASO CRÍTICO: o rascunho precisa sair neste turno, sem perguntas. ${previous}, sem propor o rascunho. Agora ${tools} ANTES de escrever a resposta, com os fatos que o funcionário já deu.`;
+  }
   return `## Correção (decidida em código)
-Na tentativa anterior deste turno você respondeu "${firstText.trim()}", mas não chamou nenhuma tool de proposta, então nenhum card apareceu. Agora chame a tool certa (findSimilarTickets e depois proposeTicketUpdate, proposeReopen ou proposeTicketDraft) ANTES de responder. Se faltar informação para propor, pergunte o que falta, sem dizer que preparou nada.`;
+${previous}, mas não chamou nenhuma tool de proposta, então nenhum card apareceu. Agora ${tools} ANTES de escrever a resposta. Se faltar informação para propor, pergunte o que falta, sem dizer que preparou nada.`;
 }
 
-/** Resultado da nova tentativa: o texto dela, se cumpriu; senão, a resposta honesta. */
-export function resolveDraftRetry(input: { retryText: string | null; draftProposed: boolean }): {
-  text: string;
-  correction: ReplyCorrection;
-} {
-  const usable =
-    input.retryText !== null &&
-    input.retryText.trim() !== "" &&
-    (input.draftProposed || !claimsPreparedDraft(input.retryText));
-  if (usable && input.retryText !== null) {
+/** A nova tentativa resolveu: propôs o rascunho ou, fora do crítico, respondeu sem prometer. */
+export function retrySucceeded(input: {
+  reason: DraftRetryReason;
+  retryText: string | null;
+  draftProposed: boolean;
+  otherCardShown: boolean;
+}): boolean {
+  if (input.draftProposed) return true;
+  if (input.reason === "critical" || input.retryText === null) return false;
+  return input.retryText.trim() !== "" && !promisesDraftCard(input.retryText, input.otherCardShown);
+}
+
+const RETRY_PROBLEM: Record<DraftRetryReason, string> = {
+  claim: "O texto dizia que o rascunho estava pronto sem chamar a tool de proposta",
+  critical: "Caso crítico sem o rascunho que a CriticalPolicy exige neste turno",
+};
+
+/** Resultado das novas tentativas: o texto da última, se resolveu; senão, a resposta honesta. */
+export function resolveDraftRetry(input: {
+  reason: DraftRetryReason;
+  retryText: string | null;
+  draftProposed: boolean;
+  otherCardShown: boolean;
+}): { text: string; correction: ReplyCorrection } {
+  const rule = input.reason === "critical" ? "critical_without_draft" : "draft_claim_without_draft";
+  const problem = RETRY_PROBLEM[input.reason];
+  if (retrySucceeded(input) && input.retryText !== null && input.retryText.trim() !== "") {
     return {
       text: input.retryText,
       correction: {
-        rule: "draft_claim_without_draft",
+        rule,
         explanation: input.draftProposed
-          ? "O texto dizia que o rascunho estava pronto sem chamar a tool de proposta: uma nova tentativa do AGIR propôs o rascunho."
-          : "O texto dizia que o rascunho estava pronto sem chamar a tool de proposta: a nova tentativa do AGIR respondeu sem prometer o card.",
+          ? `${problem}: uma nova tentativa do AGIR propôs o rascunho.`
+          : `${problem}: a nova tentativa do AGIR respondeu sem prometer o card.`,
       },
     };
   }
   return {
     text: DRAFT_CLAIM_FALLBACK_TEXT,
     correction: {
-      rule: "draft_claim_without_draft",
-      explanation:
-        "O texto dizia que o rascunho estava pronto sem chamar a tool de proposta, e a nova tentativa também não propôs: a resposta virou um aviso honesto.",
+      rule,
+      explanation: `${problem}, e as novas tentativas também não propuseram: a resposta virou um aviso honesto.`,
     },
   };
 }

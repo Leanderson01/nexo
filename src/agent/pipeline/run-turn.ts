@@ -14,6 +14,7 @@ import type { Understanding } from "@/domain/understanding";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import { act } from "./act";
+import { applyShortAnswerRules, describePickedReply, findPickedReply } from "./short-answers";
 import type { TurnStatePatch } from "./agent-store";
 import {
   buildHandoffSummary,
@@ -33,14 +34,14 @@ import { buildDecisionRecord } from "./record";
 import {
   checkTicketCodes,
   draftRetryInstruction,
+  draftRetryReason,
   extractTicketCodes,
   isNoTicketFound,
-  needsDraftRetry,
   offerToOpenTicket,
   resolveDraftRetry,
+  retrySucceeded,
   saysNotFound,
 } from "./reply-checks";
-import { applyShortAnswerRules, describePickedReply, findPickedReply } from "./short-answers";
 import { summarizeConversation } from "./rolling-summary";
 import {
   createConvexMessageSink,
@@ -84,6 +85,9 @@ export interface RunTurnOptions {
   /** Onde a resposta é escrita. Padrão: as mutations de convex/messages.ts. */
   sink?: AgentMessageSink;
 }
+
+/** Novas tentativas do AGIR quando o texto promete um rascunho que não foi proposto. */
+const MAX_DRAFT_RETRIES = 2;
 
 export const TURN_ERROR_MESSAGE = "Não consegui responder agora. Tente de novo em instantes.";
 
@@ -298,12 +302,15 @@ async function answerWithModel(
   workspace.criticalCase = hasOffer(decision.guidingActions, "critical");
   if (overdueOffer) workspace.showTicket(overdueOffer.code);
 
-  const articles = shouldConsultKnowledge(understanding)
-    ? await consultKnowledge(session, traceEnvironment)
-    : null;
+  // Problema que voltou com um chamado parecido: o caminho é o chamado anterior (F4), então a
+  // central não entra no contexto (o modelo seguia o artigo em vez do parecido).
   const similarTickets = shouldConsultSimilar(understanding, turn.input.userText)
     ? await consultSimilar(session, traceEnvironment)
     : null;
+  const articles =
+    shouldConsultKnowledge(understanding) && !similarTickets?.length && !workspace.legacyUnavailable
+      ? await consultKnowledge(session, traceEnvironment)
+      : null;
   if (workspace.legacyUnavailable) {
     await finishWithError(
       turn,
@@ -354,23 +361,44 @@ async function answerWithModel(
   if (!(await actSucceeded(turn, acted, { understanding, decision }))) return;
 
   // Conferências em código depois do AGIR (decisão 25).
-  if (
-    needsDraftRetry({
-      text: modelText(turn),
-      draftProposed: workspace.draft !== null,
-      pendingDraftExists: context.snapshot.pendingDraft !== null,
-    })
-  ) {
-    let retryText = "";
-    const retried = await runAct(draftRetryInstruction(modelText(turn)), async (piece) => {
-      retryText += piece;
-    });
-    if (retried.usage) addUsages(turn, turn.deps.llm.mainModel, [retried.usage]);
-    if (workspace.legacyUnavailable) replaceModelText(turn, "");
-    if (!(await actSucceeded(turn, retried, { understanding, decision }, false))) return;
+  const retryReason = draftRetryReason({
+    text: modelText(turn),
+    draftProposed: workspace.draft !== null,
+    pendingDraftExists: context.snapshot.pendingDraft !== null,
+    otherCardShown: otherCardShown(workspace),
+    criticalCase: workspace.criticalCase,
+  });
+  if (retryReason) {
+    let previousText = modelText(turn);
+    let retryText: string | null = null;
+    for (let attempt = 1; attempt <= MAX_DRAFT_RETRIES; attempt++) {
+      let text = "";
+      const instruction = draftRetryInstruction({
+        reason: retryReason,
+        previousText,
+        similarConsulted: workspace.similarTickets !== null,
+      });
+      const retried = await runAct(instruction, async (piece) => {
+        text += piece;
+      });
+      if (retried.usage) addUsages(turn, turn.deps.llm.mainModel, [retried.usage]);
+      if (workspace.legacyUnavailable) replaceModelText(turn, "");
+      if (!(await actSucceeded(turn, retried, { understanding, decision }, false))) return;
+      retryText = retried.ok ? text : null;
+      const state = {
+        reason: retryReason,
+        retryText,
+        draftProposed: workspace.draft !== null,
+        otherCardShown: otherCardShown(workspace),
+      };
+      if (retrySucceeded(state)) break;
+      if (retryText) previousText = retryText;
+    }
     const resolved = resolveDraftRetry({
-      retryText: retried.ok ? retryText : null,
+      reason: retryReason,
+      retryText,
       draftProposed: workspace.draft !== null,
+      otherCardShown: otherCardShown(workspace),
     });
     replaceModelText(turn, resolved.text);
     turn.corrections.push(resolved.correction);
@@ -483,6 +511,15 @@ async function offerToOpenWhenNoTicket(
   } else {
     replaceModelText(turn, offer.text);
   }
+}
+
+/** A resposta pode mostrar card de chamado, de artigo ou seletor ("confira o card" sobre eles). */
+function otherCardShown(workspace: TurnWorkspace): boolean {
+  return (
+    workspace.shownTickets().length > 0 ||
+    workspace.hasTicketSelector() ||
+    workspace.applicableArticle !== null
+  );
 }
 
 function ownTicketCodes(workspace: TurnWorkspace): Set<string> {

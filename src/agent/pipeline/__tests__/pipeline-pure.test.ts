@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { makeUnderstanding, MARIANA_NOTEBOOK } from "@/agent/policies/__tests__/fixtures";
+import { buildTurnBriefing, type TurnBriefingInput } from "@/agent/prompts/turn-briefing";
 import { PASSWORD_PLACEHOLDER } from "@/domain/sensitive-data";
 import { plainHyphens } from "@/shared/normalize-text";
 
@@ -136,6 +137,81 @@ describe("contexto do turno", () => {
         selectedTicket: { ...MARIANA_NOTEBOOK, lastActivityAt: NOW - 1000 },
       }),
     ).toContain("Da última vez falamos do INC-20311; ele teve uma atualização desde então");
+  });
+});
+
+describe("contexto do turno do AGIR (decisão 25)", () => {
+  const SIGNALS = {
+    kind: "INC",
+    category: "network_vpn",
+    impact: "individual",
+    blocked: true,
+    deadlineToday: false,
+  } as const;
+  const VPN_ARTICLE = {
+    slug: "vpn-erro-809",
+    title: "VPN com erro 809",
+    applicability: "applies",
+    whatToDo: "Oriente os passos.",
+    body: "Reinstale o cliente.",
+  } as const;
+
+  function briefing(overrides: Partial<TurnBriefingInput>): string {
+    return buildTurnBriefing({
+      now: NOW,
+      employee: { name: "Juliana", department: "Marketing" },
+      understanding: makeUnderstanding({ intent: "question", ticketSignals: SIGNALS }),
+      rollingSummary: null,
+      returnNote: null,
+      returnContext: null,
+      pendingDraft: null,
+      focusedTicket: null,
+      ambiguousCandidates: [],
+      employeeTickets: null,
+      guidingActions: [],
+      overdueExplanation: null,
+      articles: null,
+      sensitiveNoticeWritten: false,
+      ...overrides,
+    });
+  }
+
+  it("com sinais completos e artigo que vale, manda orientar o artigo antes do chamado", () => {
+    expect(briefing({ articles: [VPN_ARTICLE] })).toContain("oriente o artigo primeiro");
+    expect(briefing({ articles: [] })).not.toContain("oriente o artigo primeiro");
+  });
+
+  it("com um chamado parecido, o parecido vem no lugar do artigo", () => {
+    const text = briefing({
+      articles: [VPN_ARTICLE],
+      similarTickets: [
+        {
+          code: "INC-20077",
+          title: "Wi-Fi da sala 3 caindo",
+          status: "Resolvido",
+          priority: "Média",
+          category: "Rede",
+          deadline: "",
+          overdue: false,
+          lastActivity: "há 10 dias",
+          suggestedAction: "new_with_reference",
+          whatToDo: "Proponha um chamado novo com referenceCode.",
+          resolved: "há 10 dias",
+        },
+      ],
+    });
+    expect(text).toContain("Chamados parecidos");
+    expect(text).toContain("INC-20077");
+    expect(text).not.toContain("oriente o artigo primeiro");
+  });
+
+  it("consulta de chamado em foco manda mostrar com getMyTicket", () => {
+    const text = briefing({
+      understanding: makeUnderstanding({ intent: "ticket_status" }),
+      employeeTickets: [MARIANA_NOTEBOOK],
+      focusedTicket: MARIANA_NOTEBOOK,
+    });
+    expect(text).toContain(`getMyTicket("${MARIANA_NOTEBOOK.code}")`);
   });
 });
 
