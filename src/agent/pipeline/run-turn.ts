@@ -34,6 +34,7 @@ import {
 import { consultKnowledge, shouldConsultKnowledge } from "./consult-knowledge";
 import {
   consultSimilar,
+  isRecurringProblem,
   openDuplicates,
   shouldConsultSimilar,
   shouldLookForOpenDuplicate,
@@ -523,6 +524,8 @@ async function answerWithModel(
         openDuplicateCodes: [...(workspace.similarTickets?.entries() ?? [])]
           .filter(([, action]) => action === "update")
           .map(([code]) => code),
+        recurringProblem:
+          understanding.intent === "update_ticket" && isRecurringProblem(turn.input.userText),
       });
   if (retryReason) {
     const firstText = modelText(turn);

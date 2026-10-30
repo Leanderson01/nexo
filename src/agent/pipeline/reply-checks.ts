@@ -124,17 +124,24 @@ export function draftRetryReason(input: {
   criticalCase: boolean;
   /** Chamados abertos parecidos (sugestão "atualizar") consultados neste turno. */
   openDuplicateCodes?: string[];
+  /** O problema voltou ("continua sem imprimir"): com um único aberto, o caminho é atualizá-lo. */
+  recurringProblem?: boolean;
 }): DraftRetryReason | null {
   if (input.draftProposed || input.pendingDraftExists) return null;
   if (input.criticalCase) return "critical";
   if (promisesDraftCard(input.text, input.otherCardShown)) return "claim";
-  return asksAboutDuplicate(input.text, input.openDuplicateCodes ?? []) ? "duplicate" : null;
+  return asksAboutDuplicate(input.text, input.openDuplicateCodes ?? [], input.recurringProblem)
+    ? "duplicate"
+    : null;
 }
 
-/** "É o mesmo problema que já está no INC-20395?": pergunta citando o parecido aberto. */
-function asksAboutDuplicate(text: string, openCodes: string[]): boolean {
+/**
+ * "É o mesmo problema que já está no INC-20395?": pergunta citando o único parecido aberto, ou
+ * qualquer pergunta num problema que voltou com um único aberto (F4: atualizar, não perguntar).
+ */
+function asksAboutDuplicate(text: string, openCodes: string[], recurring = false): boolean {
   if (openCodes.length !== 1 || !/\?\s*$/.test(text.trim())) return false;
-  return extractTicketCodes(text).includes(openCodes[0]);
+  return recurring || extractTicketCodes(text).includes(openCodes[0]);
 }
 
 /** Instrução extra da nova tentativa, no fim do contexto do turno. */

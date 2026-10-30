@@ -201,6 +201,11 @@ describe("draftRetryReason", () => {
     expect(draftRetryReason({ ...asks, openDuplicateCodes: ["INC-20395"] })).toBe("duplicate");
     expect(draftRetryReason({ ...asks, openDuplicateCodes: [] })).toBeNull();
     expect(draftRetryReason({ ...asks, openDuplicateCodes: ["INC-20402"] })).toBeNull();
+    const detail = { ...base, text: "A mensagem de erro apareceu na tela?" };
+    expect(
+      draftRetryReason({ ...detail, openDuplicateCodes: ["INC-20395"], recurringProblem: true }),
+    ).toBe("duplicate");
+    expect(draftRetryReason({ ...detail, openDuplicateCodes: ["INC-20395"] })).toBeNull();
     const resolved = resolveDraftRetry({
       reason: "duplicate",
       retryText: "Pode ser?",
