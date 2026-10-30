@@ -6,6 +6,7 @@ import type { TicketGateway } from "@/agent/gateways/ticket-gateway";
 import type { AgentStore } from "@/agent/pipeline/agent-store";
 import type { TurnWorkspace } from "@/agent/pipeline/turn-workspace";
 import type { GatewayErrorKind } from "@/domain/enums";
+import type { SaidSignals } from "@/domain/signal-evidence";
 import type { Understanding } from "@/domain/understanding";
 
 // Contexto que as tools recebem em closure (§5.5, `createTools(sessionContext)`). O modelo
@@ -37,6 +38,8 @@ export interface ToolSession {
     employeeTexts: string[];
     /** Artigos que o funcionário disse que não resolveram. */
     articlesTried: string[];
+    /** Sinais que o ENTENDER trouxe e a fala não confirmou: antes de usá-los, o agent pergunta. */
+    unconfirmedSignals: Partial<SaidSignals>;
   };
   store: Pick<AgentStore, "createDraft" | "transfer">;
   workspace: TurnWorkspace;

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { PRIORITY_LABELS } from "@/domain/labels";
 import { derivePriority } from "@/domain/priority";
 import type { TicketDetail, TicketFieldChanges } from "@/domain/ticket";
+import type { SaidSignals, SignalName } from "@/domain/signal-evidence";
 import type { TicketSignals } from "@/domain/understanding";
 import { isOpen } from "@/domain/ticket-rules";
 
@@ -62,6 +63,21 @@ export function proposeTicketUpdateTool(session: ToolSession): AgentTool<Input, 
         };
       }
 
+      // Um sinal que a fala não confirmou mudaria a prioridade: pergunta antes (não descarta).
+      const toConfirm = signalToConfirm(
+        ticket,
+        session.understanding.ticketSignals,
+        session.facts.unconfirmedSignals,
+      );
+      if (toConfirm) {
+        workspace.updateNeedsSignal = { code: ticket.code, signal: toConfirm };
+        workspace.selectedTicketCode = ticket.code;
+        return {
+          ok: false,
+          error: `Antes de atualizar o ${ticket.code}, falta confirmar ${CONFIRM_LABELS[toConfirm]}. Não pergunte nada: o sistema faz a pergunta, com as opções, depois da sua resposta. Escreva no máximo uma frase curta de acolhimento.`,
+        };
+      }
+
       const fieldChanges = reclassify(ticket, session.understanding.ticketSignals);
       const draft = await session.store.createDraft(
         {
@@ -93,7 +109,37 @@ export function proposeTicketUpdateTool(session: ToolSession): AgentTool<Input, 
  * sinais que o ENTENDER extraiu do que o funcionário disse: na validação, o modelo do AGIR
  * inventava "bloqueado" e subia a prioridade sem motivo.
  */
-function reclassify(ticket: TicketDetail, said: TicketSignals): TicketFieldChanges | null {
+const CONFIRM_LABELS: Record<SignalName, string> = {
+  impact: "quem é afetado",
+  blocked: "se dá para trabalhar de outro jeito",
+  deadlineToday: "se há compromisso hoje",
+};
+
+const SIGNAL_ORDER: readonly SignalName[] = ["impact", "blocked", "deadlineToday"];
+
+/**
+ * O sinal que o ENTENDER trouxe sem confirmação na fala e que mudaria a nova prioridade do
+ * chamado; `null` quando nenhum muda nada (aí a atualização segue sem ele).
+ */
+export function signalToConfirm(
+  ticket: Pick<TicketDetail, "kind" | "priority" | "prioritySignals">,
+  said: TicketSignals,
+  unconfirmed: Partial<SaidSignals>,
+): SignalName | null {
+  const current = reclassify(ticket, said)?.priority ?? ticket.priority;
+  for (const signal of SIGNAL_ORDER) {
+    const value = unconfirmed[signal];
+    if (value === undefined || value === null) continue;
+    const withClaim = reclassify(ticket, { ...said, [signal]: value })?.priority ?? ticket.priority;
+    if (withClaim !== current) return signal;
+  }
+  return null;
+}
+
+function reclassify(
+  ticket: Pick<TicketDetail, "kind" | "priority" | "prioritySignals">,
+  said: TicketSignals,
+): TicketFieldChanges | null {
   if (said.impact === null && said.blocked === null && said.deadlineToday === null) return null;
   const derived = derivePriority({
     kind: ticket.kind,

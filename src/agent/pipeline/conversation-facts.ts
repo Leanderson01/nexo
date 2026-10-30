@@ -1,4 +1,9 @@
-import { intakeQuestionIn, readIntakeAnswer } from "@/domain/intake-questions";
+import {
+  intakeQuestionIn,
+  readAskedSignalAnswer,
+  readIntakeAnswer,
+  updatingTicketIn,
+} from "@/domain/intake-questions";
 import type { SaidSignals } from "@/domain/signal-evidence";
 import { normalizeText } from "@/shared/normalize-text";
 
@@ -17,6 +22,8 @@ export interface ConversationFacts {
   articlesTried: string[];
   /** O assistente fez uma pergunta de abertura na resposta anterior. */
   previousAskedIntake: boolean;
+  /** A pergunta anterior foi feita para atualizar este chamado ("Para atualizar o INC-..."). */
+  updatingTicketCode: string | null;
   /** A mensagem atual responde (com uma opção ou um sim/não legível) essa pergunta. */
   answeredIntakeNow: boolean;
   /** Artigos e chamados que o funcionário viu em card na janela (para o resumo do analista). */
@@ -53,6 +60,9 @@ export function readConversationFacts(
     if (question) {
       const value = readIntakeAnswer(question, answer);
       if (value !== null) setAnswer(answeredSignals, question.signal, value);
+    } else {
+      // Pergunta de sinal feita pelo modelo ("Está bloqueando seu trabalho?"): a resposta vale.
+      Object.assign(answeredSignals, readAskedSignalAnswer(asked, answer) ?? {});
     }
     if (/isso resolveu\?/i.test(asked) && SAID_NO.test(normalizeText(answer).trim())) {
       for (const part of lastAssistant.parts) {
@@ -83,6 +93,7 @@ export function readConversationFacts(
     answeredSignals,
     articlesTried,
     previousAskedIntake: previousQuestion !== null,
+    updatingTicketCode: previous === null ? null : updatingTicketIn(previous),
     answeredIntakeNow:
       previousQuestion !== null && readIntakeAnswer(previousQuestion, userText) !== null,
     shownArticles,

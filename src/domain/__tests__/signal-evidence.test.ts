@@ -6,6 +6,7 @@ import {
   IMPACT_QUESTION,
   intakeQuestionIn,
   nextMissingSignal,
+  readAskedSignalAnswer,
   readIntakeAnswer,
 } from "../intake-questions";
 import { findSignalSupport, sentenceSupports, verifySignals } from "../signal-evidence";
@@ -33,6 +34,100 @@ describe("sentenceSupports: o sinal só vale com uma frase que o diga", () => {
     ["deadlineToday", false, "caiu hoje cedo", false],
   ] as const)("%s = %s em %j: %s", (signal, value, sentence, expected) => {
     expect(sentenceSupports(signal, value, sentence)).toBe(expected);
+  });
+});
+
+describe("sentenceSupports: variações naturais (QA R1, F3)", () => {
+  const PEDRO =
+    "Sobre a impressora do 2º andar: agora ninguém do andar consegue imprimir e a equipe tem que entregar contratos impressos hoje à tarde.";
+
+  it.each([
+    // Bloqueio: palavras entre "ninguém" e "consegue", grupo que não consegue, verbos de trabalho.
+    ["blocked", true, PEDRO, true],
+    ["blocked", true, "Ninguém aqui no setor consegue emitir nota", true],
+    ["blocked", true, "a equipe não consegue imprimir nada", true],
+    ["blocked", true, "o time todo não consegue acessar o CRM", true],
+    ["blocked", true, "não consigo mais trabalhar", true],
+    ["blocked", true, "não consigo atender os clientes", true],
+    ["blocked", true, "não dá para faturar nada", true],
+    ["blocked", true, "estamos parados desde as 9h", true],
+    ["blocked", true, "a operação está parada", true],
+    ["blocked", true, "não consigo imprimir", false],
+    ["blocked", true, "Não consigo entrar no SAP, aparece usuário bloqueado", false],
+    ["blocked", true, "a impressora parou de novo", false],
+    ["blocked", true, "a equipe usa a impressora do 3º andar", false],
+    ["blocked", true, "só eu, ninguém mais", false],
+    ["blocked", false, "consigo trabalhar no notebook", true],
+    ["blocked", false, "não, só incomoda", true],
+    ["blocked", false, PEDRO, false],
+    // Compromisso hoje: flexões de entregar, horários e "até o fim do dia".
+    ["deadlineToday", true, PEDRO, true],
+    ["deadlineToday", true, "tenho reunião às 14h", true],
+    ["deadlineToday", true, "preciso entregar o relatório até o fim do dia", true],
+    ["deadlineToday", true, "a entrega é hoje", true],
+    ["deadlineToday", true, "os contratos precisam ser entregues hoje", true],
+    ["deadlineToday", true, "temos que enviar as notas até as 17h", true],
+    ["deadlineToday", true, "apresentação para o cliente daqui a pouco", true],
+    ["deadlineToday", true, "tenho reunião amanhã às 14h", false],
+    ["deadlineToday", true, "a reunião de ontem foi cancelada", false],
+    ["deadlineToday", true, "não tenho reunião hoje", false],
+    ["deadlineToday", true, "a impressora parou hoje à tarde", false],
+    ["deadlineToday", true, "a impressora apresenta erro hoje", false],
+    ["deadlineToday", false, "não tenho reunião hoje", true],
+    ["deadlineToday", false, "não tenho nada hoje", true],
+    // Impacto do grupo na frase do Pedro.
+    ["impact", "team", PEDRO, true],
+    ["impact", "individual", PEDRO, false],
+  ] as const)("%s = %s em %j: %s", (signal, value, sentence, expected) => {
+    expect(sentenceSupports(signal, value, sentence)).toBe(expected);
+  });
+
+  it("a frase do Pedro sustenta equipe, bloqueio e compromisso hoje (prioridade Crítica)", () => {
+    const verified = verifySignals({
+      claimed: { impact: "team", blocked: true, deadlineToday: true },
+      quotes: {},
+      answered: {},
+      employeeTexts: [PEDRO],
+    });
+    expect(verified.signals).toEqual({ impact: "team", blocked: true, deadlineToday: true });
+    expect(verified.dropped).toEqual([]);
+  });
+});
+
+describe("readAskedSignalAnswer: resposta a uma pergunta de sinal feita pelo modelo", () => {
+  it.each([
+    [
+      "A impressora do 2º andar está bloqueando seu trabalho ou só incomoda?",
+      "Sim, está bloqueando",
+      { blocked: true },
+    ],
+    [
+      "A impressora do 2º andar está bloqueando seu trabalho ou só incomoda?",
+      "Não, só incomoda",
+      { blocked: false },
+    ],
+    ["Isso está impedindo você de trabalhar?", "sim", { blocked: true }],
+    ["Isso está impedindo você de trabalhar?", "não", { blocked: false }],
+    ["Você consegue trabalhar de outra forma, com outro computador?", "sim", { blocked: false }],
+    ["Tem alguma reunião ou entrega hoje que depende disso?", "Sim", { deadlineToday: true }],
+    [
+      "Tem alguma reunião ou entrega hoje que depende disso?",
+      "não, pode esperar",
+      {
+        deadlineToday: false,
+      },
+    ],
+    ["Mais alguém da equipe está com o problema?", "Só eu", { impact: "individual" }],
+    ["Mais alguém da equipe está com o problema?", "o setor todo", { impact: "team" }],
+  ] as const)("%j → %j", (question, answer, expected) => {
+    expect(readAskedSignalAnswer(`Entendi. ${question}`, answer)).toEqual(expected);
+  });
+
+  it("ignora pergunta que não é de sinal, a de abertura e resposta ilegível", () => {
+    expect(readAskedSignalAnswer("Isso resolveu?", "Sim")).toBeNull();
+    expect(readAskedSignalAnswer("O problema começou hoje?", "sim")).toBeNull();
+    expect(readAskedSignalAnswer(BLOCKED_QUESTION.question, "sim")).toBeNull();
+    expect(readAskedSignalAnswer("Está bloqueando seu trabalho?", "talvez")).toBeNull();
   });
 });
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { makeUnderstanding } from "@/agent/policies/__tests__/fixtures";
-import { BLOCKED_QUESTION, IMPACT_QUESTION } from "@/domain/intake-questions";
+import { BLOCKED_QUESTION, IMPACT_QUESTION, updateQuestionText } from "@/domain/intake-questions";
 
 import { readConversationFacts } from "../conversation-facts";
 import {
@@ -95,6 +95,70 @@ describe("verifyUnderstanding e continueIntake", () => {
       confidence: 0.9,
     });
     expect(continueIntake(understanding, facts)).toBe(understanding);
+  });
+
+  it("a resposta à pergunta feita para atualizar um chamado continua a atualização dele", () => {
+    const answering = readConversationFacts(
+      [
+        userMessage("A impressora do 2º andar continua sem imprimir"),
+        assistantMessage([text(updateQuestionText("INC-20395", BLOCKED_QUESTION))]),
+        userMessage("Não, sem alternativa"),
+      ],
+      "Não, sem alternativa",
+    );
+    expect(answering.updatingTicketCode).toBe("INC-20395");
+    expect(answering.answeredSignals).toEqual({ blocked: true });
+    const continued = continueIntake(makeUnderstanding({ intent: "open_ticket" }), answering);
+    expect(continued.intent).toBe("update_ticket");
+    expect(continued.entities.ticketRef).toBe("INC-20395");
+  });
+
+  it('"Sim, está bloqueando" a uma pergunta de bloqueio do modelo conta como evidência', () => {
+    const answering = readConversationFacts(
+      [
+        userMessage("A impressora do 2º andar continua sem imprimir"),
+        assistantMessage([
+          text("A impressora do 2º andar está bloqueando seu trabalho ou só incomoda?"),
+          options("Sim, está bloqueando", "Não, só incomoda"),
+        ]),
+        userMessage("Sim, está bloqueando"),
+      ],
+      "Sim, está bloqueando",
+    );
+    expect(answering.answeredSignals).toEqual({ blocked: true });
+    const verified = verifyUnderstanding(
+      makeUnderstanding({
+        intent: "update_ticket",
+        ticketSignals: {
+          kind: "INC",
+          category: "hardware",
+          impact: null,
+          blocked: true,
+          deadlineToday: null,
+        },
+      }),
+      { impact: null, blocked: null, deadlineToday: null },
+      answering,
+    );
+    expect(verified.understanding.ticketSignals.blocked).toBe(true);
+    expect(verified.unconfirmed).toEqual({});
+  });
+
+  it("o que o ENTENDER trouxe e o código não confirmou fica registrado para perguntar", () => {
+    const verified = verifyUnderstanding(
+      makeUnderstanding({
+        ticketSignals: {
+          kind: "INC",
+          category: "network_vpn",
+          impact: "team",
+          blocked: true,
+          deadlineToday: null,
+        },
+      }),
+      { impact: null, blocked: null, deadlineToday: null },
+      facts,
+    );
+    expect(verified.unconfirmed).toEqual({ impact: "team", blocked: true });
   });
 });
 

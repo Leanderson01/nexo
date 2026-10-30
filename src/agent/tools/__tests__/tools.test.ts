@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { makeUnderstanding } from "@/agent/policies/__tests__/fixtures";
 import {
+  detailOf,
   FakeTicketGateway,
   fakeKnowledge,
   InMemoryAgentStore,
@@ -17,6 +18,7 @@ import type { Understanding } from "@/domain/understanding";
 import { getMyTicketTool } from "../get-my-ticket";
 import { proposeReopenTool } from "../propose-reopen";
 import { proposeTicketDraftTool } from "../propose-ticket-draft";
+import { proposeTicketUpdateTool, signalToConfirm } from "../propose-ticket-update";
 import { searchKnowledgeBaseTool } from "../search-knowledge-base";
 import type { ToolGateways, ToolSession } from "../tool-session";
 
@@ -34,6 +36,7 @@ function setup(
     understanding?: Partial<Understanding>;
     gateway?: FakeTicketGateway;
     employeeTexts?: string[];
+    unconfirmedSignals?: ToolSession["facts"]["unconfirmedSignals"];
   } = {},
 ) {
   const store = new InMemoryAgentStore();
@@ -43,7 +46,11 @@ function setup(
     conversationId: "conv_1",
     employee: { name: "Rafael Lima", department: "Comercial" },
     understanding: makeUnderstanding({ ticketSignals: SAID_SIGNALS, ...options.understanding }),
-    facts: { employeeTexts: options.employeeTexts ?? [VPN_TEXT], articlesTried: [] },
+    facts: {
+      employeeTexts: options.employeeTexts ?? [VPN_TEXT],
+      articlesTried: [],
+      unconfirmedSignals: options.unconfirmedSignals ?? {},
+    },
     store,
     workspace,
   };
@@ -195,6 +202,87 @@ describe("proposeTicketDraft", () => {
     });
     expect(accepted.ok).toBe(true);
     expect(store.drafts[0].action).toMatchObject({ ticket: { reopenedFrom: WIFI.code } });
+  });
+});
+
+describe("proposeTicketUpdate (F3, reclassificação)", () => {
+  const PRINTER = detailOf(
+    {
+      code: "INC-20395",
+      kind: "INC",
+      category: "hardware",
+      priority: "MEDIUM",
+      status: "open",
+      title: "Impressora do 2º andar não imprime",
+      createdAt: NOW - 2 * 24 * 60 * 60 * 1000,
+      lastActivityAt: NOW - 2 * 24 * 60 * 60 * 1000,
+    },
+    { prioritySignals: { impact: "team", blocked: false, deadlineToday: false } },
+  );
+  const PEDRO =
+    "Sobre a impressora do 2º andar: agora ninguém do andar consegue imprimir e a equipe tem que entregar contratos impressos hoje à tarde.";
+  const UPDATE = {
+    code: PRINTER.code,
+    text: "Ninguém do andar consegue imprimir.",
+    evidence: "ninguém do andar consegue imprimir",
+  };
+
+  it("com bloqueio e compromisso confirmados na fala, propõe a nova prioridade Crítica e transfere", async () => {
+    const { session, store, gateways } = setup({
+      gateway: new FakeTicketGateway({ tickets: [PRINTER] }),
+      employeeTexts: [PEDRO],
+      understanding: {
+        intent: "update_ticket",
+        ticketSignals: {
+          kind: "INC",
+          category: "hardware",
+          impact: "team",
+          blocked: true,
+          deadlineToday: true,
+        },
+      },
+    });
+    const result = await proposeTicketUpdateTool(session).run(UPDATE, gateways);
+    expect(result).toMatchObject({ ok: true, newPriority: "Crítica" });
+    expect(store.drafts[0].action).toMatchObject({
+      kind: "update_ticket",
+      fieldChanges: { priority: "CRITICAL" },
+    });
+    expect(store.drafts[0].handoffOnConfirm).toBe(true);
+  });
+
+  it("sinal sem confirmação que mudaria a prioridade: não propõe, pergunta", async () => {
+    const { session, store, workspace, gateways } = setup({
+      gateway: new FakeTicketGateway({ tickets: [PRINTER] }),
+      employeeTexts: ["A impressora do 2º andar continua sem imprimir"],
+      understanding: {
+        intent: "update_ticket",
+        ticketSignals: {
+          kind: "INC",
+          category: "hardware",
+          impact: null,
+          blocked: null,
+          deadlineToday: null,
+        },
+      },
+      unconfirmedSignals: { blocked: true },
+    });
+    const result = await proposeTicketUpdateTool(session).run(UPDATE, gateways);
+    expect(result).toMatchObject({ ok: false });
+    expect(store.drafts).toHaveLength(0);
+    expect(workspace.updateNeedsSignal).toEqual({ code: PRINTER.code, signal: "blocked" });
+  });
+
+  it("sinal sem confirmação que não muda nada: atualiza sem perguntar", () => {
+    const said = {
+      kind: "INC",
+      category: "hardware",
+      impact: "team",
+      blocked: true,
+      deadlineToday: null,
+    } as const;
+    expect(signalToConfirm(PRINTER, said, { deadlineToday: true })).toBeNull();
+    expect(signalToConfirm(PRINTER, { ...said, blocked: null }, { blocked: true })).toBe("blocked");
   });
 });
 

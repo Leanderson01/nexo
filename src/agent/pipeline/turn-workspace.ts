@@ -1,6 +1,7 @@
 import type { DecisionRecord, ToolCallTrace } from "@/domain/decision-record";
 import type { HandoffReason, PendingActionKind } from "@/domain/enums";
 import type { MessagePart } from "@/domain/message-parts";
+import type { SignalName } from "@/domain/signal-evidence";
 import type { DuplicateAction } from "@/domain/ticket-rules";
 import type { TicketCode, TicketSummary } from "@/domain/ticket";
 
@@ -53,6 +54,11 @@ export class TurnWorkspace {
   legacyUnavailable = false;
   /** O rascunho foi recusado por falta de sinais: o AGIR para e a pergunta sai em código. */
   draftNeedsSignals = false;
+  /**
+   * A atualização dependia de um sinal que a fala não confirmou (mudaria a prioridade): o AGIR
+   * para e a pergunta sai em código, citando o chamado.
+   */
+  updateNeedsSignal: { code: TicketCode; signal: SignalName } | null = null;
 
   private quickReplies: string[] | null = null;
   private readonly ticketCards: TicketCode[] = [];

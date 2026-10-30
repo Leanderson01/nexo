@@ -105,3 +105,80 @@ export function readIntakeAnswer<Name extends SignalName>(
   const answer = question.signal === "blocked" ? !yes : yes;
   return answer as SignalValue<Name>;
 }
+
+// Atualização de um chamado aberto em que um sinal do ENTENDER não se confirmou na fala (QA
+// R1, F3): em vez de seguir sem ele, o agent pergunta, com a mesma pergunta da abertura. O
+// texto cita o chamado, e a resposta (no turno seguinte) continua a atualização dele.
+
+const UPDATING_TICKET = /^Para atualizar o ((?:INC|REQ)-\d{5}), preciso confirmar uma coisa\./;
+
+export function updateQuestionText(code: string, question: AnyIntakeQuestion): string {
+  return `Para atualizar o ${code}, preciso confirmar uma coisa. ${question.question}`;
+}
+
+/** O chamado que a pergunta deste texto do assistente está atualizando, se for o caso. */
+export function updatingTicketIn(assistantText: string): string | null {
+  return UPDATING_TICKET.exec(assistantText.trim())?.[1] ?? null;
+}
+
+// Perguntas de sinal feitas pelo modelo (fora das de abertura), como "A impressora está
+// bloqueando seu trabalho ou só incomoda?" com "Sim, está bloqueando": a resposta dele a uma
+// pergunta do agent é a evidência do sinal, lida em código como a opção da abertura.
+
+/** "Está bloqueando/impedindo seu trabalho?": o "sim" quer dizer bloqueado. */
+const ASKS_IF_BLOCKED =
+  /\b(bloqueando|bloqueia|impedindo|impede|impedid\w*|parad\w*|travando (o |seu )?trabalho)\b/;
+/** "Consegue trabalhar de outro jeito?": o "sim" quer dizer que há alternativa. */
+const ASKS_FOR_WORKAROUND =
+  /\b(outro jeito|alternativa|contornar|(consegue|da para|da pra|tem como) (trabalhar|seguir|continuar))\b/;
+const ASKS_FOR_DEADLINE = /\b(compromisso|prazo|urgen\w*|reuniao|entrega)\b/;
+const ASKS_FOR_IMPACT =
+  /\b(afetad\w*|impacto|quem (mais )?(esta|e)|so (voce|com voce)|sua equipe|outras pessoas|mais alguem|outros colegas)\b/;
+
+const SAID_BLOCKING = /\b(bloqueando|bloqueia|impedindo|impede|sem alternativa|parad[oa]s?)\b/;
+const SAID_ONLY_BOTHERS = /\b(incomoda|atrapalha|da para seguir|da pra seguir)\b/;
+
+/** A última pergunta do texto (a frase que termina em "?"). */
+function lastQuestion(text: string): string | null {
+  const questions = text.match(/[^.!?\n]+\?/g);
+  return questions ? questions[questions.length - 1].trim() : null;
+}
+
+/**
+ * O sinal que o funcionário respondeu a uma pergunta do agent que não é de abertura, ou
+ * `null` se a pergunta não é de sinal ou a resposta não dá para ler.
+ */
+export function readAskedSignalAnswer(
+  assistantText: string,
+  userText: string,
+): Partial<SaidSignals> | null {
+  const question = lastQuestion(assistantText);
+  if (!question || intakeQuestionIn(assistantText)) return null;
+  const asked = normalizeText(question);
+  const typed = normalizeText(userText).trim();
+  const yes = SAID_YES.test(typed);
+  const no = SAID_NO.test(typed);
+
+  const asksIfBlocked = ASKS_IF_BLOCKED.test(asked);
+  const asksForWorkaround = ASKS_FOR_WORKAROUND.test(asked);
+  if (asksIfBlocked || asksForWorkaround) {
+    if (SAID_BLOCKING.test(typed)) return { blocked: true };
+    if (SAID_ONLY_BOTHERS.test(typed)) return { blocked: false };
+    if (yes === no) return null;
+    // "Está bloqueando?": sim = bloqueado. "Consegue de outro jeito?": sim = não bloqueado.
+    return { blocked: asksIfBlocked && !asksForWorkaround ? yes : !yes };
+  }
+  if (ASKS_FOR_DEADLINE.test(asked)) {
+    if (sentenceSupports("deadlineToday", false, userText)) return { deadlineToday: false };
+    if (yes === no) return null;
+    return { deadlineToday: yes };
+  }
+  if (ASKS_FOR_IMPACT.test(asked)) {
+    const said = IMPACT_QUESTION.options.find(
+      (item) =>
+        normalizeText(item.label) === typed || sentenceSupports("impact", item.value, userText),
+    );
+    return said ? { impact: said.value } : null;
+  }
+  return null;
+}

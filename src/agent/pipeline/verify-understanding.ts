@@ -1,5 +1,5 @@
 import type { ReplyCorrection } from "@/domain/decision-record";
-import { verifySignals, type SignalName } from "@/domain/signal-evidence";
+import { verifySignals, type SaidSignals, type SignalName } from "@/domain/signal-evidence";
 import { saidOperatingSystem } from "@/domain/ticket-description";
 import type { Understanding } from "@/domain/understanding";
 import { normalizeText } from "@/shared/normalize-text";
@@ -22,7 +22,12 @@ export function verifyUnderstanding(
   understanding: Understanding,
   quotes: SignalQuotes,
   facts: ConversationFacts,
-): { understanding: Understanding; corrections: ReplyCorrection[] } {
+): {
+  understanding: Understanding;
+  corrections: ReplyCorrection[];
+  /** O que o ENTENDER trouxe e o código não confirmou (o sinal ficou nulo): o agent pergunta. */
+  unconfirmed: Partial<SaidSignals>;
+} {
   const { kind, category, ...claimed } = understanding.ticketSignals;
   const verified = verifySignals({
     claimed,
@@ -49,6 +54,13 @@ export function verifyUnderstanding(
     });
   }
 
+  const unconfirmed: Partial<SaidSignals> = {};
+  for (const signal of SIGNAL_NAMES) {
+    if (verified.signals[signal] === null && claimed[signal] !== null) {
+      Object.assign(unconfirmed, { [signal]: claimed[signal] });
+    }
+  }
+
   return {
     understanding: {
       ...understanding,
@@ -56,8 +68,11 @@ export function verifyUnderstanding(
       ticketSignals: { kind, category, ...verified.signals },
     },
     corrections,
+    unconfirmed,
   };
 }
+
+const SIGNAL_NAMES: readonly SignalName[] = ["impact", "blocked", "deadlineToday"];
 
 /** "Não sei" fica se ele disse (a condição do artigo segue desconhecida); o resto, se dito. */
 function verifiedOs(os: string | null, employeeTexts: string[]): string | null {
@@ -80,6 +95,17 @@ export function continueIntake(
   facts: ConversationFacts,
 ): Understanding {
   if (!facts.answeredIntakeNow) return understanding;
+  // A pergunta foi feita para atualizar um chamado aberto ("Para atualizar o INC-20395..."):
+  // o assunto continua sendo a atualização dele, não um chamado novo.
+  if (facts.updatingTicketCode) {
+    return {
+      ...understanding,
+      intent: "update_ticket",
+      entities: { ...understanding.entities, ticketRef: facts.updatingTicketCode },
+      confidence: Math.max(understanding.confidence, ANSWERED_CONFIDENCE),
+      confidenceReason: `Respondeu à pergunta feita para atualizar o ${facts.updatingTicketCode}: o assunto continua.`,
+    };
+  }
   return {
     ...understanding,
     intent: "open_ticket",

@@ -85,7 +85,13 @@ import {
   YES_NO,
 } from "./reply-conduct";
 import { replyUsesNote, RETURN_NOTE_RETRY_INSTRUCTION } from "./return-note";
-import { nextMissingSignal } from "@/domain/intake-questions";
+import {
+  IMPACT_QUESTION,
+  INTAKE_QUESTIONS,
+  nextMissingSignal,
+  updateQuestionText,
+} from "@/domain/intake-questions";
+import type { SaidSignals } from "@/domain/signal-evidence";
 import { problemStatement } from "@/domain/ticket-description";
 
 // Um turno do agent (§6.1), disparado pela rota de mensagens depois do 202 (`after()`, §5.7):
@@ -164,6 +170,8 @@ interface Turn {
   corrections: ReplyCorrection[];
   /** O que a conversa mostra de fato (falas do funcionário, opções escolhidas, artigos). */
   facts: ConversationFacts;
+  /** Sinais do ENTENDER que a fala não confirmou (ficaram nulos); o agent pergunta antes. */
+  unconfirmedSignals: Partial<SaidSignals>;
 }
 
 async function runPipeline(
@@ -201,6 +209,7 @@ async function runPipeline(
     replacementText: null,
     corrections: [],
     facts: readConversationFacts(context.snapshot.recentMessages, input.userText),
+    unconfirmedSignals: {},
   };
 
   const notice = sensitiveDataNotice(input.userText);
@@ -236,6 +245,7 @@ async function runPipeline(
     turn.facts,
   );
   turn.corrections.push(...verified.corrections);
+  turn.unconfirmedSignals = verified.unconfirmed;
   // Primeiro turno depois da devolução: a nota do analista é o contexto da mensagem.
   const { understanding } = applyReturnNoteRules(
     verified.understanding,
@@ -409,7 +419,10 @@ async function answerWithModel(
       tools: createTools(session, traceEnvironment),
       onText,
       // Rascunho recusado por falta de sinais: a pergunta sai em código, o loop para aqui.
-      shouldStop: () => workspace.legacyUnavailable || workspace.draftNeedsSignals,
+      shouldStop: () =>
+        workspace.legacyUnavailable ||
+        workspace.draftNeedsSignals ||
+        workspace.updateNeedsSignal !== null,
     });
 
   turn.modelTextStart = turn.replyText.length;
@@ -423,6 +436,7 @@ async function answerWithModel(
   // Rascunho recusado por falta de sinais: o texto vem da pergunta em código, sem nova tentativa.
   if (
     !workspace.draftNeedsSignals &&
+    !workspace.updateNeedsSignal &&
     isEmptyReply({ text: modelText(turn), hasParts: hasStructuredParts(workspace) })
   ) {
     const retried = await runAct(EMPTY_REPLY_RETRY_INSTRUCTION, (piece) => write(turn, piece));
@@ -441,13 +455,16 @@ async function answerWithModel(
     turn.corrections.push(resolved.correction);
   }
 
-  const retryReason = draftRetryReason({
-    text: modelText(turn),
-    draftProposed: workspace.draft !== null,
-    pendingDraftExists: context.snapshot.pendingDraft !== null,
-    otherCardShown: otherCardShown(workspace),
-    criticalCase: workspace.criticalCase,
-  });
+  // Atualização à espera de um sinal: a pergunta sai em código, sem nova tentativa.
+  const retryReason = workspace.updateNeedsSignal
+    ? null
+    : draftRetryReason({
+        text: modelText(turn),
+        draftProposed: workspace.draft !== null,
+        pendingDraftExists: context.snapshot.pendingDraft !== null,
+        otherCardShown: otherCardShown(workspace),
+        criticalCase: workspace.criticalCase,
+      });
   if (retryReason) {
     let previousText = modelText(turn);
     let retryText: string | null = null;
@@ -625,6 +642,23 @@ async function conductReply(
     workspace.shownTickets().length > 0 ||
     workspace.hasTicketSelector() ||
     options.overdueOffer;
+
+  // Atualização que depende de um sinal que a fala não confirmou (QA R1, F3): pergunta em
+  // código, com as opções da abertura, em vez de seguir sem o sinal.
+  if (workspace.updateNeedsSignal && workspace.draft === null) {
+    const { code, signal } = workspace.updateNeedsSignal;
+    const question = INTAKE_QUESTIONS.find((item) => item.signal === signal) ?? IMPACT_QUESTION;
+    const text = modelText(turn);
+    replaceModelText(turn, updateQuestionText(code, question));
+    workspace.offerQuickReplies(question.options.map((option) => option.label));
+    turn.corrections.push(
+      correction(
+        "intake_question",
+        `O ENTENDER trouxe ${signal} sem confirmação na fala, e o sinal mudaria a prioridade do ${code}: a pergunta "${question.question}" e as opções saíram em código no lugar de "${text.trim().slice(0, 160)}".`,
+      ),
+    );
+    return false;
+  }
 
   // Condição do artigo (F1): "Qual é o seu Windows?" com as opções dela, sempre coerentes.
   if (workspace.conditionQuestion && !showsOtherContent) {
@@ -1077,6 +1111,7 @@ function toolSession(turn: Turn, understanding: Understanding): ToolSession {
     facts: {
       employeeTexts: turn.facts.employeeTexts,
       articlesTried: turn.facts.articlesTried,
+      unconfirmedSignals: turn.unconfirmedSignals,
     },
     store: turn.deps.store,
     workspace: turn.workspace,
