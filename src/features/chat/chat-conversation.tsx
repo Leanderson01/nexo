@@ -8,7 +8,7 @@ import { useEffect, useRef, type RefObject } from "react";
 import { api } from "../../../convex/_generated/api";
 import { DecisionPanelDrawer, useDecisionPanel } from "../decision-panel/decision-panel-drawer";
 import { findChosenText } from "./blocks/reply-segments";
-import { useBlockActionsStub } from "./blocks/use-block-actions-stub";
+import { useBlockActions } from "./blocks/use-block-actions";
 import classes from "./chat.module.css";
 import { ChatHeader } from "./chat-header";
 import { Composer } from "./composer";
@@ -36,8 +36,8 @@ export function ChatConversation({ conversationId }: { conversationId: string | 
   const { send, isSending, failure, dismissFailure } = useSendMessage(conversationId);
   const newConversation = useNewConversation();
   const requestAnalyst = useMutation(api.conversations.requestAnalyst);
-  // PROVISÓRIO (T11): troca pelas rotas de confirmar, cancelar, editar e tentar de novo.
-  const blockActions = useBlockActionsStub();
+  // Confirmar, cancelar e editar o rascunho e o "Tentar de novo" do erro (§6.5).
+  const blockActions = useBlockActions(conversationId);
   // "Ver detalhes" dos chips abre o painel de decisão daquela resposta (§7.3).
   const decisionPanel = useDecisionPanel();
   const scrollerRef = useRef<HTMLDivElement>(null);
