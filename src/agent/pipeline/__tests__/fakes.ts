@@ -9,7 +9,13 @@ import { err, ok, type Result } from "@/domain/result";
 import type { TicketDetail, TicketSummary } from "@/domain/ticket";
 
 import type { Id } from "../../../../convex/_generated/dataModel";
-import type { AgentStore, HistoryMessage, TurnSnapshot, TurnStatePatch } from "../agent-store";
+import type {
+  AgentStore,
+  HistoryMessage,
+  ReceiptStage,
+  TurnSnapshot,
+  TurnStatePatch,
+} from "../agent-store";
 import type { AgentMessageSink } from "../streaming-message";
 
 // Dublês sem rede para os testes do pipeline e das tools: serviço de chamados, central de
@@ -187,12 +193,17 @@ export class InMemoryAgentStore implements AgentStore {
   readonly statePatches: TurnStatePatch[] = [];
   readonly decisions: DecisionRecord[] = [];
   readonly transfers: Omit<Handoff, "at">[] = [];
+  readonly receipts: ReceiptStage[] = [];
   private nextDraftNumber = 381;
 
   constructor(private readonly snapshot: TurnSnapshot | null = makeSnapshot()) {}
 
   async loadTurnContext() {
     return this.snapshot;
+  }
+
+  async markUserMessage(stage: ReceiptStage) {
+    this.receipts.push(stage);
   }
 
   async createDraft(action: PendingAction, handoffOnConfirm: boolean) {

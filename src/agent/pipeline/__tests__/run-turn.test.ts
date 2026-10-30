@@ -110,6 +110,8 @@ describe("runTurn: curto-circuito", () => {
     });
     expect(record.usage.models).toEqual([FAST]);
     expect(turn.sink.decisionId).toBe("decision_1");
+    // Confirmação de leitura (UX1): chegou com o contexto, leu depois do ENTENDER.
+    expect(turn.store.receipts).toEqual(["delivered", "read"]);
   });
 
   it("transfere sem resistência quando pedem uma pessoa", async () => {
@@ -753,6 +755,8 @@ describe("runTurn: erros (§10)", () => {
       expect.objectContaining({ type: "error", retryable: true }),
     ]);
     expect(JSON.stringify(turn.sink.finalParts)).not.toMatch(/503|down|Error/);
+    // O ENTENDER não terminou: a mensagem chegou, mas não foi lida.
+    expect(turn.store.receipts).toEqual(["delivered"]);
     expect(turn.store.decisions[0]).toMatchObject({
       outcome: "error",
       errorStage: "understand",

@@ -157,6 +157,7 @@ async function runPipeline(
     await reply.fail("Não encontrei esta conversa.", false);
     return;
   }
+  await deps.store.markUserMessage("delivered");
 
   const turn: Turn = {
     input,
@@ -195,6 +196,7 @@ async function runPipeline(
     );
     return;
   }
+  await deps.store.markUserMessage("read");
   // Resposta curta a uma pergunta do assistente: regras em código (short-answers.ts).
   const understanding = applyShortAnswerRules(
     understood.understanding,

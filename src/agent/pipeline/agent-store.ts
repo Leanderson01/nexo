@@ -28,8 +28,16 @@ export interface CreatedDraft {
   draftNumber: number;
 }
 
+/** Etapa da confirmação de leitura do agent (UX1): "chegou" e "leu". */
+export type ReceiptStage = "delivered" | "read";
+
 export interface AgentStore {
   loadTurnContext(): Promise<TurnSnapshot | null>;
+  /**
+   * Confirma a mensagem do funcionário que abriu o turno: `delivered` com o contexto
+   * carregado e `read` depois do ENTENDER. Nunca falha o turno: um erro aqui só vira log.
+   */
+  markUserMessage(stage: ReceiptStage): Promise<void>;
   createDraft(action: PendingAction, handoffOnConfirm: boolean): Promise<CreatedDraft>;
   saveTurnState(patch: TurnStatePatch): Promise<void>;
   recordDecision(record: DecisionRecord): Promise<Id<"decisions">>;
@@ -46,6 +54,13 @@ export function createConvexAgentStore(options: {
   return {
     loadTurnContext: () =>
       convex.query(api.agent.loadTurnContext, { secret, conversationId, assistantMessageId }),
+    markUserMessage: async (stage) => {
+      const mutation =
+        stage === "delivered" ? api.agent.markUserMessageDelivered : api.agent.markUserMessageRead;
+      await convex.mutation(mutation, { secret, assistantMessageId }).catch((error: unknown) => {
+        console.error("[runTurn] não consegui confirmar a leitura", { stage, error });
+      });
+    },
     createDraft: (action, handoffOnConfirm) =>
       convex.mutation(api.agent.createDraft, { secret, conversationId, action, handoffOnConfirm }),
     saveTurnState: async (patch) => {
