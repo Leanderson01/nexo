@@ -84,6 +84,9 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 30. **Ajustes visuais pequenos** (aberta, decidir na revisão das telas): (a) título do login pede 50 px e o token `--nexo-font-size-display` vale 48; (b) anel de foco azul dos campos só existe no login — levar para o tema?; (c) Newsreader carregada sem tamanho óptico (letras do título um pouco mais baixas que no print); (d) botão `sm` do tema tem 18 px de padding lateral e o print usa ~14 (o console sobrescreve); (e) no chat, "Aprovado"/"Resolvido" usam `teal`, e o print usa verde/cinza (o console já usa as cores do print).
 31. **Pergunta fechada sem opções** (aberta): às vezes o modelo pergunta algo fechado ("qual o seu sistema?") sem oferecer opções nem escrevê-las no texto; nenhuma regra converte esse caso. Avaliar na revisão se vale uma regra em código.
 
+32. ~~**UX pedida na revisão do chat**~~ → **decidido (30/10, em andamento):** (a) **atualizações otimistas** em toda a plataforma (o texto sai do campo na hora ao enviar; ações do console e do rascunho refletem antes da resposta); (b) **confirmação de leitura no padrão do WhatsApp** (reloginho → ✓ → ✓✓ cinza → ✓✓ azul), para mensagens do funcionário ao bot/analista e no sentido contrário — **reverte a decisão 12 só nesse ponto** (presença "online"/"digitando" do funcionário continua fora); (c) **loading de navegação com a marca** do Nexo, sem esconder a moldura. Tasks UX1 (otimista + leitura) e UX2 (loading).
+33. ~~**Clique no bloco da pessoa na lateral**~~ → **decidido (30/10):** avatar, nome e e-mail abrem o Meu perfil; só o "Sair" encerra a sessão.
+
 ## Desvios da spec feitos no T0
 
 Valem para todas as tasks; entram no README (T18).
