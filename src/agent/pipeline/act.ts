@@ -56,6 +56,23 @@ export async function act(options: {
 }
 
 /**
+ * O Groq às vezes recusa a chamada de tool que o próprio modelo escreveu ("Failed to parse tool
+ * call arguments as JSON", 400 não retentável): uma nova tentativa costuma sair certa.
+ */
+export function isToolCallParseError(error: unknown): boolean {
+  return /failed to parse tool call arguments/i.test(errorText(error));
+}
+
+function errorText(error: unknown): string {
+  if (error instanceof Error) return `${error.message} ${JSON.stringify(error)}`;
+  try {
+    return JSON.stringify(error) ?? "";
+  } catch {
+    return String(error);
+  }
+}
+
+/**
  * Hífen comum no lugar do tipográfico, sem o espaço de largura zero e sem os asteriscos de
  * negrito que o gpt-oss solta mesmo com o prompt pedindo texto simples (o chat não renderiza
  * markdown).

@@ -952,6 +952,30 @@ describe("runTurn: erros (§10)", () => {
     });
   });
 
+  it("chamada de tool com JSON inválido (400 do Groq) ganha uma nova tentativa antes do erro", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const turn = setup({ userText: "Como peço um segundo monitor?" });
+    turn.understands({ intent: "question", summary: "Como pedir um segundo monitor." });
+    turn.groq.reply(() =>
+      Response.json(
+        {
+          error: {
+            message: "Failed to parse tool call arguments as JSON",
+            type: "invalid_request_error",
+          },
+        },
+        { status: 400 },
+      ),
+    );
+    turn.groq.reply(streamText(MAIN, ["Monitores são pedidos por requisição."], USAGE));
+
+    await turn.run();
+
+    expect(turn.sink.text).toBe("Monitores são pedidos por requisição.");
+    expect(turn.store.decisions[0].outcome).not.toBe("error");
+  });
+
   it("saída fora do schema ganha uma nova tentativa com lembrete", async () => {
     const turn = setup({ userText: "Quero falar com uma pessoa." });
     turn.groq.reply(
