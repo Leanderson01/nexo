@@ -12,16 +12,15 @@ import type { NewTicket, TicketFieldChanges } from "@/domain/ticket";
 import { useBlockPendingAction } from "./block-reads";
 import classes from "./blocks.module.css";
 import {
-  DRAFT_STATUS_COLORS,
   PRIORITY_COLORS,
   draftDeadlineText,
   draftKindText,
   draftNumberText,
-  draftStatusText,
   priorityMotiveText,
 } from "./block-texts";
 import { DotLabel } from "./dot-label";
 import { DraftEditForm } from "./draft-edit-form";
+import { draftView, shownAction, type DraftIntent, type OptimisticEdit } from "./draft-optimistic";
 import { Field, TicketCardSkeleton } from "./ticket-card";
 import { useNow } from "./use-now";
 
@@ -38,8 +37,9 @@ export interface DraftCardData {
  * (POST/PATCH /api/conversations/:id/pending-action/...) é a T11.
  */
 export interface DraftCallbacks {
-  onConfirm: (pendingActionId: string) => void | Promise<void>;
-  onCancel: (pendingActionId: string) => void | Promise<void>;
+  /** Devolvem false se a rota recusou: o card sai do estado otimista e volta a pendente. */
+  onConfirm: (pendingActionId: string) => boolean | void | Promise<boolean | void>;
+  onCancel: (pendingActionId: string) => boolean | void | Promise<boolean | void>;
   /**
    * Recebe a ação já editada; a rota recalcula a prioridade se os sinais mudaram. Devolve
    * false se não gravou: o formulário fica aberto, com o que foi digitado, e o aviso aparece.
@@ -50,11 +50,13 @@ export interface DraftCallbacks {
   ) => boolean | void | Promise<boolean | void>;
 }
 
-type Busy = "confirm" | "cancel" | "save" | null;
-
 /**
  * Card de rascunho (§6.5, protótipo 02). Pendente: Confirmar (⌘↵/Ctrl+Enter), Editar inline
  * e Cancelar. Confirmado, cancelado ou substituído: estado final, somente leitura.
+ *
+ * Otimista (UX1): Confirmar e Cancelar mostram na hora "Confirmando…"/"Cancelando…" sem os
+ * botões; Salvar fecha o formulário e mostra a edição. Se a rota recusar, volta atrás (a
+ * edição reabre com o que foi digitado) e o aviso aparece.
  */
 export function DraftCard({
   draft,
@@ -66,25 +68,36 @@ export function DraftCard({
   callbacks: DraftCallbacks;
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [busy, setBusy] = useState<Busy>(null);
-  const isPending = draft.status === "pending";
+  const [intent, setIntent] = useState<DraftIntent | null>(null);
+  const [edit, setEdit] = useState<OptimisticEdit | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const view = draftView(draft.status, draft.resultTicketCode, intent);
+  const action = shownAction(draft.action, edit);
 
-  async function run(kind: Exclude<Busy, null>, action: () => void | Promise<void>) {
-    setBusy(kind);
-    try {
-      await action();
-    } finally {
-      setBusy(null);
-    }
+  async function resolve(next: DraftIntent, call: () => boolean | void | Promise<boolean | void>) {
+    setIntent(next);
+    if ((await call()) === false) setIntent(null);
   }
 
-  const confirm = () => run("confirm", () => callbacks.onConfirm(draft.id));
-  useConfirmShortcut(isPending && !isEditing && busy === null, confirm);
+  async function save(edited: PendingAction) {
+    setEdit({ base: draft.action, edited });
+    setIsEditing(false);
+    setIsSaving(true);
+    const saved = await callbacks.onSaveEdit(draft.id, edited);
+    setIsSaving(false);
+    // Recusada: o formulário reabre com o que foi digitado (a edição fica como valor inicial).
+    if (saved === false) setIsEditing(true);
+  }
+
+  const confirm = () => resolve("confirm", () => callbacks.onConfirm(draft.id));
+  const canAct = view.showActions && !isSaving;
+  useConfirmShortcut(canAct && !isEditing, confirm);
 
   return (
     <article
-      className={isPending ? classes.card : `${classes.card} ${classes.finalCard}`}
+      className={view.looksFinal ? `${classes.card} ${classes.finalCard}` : classes.card}
       aria-label={draftNumberText(draft.draftNumber)}
+      aria-busy={intent !== null || isSaving || undefined}
     >
       <div className={classes.cardBody}>
         <div className={classes.cardKicker}>
@@ -93,44 +106,41 @@ export function DraftCard({
             <span className={classes.kickerSeparator} aria-hidden />
             {draftNumberText(draft.draftNumber)}
           </span>
-          <DotLabel color={DRAFT_STATUS_COLORS[draft.status]} colorText>
-            {draftStatusText(draft.status, draft.resultTicketCode)}
+          <DotLabel color={view.color} colorText>
+            {view.label}
           </DotLabel>
         </div>
 
         {isEditing ? (
           <DraftEditForm
-            action={draft.action}
-            isSaving={busy === "save"}
-            onCancel={() => setIsEditing(false)}
-            onSave={(edited) =>
-              run("save", async () => {
-                const saved = await callbacks.onSaveEdit(draft.id, edited);
-                if (saved !== false) setIsEditing(false);
-              })
-            }
+            action={action}
+            isSaving={false}
+            onCancel={() => {
+              setEdit(null);
+              setIsEditing(false);
+            }}
+            onSave={(edited) => void save(edited)}
           />
         ) : (
-          <DraftContent action={draft.action} deadlineFrom={isPending ? now : null} />
+          <DraftContent action={action} deadlineFrom={view.showActions ? now : null} />
         )}
       </div>
 
-      {isPending && !isEditing && (
+      {view.showActions && !isEditing && (
         <div className={classes.cardFooter}>
-          <Button loading={busy === "confirm"} disabled={busy !== null} onClick={confirm}>
+          <Button disabled={!canAct} onClick={confirm}>
             Confirmar
             <ShortcutHint />
           </Button>
-          <Button variant="default" disabled={busy !== null} onClick={() => setIsEditing(true)}>
+          <Button variant="default" disabled={!canAct} onClick={() => setIsEditing(true)}>
             Editar
           </Button>
           <Button
             variant="subtle"
             color="gray"
             className={classes.cancelButton}
-            loading={busy === "cancel"}
-            disabled={busy !== null}
-            onClick={() => run("cancel", () => callbacks.onCancel(draft.id))}
+            disabled={!canAct}
+            onClick={() => void resolve("cancel", () => callbacks.onCancel(draft.id))}
           >
             Cancelar
           </Button>
