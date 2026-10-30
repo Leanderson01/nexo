@@ -964,7 +964,18 @@ const printerReclassified: Scenario = {
         toolsForbidden: ["proposeTicketDraft", "proposeReopen"],
         priority: "CRITICAL",
         parts: { mustInclude: [{ type: "draft" }] },
-        text: { mustMatch: [{ description: "citar o INC-20395", pattern: /INC-20395/ }] },
+        text: {
+          mustMatch: [
+            { description: "citar o INC-20395", pattern: /INC-20395/ },
+            {
+              description: "avisar que, ao confirmar, um analista é chamado",
+              pattern: /analista/i,
+            },
+          ],
+          mustNotMatch: [
+            { description: 'dizer "Atualizei" antes da confirmação', pattern: /atualizei/i },
+          ],
+        },
       },
     ),
     confirmDraft(),

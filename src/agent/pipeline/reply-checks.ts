@@ -1,5 +1,7 @@
 import type { ReplyCorrection } from "@/domain/decision-record";
-import type { Intent } from "@/domain/enums";
+import type { Intent, Priority } from "@/domain/enums";
+import { PRIORITY_LABELS } from "@/domain/labels";
+import { normalizeText } from "@/shared/normalize-text";
 
 // Regras conferidas em código depois do AGIR (decisão 25), no espírito de "regras garantidas
 // em código, não em prompt". Cada regra é uma função pura: recebe o que o modelo produziu e
@@ -796,4 +798,57 @@ function cleanRetryText(text: string, toolQuickReplies: string[]): string | null
     withoutCalls.trim();
   const fallbacks = [QUICK_REPLIES_ONLY_TEXT, TOOL_CALL_FALLBACK_TEXT, ""];
   return fallbacks.includes(cleaned) ? null : cleaned;
+}
+
+// ---------- Regra: a atualização só vale depois de confirmada ----------
+
+/** A atualização proposta no turno (`proposeTicketUpdate`). */
+export interface UpdateProposal {
+  code: string;
+  /** A nova prioridade, quando a informação nova muda a gravidade. */
+  newPriority: Priority | null;
+  /** Ao confirmar, um analista é chamado (atualização que vira Crítica ou caso crítico). */
+  handoffOnConfirm: boolean;
+}
+
+/** "Atualizei o INC-…", "foi atualizado": diz que já gravou o que ainda é rascunho (R3, F3). */
+const CLAIMS_DONE =
+  /\b(atualizei|atualizamos|registrei|registramos|gravei|acrescentei|adicionei|reclassifiquei|alterei|elevei|subi a prioridade|(ja )?(foi|esta|esta sendo) (atualizad|registrad|reclassificad|alterad)\w*)\b/;
+/** O aviso de que confirmar chama um analista. */
+const WARNS_ANALYST = /\banalista\b/;
+
+/**
+ * O texto da proposta de atualização, conferido em código: nunca diz que já atualizou (só vale
+ * depois de confirmar) e, quando confirmar chama um analista, avisa isso. Fora disso, o texto
+ * do modelo fica. Na R3, a reclassificação para Crítica dizia "Atualizei o INC-20395…" sem
+ * avisar que um analista seria chamado.
+ */
+export function checkUpdateProposalText(
+  text: string,
+  proposal: UpdateProposal,
+): { text: string; correction: ReplyCorrection } | null {
+  const normalized = normalizeText(text);
+  const claimsDone = CLAIMS_DONE.test(normalized);
+  const missingWarning = proposal.handoffOnConfirm && !WARNS_ANALYST.test(normalized);
+  if (!claimsDone && !missingWarning) return null;
+  const problems = [
+    claimsDone ? "dizia que o chamado já tinha sido atualizado, antes da confirmação" : null,
+    missingWarning ? "não avisava que, ao confirmar, um analista é chamado" : null,
+  ].filter((item) => item !== null);
+  return {
+    text: updateProposalText(proposal),
+    correction: {
+      rule: "update_draft_text",
+      explanation: `O texto da atualização do ${proposal.code} ${problems.join(" e ")}: a resposta foi montada em código.`,
+    },
+  };
+}
+
+/** A resposta da proposta de atualização, montada em código. */
+export function updateProposalText(proposal: UpdateProposal): string {
+  const priority = proposal.newPriority
+    ? ` A informação nova muda a prioridade para ${PRIORITY_LABELS[proposal.newPriority]}.`
+    : "";
+  const analyst = proposal.handoffOnConfirm ? " Ao confirmar, um analista é chamado na hora." : "";
+  return `Preparei a atualização do ${proposal.code}; ela só é gravada quando você confirmar.${priority}${analyst} Confira o card e confirme.`;
 }

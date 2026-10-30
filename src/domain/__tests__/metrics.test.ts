@@ -226,6 +226,7 @@ describe("computeMetrics", () => {
       return_note: 0,
       article_resolved: 0,
       article_steps: 0,
+      update_draft_text: 0,
     });
   });
 });

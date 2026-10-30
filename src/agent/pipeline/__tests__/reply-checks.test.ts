@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   checkTicketCodes,
+  checkUpdateProposalText,
   claimsPreparedDraft,
   DRAFT_CLAIM_FALLBACK_TEXT,
   draftRetryInstruction,
@@ -624,5 +625,49 @@ describe("quickRepliesRetryInstruction / resolveQuickRepliesRetry", () => {
     });
     expect(resolved.text).toBe("Qual o impacto?");
     expect(resolved.correction.explanation).toContain("nem a nova tentativa mostrou");
+  });
+});
+
+describe("checkUpdateProposalText (R3, F3)", () => {
+  const critical = { code: "INC-20395", newPriority: "CRITICAL", handoffOnConfirm: true } as const;
+
+  it('reclassificação Crítica: tira o "Atualizei" e avisa que um analista é chamado', () => {
+    const checked = checkUpdateProposalText(
+      "Atualizei o INC-20395 com a informação de que ninguém no 2º andar consegue imprimir. Confira o card e confirme a atualização.",
+      critical,
+    );
+    expect(checked?.text).toBe(
+      "Preparei a atualização do INC-20395; ela só é gravada quando você confirmar. A informação nova muda a prioridade para Crítica. Ao confirmar, um analista é chamado na hora. Confira o card e confirme.",
+    );
+    expect(checked?.text).not.toMatch(/Atualizei/);
+    expect(checked?.correction.rule).toBe("update_draft_text");
+    expect(checked?.correction.explanation).toContain("um analista é chamado");
+  });
+
+  it('sem "Atualizei", mas sem o aviso do analista, também vira o texto em código', () => {
+    const checked = checkUpdateProposalText(
+      "Preparei a atualização do INC-20395, que passa a ser Crítica. Confira e confirme.",
+      critical,
+    );
+    expect(checked?.text).toContain("Ao confirmar, um analista é chamado na hora.");
+  });
+
+  it("texto com o aviso e sem prometer o que não foi gravado fica", () => {
+    expect(
+      checkUpdateProposalText(
+        "Preparei a atualização do INC-20395: a prioridade sobe para Crítica e, ao confirmar, um analista é chamado na hora.",
+        critical,
+      ),
+    ).toBeNull();
+  });
+
+  it('atualização comum: só o "Atualizei" é corrigido', () => {
+    const common = { code: "INC-20395", newPriority: null, handoffOnConfirm: false } as const;
+    expect(
+      checkUpdateProposalText("Preparei a atualização do INC-20395. Confira o card.", common),
+    ).toBeNull();
+    expect(checkUpdateProposalText("O INC-20395 foi atualizado.", common)?.text).toBe(
+      "Preparei a atualização do INC-20395; ela só é gravada quando você confirmar. Confira o card e confirme.",
+    );
   });
 });

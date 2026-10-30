@@ -113,4 +113,5 @@ export const REPLY_CORRECTION_RULE_LABELS: Record<ReplyCorrectionRule, string> =
   return_note: "Nota do analista sem uso na resposta",
   article_resolved: "Assunto encerrado depois do Sim",
   article_steps: "Passos do artigo montados em código",
+  update_draft_text: "Atualização avisada antes de confirmar",
 };

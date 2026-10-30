@@ -46,6 +46,7 @@ import { handOffToAnalyst } from "./hand-off";
 import { buildDecisionRecord } from "./record";
 import {
   checkTicketCodes,
+  checkUpdateProposalText,
   draftRetryInstruction,
   draftRetryReason,
   EMPTY_REPLY_RETRY_INSTRUCTION,
@@ -653,6 +654,15 @@ async function answerWithModel(
     ok: (acted) => actSucceeded(turn, acted, { understanding, decision }, false),
   });
   if (basedOnArticle === null) return;
+  // A atualização só vale depois de confirmada e, se confirmar chama um analista, o texto avisa
+  // (R3, F3: "Atualizei o INC-…" numa reclassificação para Crítica, sem o aviso).
+  if (workspace.updateProposal && workspace.draft?.kind === "update_ticket") {
+    const checked = checkUpdateProposalText(modelText(turn), workspace.updateProposal);
+    if (checked) {
+      replaceModelText(turn, checked.text);
+      turn.corrections.push(checked.correction);
+    }
+  }
   if (workspace.correctedDescriptionFields.length > 0) {
     turn.corrections.push(
       correction(

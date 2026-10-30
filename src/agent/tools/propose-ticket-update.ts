@@ -99,6 +99,11 @@ export function proposeTicketUpdateTool(session: ToolSession): AgentTool<Input, 
         handoffOnConfirm,
       );
       workspace.draft = { pendingActionId: draft.pendingActionId, kind: "update_ticket" };
+      workspace.updateProposal = {
+        code: ticket.code,
+        newPriority: fieldChanges?.priority ?? null,
+        handoffOnConfirm,
+      };
       workspace.selectedTicketCode = ticket.code;
 
       const newPriority = fieldChanges?.priority ? PRIORITY_LABELS[fieldChanges.priority] : null;

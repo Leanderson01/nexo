@@ -5,6 +5,8 @@ import type { SignalName } from "@/domain/signal-evidence";
 import type { DuplicateAction } from "@/domain/ticket-rules";
 import type { TicketCode, TicketSummary } from "@/domain/ticket";
 
+import type { UpdateProposal } from "./reply-checks";
+
 // O que um turno vai juntando enquanto roda: as tools escrevem aqui (chamadas registradas,
 // cards, opções, rascunho, transferência) e, no fim, o pipeline monta a resposta e o
 // `DecisionRecord` a partir disto. Um objeto por turno, nunca compartilhado.
@@ -48,6 +50,8 @@ export class TurnWorkspace {
   /** A CriticalPolicy mandou: o rascunho transfere ao confirmar ou cancelar. */
   criticalCase = false;
   draft: { pendingActionId: string; kind: PendingActionKind } | null = null;
+  /** A atualização proposta (`proposeTicketUpdate`): o texto da resposta é conferido com ela. */
+  updateProposal: UpdateProposal | null = null;
   /** Campos do texto do rascunho trocados pela fala do funcionário (§11.2, sem invenção). */
   correctedDescriptionFields: string[] = [];
   derivedPriority: DerivedPriorityRecord | null = null;

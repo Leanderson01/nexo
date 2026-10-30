@@ -160,6 +160,7 @@ export const REPLY_CORRECTION_RULES = [
   "return_note",
   "article_resolved",
   "article_steps",
+  "update_draft_text",
 ] as const;
 export type ReplyCorrectionRule = (typeof REPLY_CORRECTION_RULES)[number];
 

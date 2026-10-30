@@ -932,6 +932,69 @@ describe("runTurn: abertura conduzida em código (QA C1)", () => {
   });
 });
 
+describe("runTurn: atualização que vira Crítica (R3, F3)", () => {
+  it('não diz "Atualizei" antes da confirmação e avisa que um analista é chamado', async () => {
+    const printer = detailOf(
+      {
+        ...NOTEBOOK,
+        code: "INC-20395",
+        status: "open",
+        priority: "LOW",
+        createdAt: NOW - 86_400_000,
+        lastActivityAt: NOW - 60_000,
+        title: "Impressora do 2º andar não imprime",
+      },
+      { prioritySignals: { impact: "individual", blocked: false, deadlineToday: false } },
+    );
+    const turn = setup({
+      userText:
+        "Agora ninguém do andar consegue imprimir e a equipe tem que entregar contratos impressos hoje à tarde, estamos parados.",
+      gateway: new FakeTicketGateway({ tickets: [printer], similar: [printer] }),
+    });
+    turn.understands({
+      intent: "update_ticket",
+      summary: "Impressora parada para o andar, com entrega hoje.",
+      ticketSignals: {
+        kind: "INC",
+        category: "hardware",
+        impact: "team",
+        blocked: true,
+        deadlineToday: true,
+      },
+    });
+    turn.groq.reply(
+      streamToolCall(
+        MAIN,
+        {
+          id: "call_1",
+          name: "proposeTicketUpdate",
+          arguments: {
+            code: "INC-20395",
+            text: "Agora ninguém do andar consegue imprimir.",
+            evidence: "Agora ninguém do andar consegue imprimir",
+          },
+        },
+        USAGE,
+      ),
+    );
+    turn.groq.reply(
+      streamText(MAIN, ["Atualizei o INC-20395 com a informação nova. Confira o card."], USAGE),
+    );
+
+    await turn.run();
+
+    expect(turn.store.drafts[0]).toMatchObject({
+      handoffOnConfirm: true,
+      action: { kind: "update_ticket", fieldChanges: { priority: "CRITICAL" } },
+    });
+    expect(turn.sink.text).not.toMatch(/Atualizei/);
+    expect(turn.sink.text).toContain("Ao confirmar, um analista é chamado na hora.");
+    expect(turn.store.decisions[0].corrections?.map((item) => item.rule)).toContain(
+      "update_draft_text",
+    );
+  });
+});
+
 describe('runTurn: "Sim" a "Isso resolveu?" (F1)', () => {
   it("encerra o assunto em código, sem rascunho nem o modelo principal, mesmo com chamado parecido", async () => {
     const turn = setup({
