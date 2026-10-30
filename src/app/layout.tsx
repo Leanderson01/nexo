@@ -1,7 +1,7 @@
 import "@mantine/core/styles.css";
 
 import type { Metadata } from "next";
-import { Inter, Source_Serif_4 } from "next/font/google";
+import { Inter, Newsreader } from "next/font/google";
 import {
   Center,
   ColorSchemeScript,
@@ -12,10 +12,14 @@ import {
 import { Suspense } from "react";
 
 import { AuthProviders } from "@/features/auth/auth-providers";
+import { IconProvider } from "@/shared/icons";
+import { cssVariablesResolver } from "@/shared/theme/css-variables";
 import { theme } from "@/shared/theme/theme";
 
+// Fontes escolhidas comparando os prints com as candidatas (docs/design/fundacao-visual.md):
+// Inter na interface e Newsreader só nos títulos do login.
 const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
-const serif = Source_Serif_4({ subsets: ["latin"], variable: "--font-serif" });
+const serif = Newsreader({ subsets: ["latin"], variable: "--font-serif" });
 
 export const metadata: Metadata = {
   title: "Nexo Assist",
@@ -29,7 +33,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <ColorSchemeScript defaultColorScheme="light" />
       </head>
       <body>
-        <MantineProvider theme={theme} defaultColorScheme="light">
+        <MantineProvider
+          theme={theme}
+          cssVariablesResolver={cssVariablesResolver}
+          defaultColorScheme="light"
+        >
           {/*
             A sessão é lida na requisição: com Cache Components, isso fica num <Suspense>.
             Efeito conhecido: todo carregamento completo mostra este loader por ~300 ms (medido
@@ -38,9 +46,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             cookie fora de Suspense) e ler a sessão só no cliente perde o cookie httpOnly do
             Convex Auth; por isso ficou assim. A navegação dentro do app não passa por aqui.
           */}
-          <Suspense fallback={<FullScreenLoader />}>
-            <AuthProviders>{children}</AuthProviders>
-          </Suspense>
+          <IconProvider>
+            <Suspense fallback={<FullScreenLoader />}>
+              <AuthProviders>{children}</AuthProviders>
+            </Suspense>
+          </IconProvider>
         </MantineProvider>
       </body>
     </html>
