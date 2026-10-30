@@ -1,0 +1,181 @@
+/* Painel de decisão (§7.3). Mesmo vocabulário visual do chat e do console (docs/prototipo):
+   fundo branco, bordas cinza-claro, títulos pequenos em caixa alta e cor só onde há sinal. */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  color: #1e2430;
+}
+
+.header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--mantine-color-gray-2);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--mantine-color-gray-2);
+}
+
+.section[data-section="usage"] {
+  border-bottom: none;
+  margin-top: 4px;
+  padding: 12px;
+  border-radius: var(--mantine-radius-md);
+  background: var(--mantine-color-gray-0);
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mantine-color-gray-6);
+}
+
+.sectionNumber {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--mantine-color-gray-1);
+  color: var(--mantine-color-gray-7);
+  font-size: 10px;
+  letter-spacing: 0;
+}
+
+.prose {
+  line-height: 1.5;
+}
+
+/* ---------- Pares rótulo/valor ---------- */
+
+.fields {
+  display: grid;
+  grid-template-columns: minmax(110px, max-content) 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: var(--mantine-font-size-sm);
+
+  & dt {
+    color: var(--mantine-color-gray-6);
+  }
+
+  & dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+.field {
+  display: contents;
+}
+
+/* ---------- Listas de regras e ações ---------- */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.policy {
+  padding: 6px 10px;
+  border-left: 3px solid var(--mantine-color-gray-3);
+  border-radius: 0 var(--mantine-radius-sm) var(--mantine-radius-sm) 0;
+  color: var(--mantine-color-gray-7);
+
+  &[data-outcome="triggered"] {
+    border-left-color: var(--mantine-color-orange-6);
+    background: var(--mantine-color-orange-0);
+    color: #1e2430;
+  }
+}
+
+.policyName {
+  font-weight: 600;
+}
+
+.policyOutcome {
+  .policy[data-outcome="not_applicable"] & {
+    color: var(--mantine-color-gray-6);
+  }
+
+  .policy[data-outcome="triggered"] & {
+    font-weight: 700;
+    color: var(--mantine-color-orange-8);
+  }
+}
+
+.action {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--mantine-color-gray-2);
+  border-radius: var(--mantine-radius-md);
+
+  &[data-status="error"] {
+    border-color: var(--mantine-color-red-3);
+    background: var(--mantine-color-red-0);
+  }
+}
+
+.actionStep {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--mantine-color-blue-0);
+  color: var(--mantine-color-blue-7);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.actionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.toolName {
+  font-size: 11px;
+}
+
+.actionMeta {
+  align-items: center;
+}
+
+/* ---------- Ver JSON ---------- */
+
+.rawJson {
+  padding-top: 10px;
+}
+
+.rawJsonToggle {
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-blue-7);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rawJsonCode {
+  margin-top: 8px;
+  max-height: 420px;
+  overflow: auto;
+  font-size: 11px;
+}
