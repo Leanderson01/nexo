@@ -6,6 +6,11 @@ import { PRIORITY_LABELS } from "@/domain/labels";
 import { derivePriority, PRIORITY_DEADLINES } from "@/domain/priority";
 import { computeDueAt } from "@/domain/sla";
 import type { NewTicket, PrioritySignals } from "@/domain/ticket";
+import {
+  categoryFromSpeech,
+  kindFromSpeech,
+  titleConsistentWithSignals,
+} from "@/domain/ticket-classification";
 import { buildTicketDescription, problemStatement } from "@/domain/ticket-description";
 
 import type { AgentTool, ToolFailure, ToolSession } from "./tool-session";
@@ -77,12 +82,15 @@ export function proposeTicketDraftTool(session: ToolSession): AgentTool<Input, O
         return signals;
       }
 
-      const derived = derivePriority({ kind: fields.kind, ...signals.value });
+      // Tipo e categoria em código quando a fala deixa claro (QA R1: INC/REQ oscilava).
+      const { employeeTexts } = session.facts;
+      const kind = kindFromSpeech(employeeTexts) ?? fields.kind;
+      const derived = derivePriority({ kind, ...signals.value });
       const built = describeTicket(fields, signals.value, session);
       const ticket: NewTicket = {
-        kind: fields.kind,
-        category: fields.category,
-        title: fields.title.trim(),
+        kind,
+        category: categoryFromSpeech(fields.category, employeeTexts),
+        title: titleConsistentWithSignals(fields.title, signals.value),
         description: built.description,
         affected: defaultAffected(signals.value.impact, session),
         prioritySignals: signals.value,
@@ -99,6 +107,7 @@ export function proposeTicketDraftTool(session: ToolSession): AgentTool<Input, O
       );
 
       workspace.draft = { pendingActionId: draft.pendingActionId, kind: "create_ticket" };
+      workspace.draftTicketKind = kind;
       workspace.correctedDescriptionFields = built.corrected;
       workspace.derivedPriority = {
         value: derived.priority,

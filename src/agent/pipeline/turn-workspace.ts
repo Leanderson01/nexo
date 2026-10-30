@@ -1,5 +1,5 @@
 import type { DecisionRecord, ToolCallTrace } from "@/domain/decision-record";
-import type { HandoffReason, PendingActionKind } from "@/domain/enums";
+import type { HandoffReason, PendingActionKind, TicketKind } from "@/domain/enums";
 import type { MessagePart } from "@/domain/message-parts";
 import type { SignalName } from "@/domain/signal-evidence";
 import type { DuplicateAction } from "@/domain/ticket-rules";
@@ -56,6 +56,8 @@ export class TurnWorkspace {
   legacyUnavailable = false;
   /** O rascunho foi recusado por falta de sinais: o AGIR para e a pergunta sai em código. */
   draftNeedsSignals = false;
+  /** Tipo (INC/REQ) do chamado novo proposto; entra no sinal "tipo" do registro. */
+  draftTicketKind: TicketKind | null = null;
   /**
    * A atualização dependia de um sinal que a fala não confirmou (mudaria a prioridade): o AGIR
    * para e a pergunta sai em código, citando o chamado.

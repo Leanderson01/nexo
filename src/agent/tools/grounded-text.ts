@@ -1,3 +1,4 @@
+import { impersonal } from "@/domain/ticket-classification";
 import { groundedSentence, problemStatement } from "@/domain/ticket-description";
 
 import type { ToolSession } from "./tool-session";
@@ -11,6 +12,6 @@ export function groundedDraftText(text: string, evidence: string, session: ToolS
   const { employeeTexts } = session.facts;
   const result = groundedSentence({ text, evidence }, employeeTexts);
   if (result.replaced) session.workspace.correctedDescriptionFields.push("texto do rascunho");
-  if (result.sentence) return result.sentence;
-  return problemStatement(employeeTexts, session.understanding.summary).trim();
+  if (result.sentence) return impersonal(result.sentence);
+  return impersonal(problemStatement(employeeTexts, session.understanding.summary).trim());
 }

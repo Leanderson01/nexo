@@ -1,5 +1,6 @@
 import type { ReplyCorrection } from "@/domain/decision-record";
 import { verifySignals, type SaidSignals, type SignalName } from "@/domain/signal-evidence";
+import { kindFromSpeech } from "@/domain/ticket-classification";
 import { saidOperatingSystem } from "@/domain/ticket-description";
 import type { Understanding } from "@/domain/understanding";
 import { normalizeText } from "@/shared/normalize-text";
@@ -65,7 +66,12 @@ export function verifyUnderstanding(
     understanding: {
       ...understanding,
       entities: { ...understanding.entities, os },
-      ticketSignals: { kind, category, ...verified.signals },
+      // O tipo que a fala deixa claro vale acima do que o modelo leu (QA R1: INC/REQ oscilava).
+      ticketSignals: {
+        kind: kindFromSpeech(facts.employeeTexts) ?? kind,
+        category,
+        ...verified.signals,
+      },
     },
     corrections,
     unconfirmed,

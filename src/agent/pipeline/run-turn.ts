@@ -7,13 +7,13 @@ import { listMyTicketsTool } from "@/agent/tools/list-my-tickets";
 import type { ToolSession } from "@/agent/tools/tool-session";
 import { withTrace, type TraceEnvironment } from "@/agent/tools/with-trace";
 import type { ReplyCorrection } from "@/domain/decision-record";
-import type { TurnStage } from "@/domain/enums";
+import type { TicketKind, TurnStage } from "@/domain/enums";
 import type { MessagePart } from "@/domain/message-parts";
 import { computeDueAt } from "@/domain/sla";
 import type { Understanding } from "@/domain/understanding";
 
 import type { Id } from "../../../convex/_generated/dataModel";
-import { act } from "./act";
+import { act, isToolCallParseError } from "./act";
 import {
   applyShortAnswerRules,
   describePickedReply,
@@ -469,8 +469,21 @@ async function answerWithModel(
     });
 
   turn.modelTextStart = turn.replyText.length;
-  const acted = await runAct(null, (piece) => write(turn, piece));
+  let acted = await runAct(null, (piece) => write(turn, piece));
   if (acted.usage) addUsages(turn, turn.deps.llm.mainModel, [acted.usage]);
+  // Chamada de tool com JSON inválido (erro do Groq): uma nova tentativa antes do erro, se nada
+  // chegou ao funcionário ainda (QA R1).
+  if (
+    !acted.ok &&
+    isToolCallParseError(acted.error) &&
+    modelText(turn).trim() === "" &&
+    workspace.draft === null &&
+    workspace.handoff === null
+  ) {
+    console.warn("[runTurn] chamada de tool com JSON inválido; nova tentativa do AGIR");
+    acted = await runAct(null, (piece) => write(turn, piece));
+    if (acted.usage) addUsages(turn, turn.deps.llm.mainModel, [acted.usage]);
+  }
   if (!(await actSucceeded(turn, acted, { understanding, decision }))) return;
 
   // Conferências em código depois do AGIR (decisão 25).
@@ -1080,6 +1093,17 @@ interface Completion {
   overdueOfferCode?: string | null;
 }
 
+/** O tipo do rascunho proposto preenche o sinal "tipo" que o ENTENDER deixou em branco. */
+function withDraftKind(
+  understanding: Understanding | null,
+  kind: TicketKind | null,
+): Understanding | null {
+  if (!understanding || kind === null || understanding.ticketSignals.kind !== null) {
+    return understanding;
+  }
+  return { ...understanding, ticketSignals: { ...understanding.ticketSignals, kind } };
+}
+
 /** Grava o estado da conversa e o `DecisionRecord`, e conclui a mensagem com as partes. */
 async function complete(turn: Turn, completion: Completion): Promise<void> {
   const { workspace } = turn;
@@ -1105,7 +1129,7 @@ async function complete(turn: Turn, completion: Completion): Promise<void> {
   const record = buildDecisionRecord({
     now: turn.now,
     latencyMs: Math.max(0, turn.deps.now() - turn.startedAt),
-    understanding: completion.understanding,
+    understanding: withDraftKind(completion.understanding, workspace.draftTicketKind),
     evaluations: decision?.evaluations ?? [],
     decisiveAction: decision?.decisiveAction ?? null,
     guidingActions: decision?.guidingActions ?? [],

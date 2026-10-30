@@ -1,6 +1,7 @@
 import { normalizeText, splitWords, STOPWORDS } from "@/shared/normalize-text";
 
 import type { SaidSignals } from "./signal-evidence";
+import { impersonal } from "./ticket-classification";
 
 // Descrição passada a limpo (§11.2) montada em código a partir de campos com evidência:
 // sintoma, desde quando, o que já foi tentado, impacto e ambiente. "Passar a limpo" é reescrever
@@ -183,7 +184,7 @@ export function buildTicketDescription(input: DescriptionInput): BuiltDescriptio
   const unique = lines.filter(
     (line, index): line is string => line !== null && line !== "" && lines.indexOf(line) === index,
   );
-  return { description: unique.join(" "), corrected };
+  return { description: unique.map(impersonal).join(" "), corrected };
 }
 
 /** Impacto, bloqueio e urgência como o funcionário disse (já conferidos). */
