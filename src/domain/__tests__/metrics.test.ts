@@ -210,6 +210,7 @@ describe("computeMetrics", () => {
       draft_claim_without_draft: 0,
       critical_without_draft: 0,
       no_ticket_found_offer: 1,
+      tool_call_as_text: 0,
     });
   });
 });
