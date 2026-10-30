@@ -1,0 +1,145 @@
+/* Painel de métricas do console (T17): mesmo fundo, bordas e tipografia do console. */
+
+.page {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 20px 28px 32px;
+  background: #f5f6f8;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1080px;
+  margin: 0 auto 18px;
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e2430;
+}
+
+.tiles,
+.charts,
+.footnote {
+  max-width: 1080px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.tile,
+.card {
+  border: 1px solid var(--mantine-color-gray-2);
+  border-radius: 10px;
+  background: var(--mantine-color-white);
+}
+
+.tile {
+  padding: 14px 16px;
+}
+
+.tileLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--mantine-color-gray-6);
+}
+
+.tileValue {
+  margin: 4px 0 2px;
+  font-size: 28px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  color: #1e2430;
+}
+
+.tileNote {
+  font-size: 12px;
+  color: var(--mantine-color-gray-6);
+}
+
+.charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.card {
+  padding: 14px 16px 16px;
+}
+
+.cardTitle {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e2430;
+}
+
+.bars {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.barRow {
+  display: grid;
+  grid-template-columns: minmax(120px, 42%) 1fr 28px;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.barLabel {
+  color: var(--mantine-color-gray-7);
+}
+
+.barTrack {
+  height: 10px;
+}
+
+.bar {
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--mantine-color-blue-6);
+}
+
+.barValue {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: #1e2430;
+}
+
+.empty {
+  display: grid;
+  gap: 4px;
+  max-width: 1080px;
+  margin: 48px auto 0;
+  text-align: center;
+}
+
+.errorBox {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  padding: 24px;
+  background: #f5f6f8;
+  text-align: center;
+}
