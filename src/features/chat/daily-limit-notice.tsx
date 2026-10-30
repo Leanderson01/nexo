@@ -17,7 +17,16 @@ export function DailyLimitNotice({
   onClose: () => void;
 }) {
   return (
-    <Modal opened={opened} onClose={onClose} title={<Text fw={700}>Nova conversa</Text>} centered>
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={
+        <Text fz={15} fw={600}>
+          Nova conversa
+        </Text>
+      }
+      centered
+    >
       <Text size="sm">{DAILY_LIMIT_TEXT}</Text>
       <Text size="sm" c="dimmed" mt="xs">
         Se escolher falar com um analista, a conversa nova já vai para a fila do atendimento.

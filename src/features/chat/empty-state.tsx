@@ -20,7 +20,8 @@ export function EmptyState({
   disabled: boolean;
 }) {
   return (
-    <Stack align="center" gap="xs" py={72} ta="center">
+    // my="auto": a coluna assenta as mensagens no fim; o estado vazio fica no meio.
+    <Stack align="center" gap="xs" py={72} my="auto" ta="center">
       <Title order={3} fw={600}>
         {firstName ? `Olá, ${firstName}! Como posso ajudar?` : "Como posso ajudar?"}
       </Title>
@@ -33,8 +34,6 @@ export function EmptyState({
           <Button
             key={suggestion}
             variant="default"
-            radius="xl"
-            size="sm"
             disabled={disabled}
             onClick={() => onSend(suggestion)}
           >
