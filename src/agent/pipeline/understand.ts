@@ -8,14 +8,21 @@ import { plainHyphens } from "@/shared/normalize-text";
 
 import type { ChatMessage } from "./history";
 import type { ModelUsage } from "./turn-usage";
-import { understandingSchema } from "./understanding-schema";
+import { understandingOutputSchema, type SignalQuotes } from "./understanding-schema";
 
 // ENTENDER (§6.2): modelo rápido com saída estruturada estrita, numa chamada separada do AGIR
 // e sem tools (o Groq não combina as duas coisas). Saída fora do schema ganha uma nova
 // tentativa com lembrete (§10, decisão 18); persistindo, o turno segue com confiança baixa.
 
 export type UnderstandResult =
-  | { ok: true; understanding: Understanding; usage: ModelUsage[]; schemaRetried: boolean }
+  | {
+      ok: true;
+      understanding: Understanding;
+      /** Trecho da fala do funcionário que o modelo citou para cada sinal (conferido depois). */
+      signalQuotes: SignalQuotes;
+      usage: ModelUsage[];
+      schemaRetried: boolean;
+    }
   | { ok: false; error: unknown; usage: ModelUsage[] };
 
 const UNDERSTAND_TIMEOUT_MS = 10_000;
@@ -47,33 +54,47 @@ export async function understand(options: {
   const usage: ModelUsage[] = [];
 
   const first = await generateUnderstanding(agent, options.history, usage);
-  if (first.ok) return { ok: true, understanding: first.value, usage, schemaRetried: false };
+  if (first.ok) return { ok: true, ...first.value, usage, schemaRetried: false };
   if (!isInvalidStructuredOutput(first.error)) return { ok: false, error: first.error, usage };
 
   const reminder: ChatMessage = { role: "user", content: schemaReminder(describe(first.error)) };
   const second = await generateUnderstanding(agent, [...options.history, reminder], usage);
-  if (second.ok) return { ok: true, understanding: second.value, usage, schemaRetried: true };
+  if (second.ok) return { ok: true, ...second.value, usage, schemaRetried: true };
   if (!isInvalidStructuredOutput(second.error)) return { ok: false, error: second.error, usage };
 
   console.warn("[understand] saída inválida duas vezes; segue com confiança baixa");
-  return { ok: true, understanding: FALLBACK_UNDERSTANDING, usage, schemaRetried: true };
+  return {
+    ok: true,
+    understanding: FALLBACK_UNDERSTANDING,
+    signalQuotes: NO_QUOTES,
+    usage,
+    schemaRetried: true,
+  };
 }
+
+const NO_QUOTES: SignalQuotes = { impact: null, blocked: null, deadlineToday: null };
 
 async function generateUnderstanding(
   agent: Agent,
   history: ChatMessage[],
   usage: ModelUsage[],
-): Promise<{ ok: true; value: Understanding } | { ok: false; error: unknown }> {
+): Promise<
+  | { ok: true; value: { understanding: Understanding; signalQuotes: SignalQuotes } }
+  | { ok: false; error: unknown }
+> {
   try {
     const out = await agent.generate(history, {
-      structuredOutput: { schema: understandingSchema },
+      structuredOutput: { schema: understandingOutputSchema },
       providerOptions: { groq: { reasoningEffort: "low" } },
       modelSettings: { maxRetries: 1, temperature: 0, timeout: { totalMs: UNDERSTAND_TIMEOUT_MS } },
     });
     usage.push(out.totalUsage);
     // Hífens tipográficos atrapalham a busca e os códigos: normaliza o JSON todo.
-    const parsed = understandingSchema.parse(JSON.parse(plainHyphens(JSON.stringify(out.object))));
-    return { ok: true, value: parsed };
+    const parsed = understandingOutputSchema.parse(
+      JSON.parse(plainHyphens(JSON.stringify(out.object))),
+    );
+    const { signalEvidence, ...understanding } = parsed;
+    return { ok: true, value: { understanding, signalQuotes: signalEvidence } };
   } catch (error) {
     return { ok: false, error };
   }

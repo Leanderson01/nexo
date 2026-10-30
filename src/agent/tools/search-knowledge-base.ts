@@ -78,6 +78,14 @@ export function searchKnowledgeBaseTool(session: ToolSession): AgentTool<Input, 
 function guideArticle(article: ArticleMatch, rank: number, session: ToolSession): ArticleForModel {
   const applicability = checkArticleConditions(article, session.understanding.entities);
   const base = { slug: article.slug, title: article.title, body: article.body };
+  if (rank === 0) {
+    session.workspace.topArticle = {
+      part: { type: "article", slug: article.slug, title: article.title, excerpt: article.excerpt },
+      status: applicability.status,
+      appliesTo: applicability.status === "applies" ? [] : applicability.appliesTo,
+      knownValue: applicability.status === "does_not_apply" ? applicability.knownValue : null,
+    };
+  }
 
   switch (applicability.status) {
     case "applies":
@@ -99,6 +107,7 @@ function guideArticle(article: ArticleMatch, rank: number, session: ToolSession)
       if (rank === 0) {
         session.workspace.offerQuickReplies(ask.options);
         session.workspace.askedArticleCondition = true;
+        session.workspace.conditionQuestion = ask;
       }
       return {
         ...base,

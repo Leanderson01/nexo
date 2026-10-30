@@ -703,7 +703,7 @@ const wifiShortSentence: Scenario = {
   steps: [
     say("O Wi-Fi da sala 3 caiu de novo", {
       policiesNotTriggered: ["CriticalPolicy"],
-      toolsForbidden: ["proposeTicketDraft", "proposeReopen", "requestHandoff"],
+      toolsForbidden: ["proposeReopen", "requestHandoff"],
       parts: {
         mustInclude: [{ type: "quickReplies", includesLabel: "Minha equipe" }],
         mustNotInclude: [{ type: "draft" }, { type: "handoff" }],
@@ -728,7 +728,7 @@ const intakeByOptions: Scenario = {
   tickets: { ofEmployee: [], ofOthers: [] },
   steps: [
     say("Quero abrir um chamado: o Excel trava toda vez que abro a planilha de fechamento.", {
-      toolsForbidden: PROPOSAL_TOOLS,
+      toolsForbidden: ["proposeTicketUpdate", "proposeReopen"],
       parts: {
         mustInclude: [{ type: "quickReplies", includesLabel: "Só eu" }],
         mustNotInclude: [{ type: "draft" }, { type: "quickReplies", includesLabel: "Windows" }],
@@ -739,7 +739,7 @@ const intakeByOptions: Scenario = {
       },
     }),
     pick("Só eu", {
-      toolsForbidden: PROPOSAL_TOOLS,
+      toolsForbidden: ["proposeTicketUpdate", "proposeReopen"],
       parts: { mustInclude: [{ type: "quickReplies", includesLabel: "Sim, dá para seguir" }] },
       text: {
         mustMatch: [{ description: "perguntar se consegue trabalhar", pattern: /outro jeito/i }],
@@ -747,7 +747,7 @@ const intakeByOptions: Scenario = {
       },
     }),
     pick("Sim, dá para seguir", {
-      toolsForbidden: PROPOSAL_TOOLS,
+      toolsForbidden: ["proposeTicketUpdate", "proposeReopen"],
       parts: { mustInclude: [{ type: "quickReplies", includesLabel: "Não, pode esperar" }] },
       text: {
         mustMatch: [{ description: "perguntar pelo compromisso de hoje", pattern: /compromisso/i }],
@@ -818,8 +818,10 @@ const keyboardWithoutOs: Scenario = {
   tickets: { ofEmployee: [], ofOthers: [] },
   steps: [
     say("Meu teclado parou de funcionar.", {
-      toolsForbidden: ["proposeTicketDraft", "requestHandoff"],
-      parts: { mustNotInclude: [{ type: "quickReplies", includesLabel: "Windows" }] },
+      toolsForbidden: ["requestHandoff"],
+      parts: {
+        mustNotInclude: [{ type: "draft" }, { type: "quickReplies", includesLabel: "Windows" }],
+      },
       text: { mustNotMatch: [ASKS_OPERATING_SYSTEM] },
     }),
   ],
@@ -847,7 +849,8 @@ const returnWithNote: Scenario = {
       "Ela está falando do acesso ao Figma (REQ-10510): está aguardando ela aceitar o convite que mandamos por e-mail. Explique isso a ela.",
     ),
     say("E aí, conseguiu?", {
-      outcome: "answered",
+      // Responder com a nota pode terminar perguntando se ela achou o convite.
+      outcome: ["answered", "asked_clarification"],
       policiesNotTriggered: ["ExplicitHandoffPolicy", "LowConfidencePolicy"],
       toolsForbidden: ["requestHandoff"],
       parts: { mustNotInclude: [{ type: "handoff" }] },

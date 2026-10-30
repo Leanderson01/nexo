@@ -47,6 +47,14 @@ const INPUT = {
   agentSecret: "segredo",
 };
 
+/** A saída do ENTENDER com a evidência dos sinais (o código confere contra a fala). */
+function withEvidence(understanding: Partial<Understanding>) {
+  return {
+    ...makeUnderstanding(understanding),
+    signalEvidence: { impact: null, blocked: null, deadlineToday: null },
+  };
+}
+
 function setup(options: {
   userText: string;
   snapshot?: Partial<TurnSnapshot>;
@@ -84,7 +92,7 @@ function setup(options: {
     gateway,
     sink,
     understands(understanding: Partial<Understanding>) {
-      groq.reply(jsonCompletion(FAST, JSON.stringify(makeUnderstanding(understanding)), USAGE));
+      groq.reply(jsonCompletion(FAST, JSON.stringify(withEvidence(understanding)), USAGE));
     },
     run: () => runTurn({ ...INPUT, userText: options.userText }, { dependencies, sink }),
   };
@@ -227,11 +235,12 @@ describe("runTurn: AGIR com tools", () => {
             kind: "INC",
             category: "software",
             title: "Sistema de vendas fora do ar",
-            description: "O sistema de vendas caiu para a equipe Comercial.",
-            affected: "Equipe Comercial",
-            impact: "team",
-            blocked: true,
-            deadlineToday: null,
+            symptom: "O sistema de vendas caiu para o time todo.",
+            symptomEvidence: "O sistema de vendas caiu para o time todo",
+            since: null,
+            sinceEvidence: null,
+            tried: null,
+            triedEvidence: null,
             referenceCode: null,
           },
         },
@@ -268,6 +277,8 @@ describe("runTurn: AGIR com tools", () => {
 });
 
 describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
+  const PRINTER_TEXT =
+    "A impressora continua sem imprimir. Só eu uso, dá para imprimir no 3º andar e não tenho nada urgente.";
   const PRINTER_SIGNALS = {
     kind: "INC",
     category: "hardware",
@@ -278,7 +289,7 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
   const CLAIM = "Preparei uma atualização para ele. Confira e confirme no card.";
 
   it("texto que promete o card sem a tool ganha nova tentativa, que propõe o rascunho", async () => {
-    const turn = setup({ userText: "A impressora continua sem imprimir." });
+    const turn = setup({ userText: PRINTER_TEXT });
     turn.understands({
       intent: "open_ticket",
       summary: "Impressora sem imprimir.",
@@ -306,11 +317,12 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
             kind: "INC",
             category: "hardware",
             title: "Impressora sem imprimir",
-            description: "A impressora não imprime.",
-            affected: null,
-            impact: "individual",
-            blocked: false,
-            deadlineToday: false,
+            symptom: "A impressora continua sem imprimir.",
+            symptomEvidence: "A impressora continua sem imprimir",
+            since: null,
+            sinceEvidence: null,
+            tried: null,
+            triedEvidence: null,
             referenceCode: null,
           },
         },
@@ -414,7 +426,13 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
     turn.understands({
       intent: "open_ticket",
       summary: "Sistema de vendas fora do ar para a equipe.",
-      ticketSignals: { ...PRINTER_SIGNALS, category: "software", impact: "team", blocked: true },
+      ticketSignals: {
+        ...PRINTER_SIGNALS,
+        category: "software",
+        impact: "team",
+        blocked: true,
+        deadlineToday: null,
+      },
     });
     turn.groq.reply(streamText(MAIN, ["Desde quando o sistema está fora do ar?"], USAGE));
     turn.groq.reply(
@@ -438,11 +456,12 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
             kind: "INC",
             category: "software",
             title: "Sistema de vendas fora do ar",
-            description: "O sistema de vendas caiu para a equipe.",
-            affected: null,
-            impact: "team",
-            blocked: true,
-            deadlineToday: null,
+            symptom: "O sistema de vendas caiu para o time todo.",
+            symptomEvidence: "O sistema de vendas caiu para o time todo",
+            since: null,
+            sinceEvidence: null,
+            tried: null,
+            triedEvidence: null,
             referenceCode: null,
           },
         },
@@ -462,7 +481,7 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
   });
 
   it("se as duas novas tentativas também só prometem, a resposta vira o aviso honesto", async () => {
-    const turn = setup({ userText: "A impressora continua sem imprimir." });
+    const turn = setup({ userText: PRINTER_TEXT });
     turn.understands({
       intent: "open_ticket",
       summary: "Impressora sem imprimir.",
@@ -582,7 +601,12 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
   });
 
   const MOUSE = "Meu mouse sem fio parou de funcionar. Pode abrir um chamado?";
-  const MOUSE_SIGNALS = { ...PRINTER_SIGNALS, impact: null } as const;
+  const MOUSE_SIGNALS = {
+    ...PRINTER_SIGNALS,
+    impact: null,
+    blocked: null,
+    deadlineToday: null,
+  } as const;
 
   it("resposta sem texto e sem partes ganha nova tentativa, que responde em streaming", async () => {
     const turn = setup({ userText: MOUSE });
@@ -592,7 +616,7 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
       ticketSignals: MOUSE_SIGNALS,
     });
     turn.groq.reply(streamText(MAIN, [], USAGE)); // o modelo encerra sem texto nem tool
-    turn.groq.reply(streamText(MAIN, ["Qual o impacto desse problema?"], USAGE));
+    turn.groq.reply(streamText(MAIN, ["Qual é o modelo do mouse?"], USAGE));
 
     await turn.run();
 
@@ -600,7 +624,7 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
     expect(JSON.stringify(turn.groq.requests[2].messages)).toContain(
       "terminou sem escrever nada para o funcionário",
     );
-    expect(turn.sink.text).toBe("Qual o impacto desse problema?");
+    expect(turn.sink.text).toBe("Qual é o modelo do mouse?");
     expect(turn.store.decisions[0].corrections).toEqual([
       expect.objectContaining({ rule: "empty_reply" }),
     ]);
@@ -645,18 +669,18 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
     turn.groq.reply(
       streamText(
         MAIN,
-        ["Qual o impacto desse problema?\n\n", "[options] Só eu; Minha equipe; A empresa toda"],
+        ["Qual é o modelo do mouse?\n\n", "[options] Logitech; Microsoft; Outro"],
         USAGE,
       ),
     );
 
     await turn.run();
 
-    expect(turn.sink.text).toBe("Qual o impacto desse problema?");
+    expect(turn.sink.text).toBe("Qual é o modelo do mouse?");
     expect(turn.sink.finalParts).toEqual([
       {
         type: "quickReplies",
-        options: ["Só eu", "Minha equipe", "A empresa toda"].map((label) => ({
+        options: ["Logitech", "Microsoft", "Outro"].map((label) => ({
           label,
           value: label,
         })),
@@ -674,29 +698,29 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
       summary: "Mouse sem fio parou.",
       ticketSignals: MOUSE_SIGNALS,
     });
-    turn.groq.reply(streamText(MAIN, ["Qual o impacto do problema? (oferecendo opções)"], USAGE));
+    turn.groq.reply(streamText(MAIN, ["Qual é o modelo do mouse? (oferecendo opções)"], USAGE));
     turn.groq.reply(
       streamToolCall(
         MAIN,
         {
           id: "call_1",
           name: "offerQuickReplies",
-          arguments: { options: ["Só eu", "Minha equipe", "A empresa toda"] },
+          arguments: { options: ["Logitech", "Microsoft", "Outro"] },
         },
         USAGE,
       ),
     );
-    turn.groq.reply(streamText(MAIN, ["Qual o impacto desse problema?"], USAGE));
+    turn.groq.reply(streamText(MAIN, ["Qual é o modelo do mouse?"], USAGE));
 
     await turn.run();
 
     expect(turn.groq.requests).toHaveLength(4); // ENTENDER, AGIR e os 2 passos da nova tentativa
     expect(JSON.stringify(turn.groq.requests[2].messages)).toContain("CHAME offerQuickReplies");
-    expect(turn.sink.text).toBe("Qual o impacto desse problema?");
+    expect(turn.sink.text).toBe("Qual é o modelo do mouse?");
     expect(turn.sink.finalParts).toEqual([
       {
         type: "quickReplies",
-        options: ["Só eu", "Minha equipe", "A empresa toda"].map((label) => ({
+        options: ["Logitech", "Microsoft", "Outro"].map((label) => ({
           label,
           value: label,
         })),

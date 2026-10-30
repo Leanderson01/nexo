@@ -7,11 +7,17 @@ import type { TicketSignals } from "@/domain/understanding";
 import { isOpen } from "@/domain/ticket-rules";
 
 import type { AgentTool, ToolSession } from "./tool-session";
+import { groundedDraftText } from "./grounded-text";
 import { gatewayFailure } from "./ticket-view";
 
 const input = z.object({
   code: z.string().describe("Chamado ABERTO do funcionário a complementar."),
-  text: z.string().describe("A informação nova, passada a limpo em norma culta."),
+  text: z
+    .string()
+    .describe("A informação nova, passada a limpo em norma culta, só com o que foi dito."),
+  evidence: z
+    .string()
+    .describe("Trecho LITERAL da mensagem do funcionário que traz a informação nova."),
 });
 type Input = z.infer<typeof input>;
 type Output = {
@@ -32,6 +38,7 @@ export function proposeTicketUpdateTool(session: ToolSession): AgentTool<Input, 
   return {
     name: "proposeTicketUpdate",
     label: "preparou a atualização do chamado",
+    failureLabel: "conferiu o chamado",
     description:
       "Propõe, como rascunho, acrescentar uma informação a um chamado aberto do funcionário (em vez de abrir outro).",
     inputSchema: input,
@@ -60,7 +67,7 @@ export function proposeTicketUpdateTool(session: ToolSession): AgentTool<Input, 
         {
           kind: "update_ticket",
           code: ticket.code,
-          text: fields.text.trim(),
+          text: groundedDraftText(fields.text, fields.evidence, session),
           ...(fieldChanges && { fieldChanges }),
         },
         workspace.criticalCase || fieldChanges?.priority === "CRITICAL",

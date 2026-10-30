@@ -16,14 +16,24 @@ import type { Understanding } from "@/domain/understanding";
 
 import { getMyTicketTool } from "../get-my-ticket";
 import { proposeReopenTool } from "../propose-reopen";
-import { proposeTicketDraftTool, withOperatingSystem } from "../propose-ticket-draft";
+import { proposeTicketDraftTool } from "../propose-ticket-draft";
 import { searchKnowledgeBaseTool } from "../search-knowledge-base";
 import type { ToolGateways, ToolSession } from "../tool-session";
+
+const VPN_TEXT = "Minha VPN dá erro 809 no Windows 11 desde ontem e já reiniciei o computador.";
+const SAID_SIGNALS = {
+  kind: "INC",
+  category: "network_vpn",
+  impact: "individual",
+  blocked: true,
+  deadlineToday: false,
+} as const;
 
 function setup(
   options: {
     understanding?: Partial<Understanding>;
     gateway?: FakeTicketGateway;
+    employeeTexts?: string[];
   } = {},
 ) {
   const store = new InMemoryAgentStore();
@@ -32,7 +42,8 @@ function setup(
     now: NOW,
     conversationId: "conv_1",
     employee: { name: "Rafael Lima", department: "Comercial" },
-    understanding: makeUnderstanding(options.understanding),
+    understanding: makeUnderstanding({ ticketSignals: SAID_SIGNALS, ...options.understanding }),
+    facts: { employeeTexts: options.employeeTexts ?? [VPN_TEXT], articlesTried: [] },
     store,
     workspace,
   };
@@ -48,11 +59,12 @@ const DRAFT = {
   kind: "INC" as const,
   category: "network_vpn" as const,
   title: "VPN com erro 809 no Windows 11",
-  description: "A VPN falha com o erro 809.",
-  affected: null,
-  impact: "individual" as const,
-  blocked: true,
-  deadlineToday: false,
+  symptom: "A VPN apresenta o erro 809 no Windows 11.",
+  symptomEvidence: "VPN dá erro 809 no Windows 11",
+  since: "Desde ontem.",
+  sinceEvidence: "desde ontem",
+  tried: "Já reiniciou o computador.",
+  triedEvidence: "já reiniciei o computador",
   referenceCode: null,
 };
 
@@ -89,25 +101,60 @@ describe("proposeTicketDraft", () => {
     workspace.similarTickets = new Map();
     workspace.criticalCase = true;
 
-    await proposeTicketDraftTool(session).run(
-      { ...DRAFT, impact: "team", blocked: true, affected: "Equipe Comercial" },
-      gateways,
-    );
+    await proposeTicketDraftTool(session).run(DRAFT, gateways);
 
     expect(store.drafts[0].handoffOnConfirm).toBe(true);
-    expect(store.drafts[0].action).toMatchObject({ ticket: { priority: "CRITICAL" } });
+    expect(store.drafts[0].action).toMatchObject({ ticket: { priority: "HIGH" } });
   });
 
-  it("sem impacto nem bloqueio, pede para perguntar antes", async () => {
-    const { session, workspace, gateways } = setup();
+  it("os sinais vêm só do ENTENDER conferido: sem impacto, nada de rascunho", async () => {
+    const { session, workspace, gateways, store } = setup({
+      understanding: { ticketSignals: { ...SAID_SIGNALS, impact: null, blocked: null } },
+    });
     workspace.similarTickets = new Map();
 
-    const output = await proposeTicketDraftTool(session).run(
-      { ...DRAFT, impact: null, blocked: null },
+    const output = await proposeTicketDraftTool(session).run(DRAFT, gateways);
+
+    expect(output).toMatchObject({ ok: false, error: expect.stringContaining("quem é afetado") });
+    expect(store.drafts).toEqual([]);
+  });
+
+  it("a equipe parada vira Crítica e transfere ao confirmar, sem a CriticalPolicy", async () => {
+    const { session, workspace, gateways, store } = setup({
+      understanding: { ticketSignals: { ...SAID_SIGNALS, impact: "team" } },
+    });
+    workspace.similarTickets = new Map();
+
+    await proposeTicketDraftTool(session).run(DRAFT, gateways);
+
+    expect(store.drafts[0]).toMatchObject({
+      handoffOnConfirm: true,
+      action: { ticket: { priority: "CRITICAL", affected: "Equipe de Comercial" } },
+    });
+  });
+
+  it("monta a descrição só com o que foi dito (§11.2)", async () => {
+    const { session, workspace, gateways, store } = setup({
+      understanding: { entities: { ...makeUnderstanding().entities, os: "Windows 11" } },
+    });
+    workspace.similarTickets = new Map();
+
+    await proposeTicketDraftTool(session).run(
+      {
+        ...DRAFT,
+        tried: "Já reinstalou o cliente da VPN pelo portal.",
+        triedEvidence: "reinstalei o cliente",
+      },
       gateways,
     );
 
-    expect(output).toMatchObject({ ok: false, error: expect.stringContaining("impacto") });
+    expect(store.drafts[0].action).toMatchObject({
+      ticket: {
+        description:
+          "A VPN apresenta o erro 809 no Windows 11. Desde ontem. Afeta apenas o solicitante; impede o trabalho, sem alternativa no momento. Sistema operacional: Windows 11.",
+      },
+    });
+    expect(workspace.correctedDescriptionFields).toEqual(["o que já foi tentado"]);
   });
 
   it("só aceita referência a um parecido que o domínio mandou criar novo", async () => {
@@ -130,40 +177,35 @@ describe("proposeTicketDraft", () => {
   });
 });
 
-describe("withOperatingSystem", () => {
-  it("acrescenta o sistema operacional informado que a descrição esqueceu", () => {
-    expect(withOperatingSystem("VPN com erro 809 ao conectar de casa", "Windows 10")).toBe(
-      "VPN com erro 809 ao conectar de casa. Sistema operacional: Windows 10.",
-    );
-  });
-
-  it("não repete quando a descrição já cita, nem acrescenta sem informação", () => {
-    expect(withOperatingSystem("Erro 809 no windows 10.", "Windows 10")).toBe(
-      "Erro 809 no windows 10.",
-    );
-    expect(withOperatingSystem("Erro 809.", null)).toBe("Erro 809.");
-    expect(withOperatingSystem("Erro 809.", "Não sei")).toBe("Erro 809.");
-  });
-});
-
 describe("proposeReopen", () => {
   it("reabre só o que foi resolvido há até 7 dias", async () => {
     const gateway = new FakeTicketGateway({ tickets: [SAP, WIFI] });
-    const { session, store, gateways } = setup({ gateway });
+    const { session, store, gateways } = setup({
+      gateway,
+      employeeTexts: ["Minha senha do SAP bloqueou de novo"],
+    });
     const tool = proposeReopenTool(session);
 
-    const sap = await tool.run({ code: SAP.code, reason: "Bloqueou de novo." }, gateways);
+    const sap = await tool.run(
+      {
+        code: SAP.code,
+        reason: "Já tentei desbloquear conforme orientações anteriores.",
+        evidence: "senha do SAP bloqueou de novo",
+      },
+      gateways,
+    );
 
     expect(sap.ok).toBe(true);
+    // A tentativa inventada sai: fica a fala do funcionário.
     expect(store.drafts[0].action).toEqual({
       kind: "reopen_ticket",
       code: SAP.code,
-      reason: "Bloqueou de novo.",
+      reason: "Senha do SAP bloqueou de novo.",
     });
 
     const second = setup({ gateway });
     const wifi = await proposeReopenTool(second.session).run(
-      { code: WIFI.code, reason: "Voltou." },
+      { code: WIFI.code, reason: "Voltou.", evidence: "voltou" },
       second.gateways,
     );
     expect(wifi).toMatchObject({ ok: false, error: expect.stringContaining("referenceCode") });

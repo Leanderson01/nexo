@@ -64,6 +64,27 @@ import { decideOutcome } from "./turn-outcome";
 import { addModelUsage, emptyUsage, type ModelUsage, type UsageTotals } from "./turn-usage";
 import { TurnWorkspace } from "./turn-workspace";
 import { understand } from "./understand";
+import { readConversationFacts, type ConversationFacts } from "./conversation-facts";
+import { applyReturnNoteRules } from "./return-note";
+import { continueIntake, verifyUnderstanding } from "./verify-understanding";
+import {
+  ARTICLE_QUESTION,
+  classifyQuestion,
+  closedQuestionOptions,
+  correction,
+  inapplicableArticleSentence,
+  intakeText,
+  keepOneQuestion,
+  looksLikeArticleAnswer,
+  questionsIn,
+  stripMarkdown,
+  withCodeQuestion,
+  withFinalQuestion,
+  withoutQuestions,
+  YES_NO,
+} from "./reply-conduct";
+import { replyUsesNote, RETURN_NOTE_RETRY_INSTRUCTION } from "./return-note";
+import { nextMissingSignal } from "@/domain/intake-questions";
 
 // Um turno do agent (§6.1), disparado pela rota de mensagens depois do 202 (`after()`, §5.7):
 //
@@ -139,6 +160,8 @@ interface Turn {
   replacementText: string | null;
   /** Correções feitas em código depois do AGIR, para o `DecisionRecord`. */
   corrections: ReplyCorrection[];
+  /** O que a conversa mostra de fato (falas do funcionário, opções escolhidas, artigos). */
+  facts: ConversationFacts;
 }
 
 async function runPipeline(
@@ -175,6 +198,7 @@ async function runPipeline(
     modelTextStart: 0,
     replacementText: null,
     corrections: [],
+    facts: readConversationFacts(context.snapshot.recentMessages, input.userText),
   };
 
   const notice = sensitiveDataNotice(input.userText);
@@ -198,10 +222,23 @@ async function runPipeline(
   }
   await deps.store.markUserMessage("read");
   // Resposta curta a uma pergunta do assistente: regras em código (short-answers.ts).
-  const understanding = applyShortAnswerRules(
+  const shortAnswered = applyShortAnswerRules(
     understood.understanding,
     context.snapshot.recentMessages,
     input.userText,
+  );
+  // Sinais e sistema operacional só valem com evidência na fala do funcionário.
+  const verified = verifyUnderstanding(
+    continueIntake(shortAnswered, turn.facts),
+    understood.signalQuotes,
+    turn.facts,
+  );
+  turn.corrections.push(...verified.corrections);
+  // Primeiro turno depois da devolução: a nota do analista é o contexto da mensagem.
+  const { understanding } = applyReturnNoteRules(
+    verified.understanding,
+    input.userText,
+    context.snapshot.conversation.returnNote,
   );
 
   // Chamado em foco (decisão 2) e DECIDIR
@@ -316,8 +353,12 @@ async function answerWithModel(
   const similarTickets = shouldConsultSimilar(understanding, turn.input.userText)
     ? await consultSimilar(session, traceEnvironment)
     : null;
+  // Respondendo às perguntas da abertura, o artigo já ficou para trás: a central não entra.
   const articles =
-    shouldConsultKnowledge(understanding) && !similarTickets?.length && !workspace.legacyUnavailable
+    shouldConsultKnowledge(understanding) &&
+    !similarTickets?.length &&
+    !workspace.legacyUnavailable &&
+    !turn.facts.answeredIntakeNow
       ? await consultKnowledge(session, traceEnvironment)
       : null;
   if (workspace.legacyUnavailable) {
@@ -471,15 +512,51 @@ async function answerWithModel(
 
   // As opções da oferta de analista são fixas em código (decisão 22 lê a resposta).
   if (overdueOffer) workspace.offerQuickReplies([ACCEPT_HANDOFF_OFFER, DECLINE_HANDOFF_OFFER]);
-  const basedOnArticle = workspace.applicableArticle !== null && /resolveu/i.test(turn.replyText);
-  // "Isso resolveu?" tem as opções Sim e Não (§6.4), fixas em código: o modelo às vezes troca
-  // por outras ("Já tentei"). A pergunta da condição do artigo mantém as opções dela.
-  if (basedOnArticle && !overdueOffer && !workspace.askedArticleCondition) {
-    workspace.offerQuickReplies(["Sim", "Não"]);
+  // Condução em código (QA C1): perguntas conhecidas com texto e opções daqui, uma por turno.
+  const basedOnArticle = await conductReply(turn, {
+    understanding,
+    overdueOffer: overdueOffer !== null,
+    runAct,
+    ok: (acted) => actSucceeded(turn, acted, { understanding, decision }, false),
+  });
+  if (basedOnArticle === null) return;
+  if (workspace.correctedDescriptionFields.length > 0) {
+    turn.corrections.push(
+      correction(
+        "invented_description",
+        `O rascunho trazia ${workspace.correctedDescriptionFields.join(", ")} sem apoio na fala do funcionário; ficou o que ele disse (§11.2: passar a limpo não é completar).`,
+      ),
+    );
   }
 
   await checkCitedTicketCodes(turn, session, traceEnvironment);
   await offerToOpenWhenNoTicket(turn, understanding, focus);
+  tidyMarkdown(turn);
+
+  // A nota do analista só sai depois de um turno que a usou (QA C1, bloqueante 4).
+  const returnNote = context.snapshot.conversation.returnNote;
+  let usedReturnNote = returnNote !== null && replyUsesNote(modelText(turn), returnNote);
+  if (returnNote !== null && !usedReturnNote && workspace.draft === null) {
+    let text = "";
+    const retried = await runAct(RETURN_NOTE_RETRY_INSTRUCTION, async (piece) => {
+      text += piece;
+    });
+    if (retried.usage) addUsages(turn, turn.deps.llm.mainModel, [retried.usage]);
+    if (!(await actSucceeded(turn, retried, { understanding, decision }, false))) return;
+    usedReturnNote = retried.ok && replyUsesNote(text, returnNote);
+    if (usedReturnNote) {
+      replaceModelText(turn, stripMarkdown(text).trim());
+      workspace.clearQuickReplies();
+    }
+    turn.corrections.push(
+      correction(
+        "return_note",
+        usedReturnNote
+          ? "A resposta não usou a nota do analista; uma nova tentativa do AGIR respondeu com base nela."
+          : "A resposta não usou a nota do analista nem na nova tentativa; a nota fica para o próximo turno.",
+      ),
+    );
+  }
 
   await complete(turn, {
     understanding,
@@ -487,9 +564,245 @@ async function answerWithModel(
     shortCircuit: false,
     errorStage: null,
     parts: workspace.structuredParts({ includeArticle: basedOnArticle }),
-    usedReturnNote: context.snapshot.conversation.returnNote !== null,
+    usedReturnNote,
     overdueOfferCode: overdueOffer?.code ?? null,
   });
+}
+
+// ---------- Condução em código (QA C1) ----------
+
+type RunAct = (
+  extraInstruction: string | null,
+  onText: (piece: string) => Promise<void>,
+) => ReturnType<typeof act>;
+
+/** Intenções em que a resposta pode estar abrindo um chamado. */
+const INTAKE_INTENTS: readonly Understanding["intent"][] = [
+  "question",
+  "open_ticket",
+  "update_ticket",
+  "unclear",
+  "confirm_or_edit_draft",
+];
+
+const SIGNALS_COMPLETE_INSTRUCTION = `## Correção (decidida em código)
+Impacto, bloqueio e urgência já foram informados pelo funcionário. Não pergunte mais nada: chame findSimilarTickets (se ainda não chamou neste turno) e a tool de proposta que o parecido indicar (proposeTicketDraft, proposeTicketUpdate ou proposeReopen) agora, e peça para conferir e confirmar no card.`;
+
+/**
+ * Conferências da condução depois do AGIR. Devolve se a resposta se baseia no artigo (o card
+ * entra), ou `null` quando o turno já terminou com erro.
+ */
+async function conductReply(
+  turn: Turn,
+  options: {
+    understanding: Understanding;
+    overdueOffer: boolean;
+    runAct: RunAct;
+    ok: (acted: Awaited<ReturnType<typeof act>>) => Promise<boolean>;
+  },
+): Promise<boolean | null> {
+  const { workspace } = turn;
+  const { understanding } = options;
+  const showsOtherContent =
+    workspace.draft !== null ||
+    workspace.handoff !== null ||
+    workspace.shownTickets().length > 0 ||
+    workspace.hasTicketSelector() ||
+    options.overdueOffer;
+
+  // Condição do artigo (F1): "Qual é o seu Windows?" com as opções dela, sempre coerentes.
+  if (workspace.conditionQuestion && !showsOtherContent) {
+    const { question, options: labels } = workspace.conditionQuestion;
+    const text = modelText(turn);
+    const fixed = withCodeQuestion(text, question);
+    if (fixed !== text.trim()) {
+      replaceModelText(turn, fixed);
+      turn.corrections.push(
+        correction(
+          "condition_question",
+          `A pergunta da condição do artigo saiu com o texto definido em código ("${question}").`,
+        ),
+      );
+    }
+    workspace.offerQuickReplies(labels);
+    return false;
+  }
+
+  // Artigo que vale (F1 passos 3 e 4): card do artigo e "Isso resolveu?" com Sim e Não.
+  const top = workspace.topArticle;
+  if (
+    top?.status === "applies" &&
+    !showsOtherContent &&
+    understanding.intent !== "ticket_status" &&
+    looksLikeArticleAnswer(modelText(turn))
+  ) {
+    const text = modelText(turn);
+    const fixed = withFinalQuestion(text, ARTICLE_QUESTION);
+    if (fixed !== text.trim()) {
+      replaceModelText(turn, fixed);
+      turn.corrections.push(
+        correction(
+          "article_answer",
+          `A resposta seguiu o artigo "${top.part.title}" sem terminar em "Isso resolveu?": a pergunta, o card e as opções Sim e Não entraram em código.`,
+        ),
+      );
+    }
+    workspace.applicableArticle = top.part;
+    workspace.offerQuickReplies(YES_NO);
+    return true;
+  }
+
+  // Abertura de chamado (F4): a próxima pergunta que falta, com texto e opções definidos aqui.
+  if (!showsOtherContent && isIntakeTurn(turn, understanding)) {
+    const { impact, blocked, deadlineToday } = understanding.ticketSignals;
+    const next = nextMissingSignal({ impact, blocked, deadlineToday });
+    if (next) {
+      const text = modelText(turn);
+      replaceModelText(turn, intakeText(next, turn.facts.previousAskedIntake));
+      workspace.offerQuickReplies(next.options.map((option) => option.label));
+      turn.corrections.push(
+        correction(
+          "intake_question",
+          `Falta saber ${next.signal} para abrir o chamado: a pergunta "${next.question}" e as opções saíram em código no lugar de "${text.trim().slice(0, 160)}".`,
+        ),
+      );
+      return false;
+    }
+    if (workspace.draft === null) {
+      // Sinais completos e nenhum rascunho: uma nova tentativa pede a proposta.
+      let text = "";
+      workspace.clearQuickReplies();
+      const retried = await options.runAct(SIGNALS_COMPLETE_INSTRUCTION, async (piece) => {
+        text += piece;
+      });
+      if (retried.usage) addUsages(turn, turn.deps.llm.mainModel, [retried.usage]);
+      if (!(await options.ok(retried))) return null;
+      if (workspace.draft !== null && retried.ok && text.trim() !== "") {
+        replaceModelText(turn, text.trim());
+      }
+      turn.corrections.push(
+        correction(
+          "intake_question",
+          workspace.draft !== null
+            ? "Os sinais já estavam completos e o AGIR perguntou de novo; uma nova tentativa propôs o rascunho."
+            : "Os sinais já estavam completos e o AGIR perguntou de novo; nem a nova tentativa propôs o rascunho.",
+        ),
+      );
+      if (workspace.draft !== null) return false;
+    }
+  }
+
+  // Sistema operacional sem artigo que dependa dele: a pergunta sai (QA: SO para teclado).
+  const osQuestions = questionsIn(modelText(turn)).filter(
+    (question) => classifyQuestion(question) === "os",
+  );
+  if (osQuestions.length > 0) {
+    replaceModelText(turn, withoutQuestionsMatching(modelText(turn), osQuestions));
+    if (workspace.quickReplyLabels()?.some((label) => /windows|mac|linux/i.test(label))) {
+      workspace.clearQuickReplies();
+    }
+    turn.corrections.push(
+      correction(
+        "one_question",
+        "A resposta perguntava o sistema operacional sem nenhum artigo que dependa dele; a pergunta saiu.",
+      ),
+    );
+  }
+
+  // O seletor de chamados já traz a pergunta: o texto não repete.
+  if (workspace.hasTicketSelector() && questionsIn(modelText(turn)).length > 0) {
+    const fixed = withoutQuestions(modelText(turn)) || "Encontrei mais de um chamado seu.";
+    replaceModelText(turn, fixed);
+    turn.corrections.push(
+      correction("one_question", "A pergunta do texto repetia a do seletor de chamados e saiu."),
+    );
+  }
+
+  // Uma pergunta por turno (§6.4): fica a última.
+  const single = keepOneQuestion(modelText(turn));
+  if (single) {
+    replaceModelText(turn, single.text);
+    turn.corrections.push(
+      correction(
+        "one_question",
+        `A resposta fazia mais de uma pergunta; ficou só a última (saiu: ${single.removed.map((question) => `"${question}"`).join(", ")}).`,
+      ),
+    );
+  }
+
+  // Pergunta fechada sem opções (decisão 31): Sim e Não.
+  const closed =
+    workspace.quickReplyLabels() === null &&
+    workspace.draft === null &&
+    !workspace.hasTicketSelector()
+      ? closedQuestionOptions(modelText(turn))
+      : null;
+  if (closed) {
+    workspace.offerQuickReplies(closed);
+    turn.corrections.push(
+      correction(
+        "closed_question_options",
+        "A pergunta fechada saiu sem opções; Sim e Não entraram em código.",
+      ),
+    );
+  }
+
+  // Artigo que não vale para o caso (F1): o funcionário fica sabendo por quê.
+  if (top?.status === "does_not_apply") {
+    const sentence = inapplicableArticleSentence(modelText(turn), {
+      title: top.part.title,
+      appliesTo: top.appliesTo,
+      knownValue: top.knownValue,
+    });
+    if (sentence) replaceModelText(turn, `${sentence} ${modelText(turn).trim()}`.trim());
+  }
+  return false;
+}
+
+/**
+ * O turno está abrindo um chamado novo: a tool de rascunho foi recusada por falta de sinais, o
+ * assistente fez uma pergunta da abertura no turno anterior, ou o modelo perguntou impacto,
+ * bloqueio, urgência ou (num problema) o sistema operacional.
+ */
+function isIntakeTurn(turn: Turn, understanding: Understanding): boolean {
+  const { workspace, context, facts } = turn;
+  if (context.snapshot.pendingDraft !== null || workspace.conditionQuestion) return false;
+  if (!INTAKE_INTENTS.includes(understanding.intent)) return false;
+
+  const refusedForSignals = workspace.traces.some(
+    (trace) =>
+      trace.tool === "proposeTicketDraft" &&
+      trace.status === "error" &&
+      trace.outputSummary.includes("falta saber"),
+  );
+  if (refusedForSignals || facts.previousAskedIntake) return true;
+
+  const asked = questionsIn(modelText(turn)).map(classifyQuestion);
+  if (asked.some((kind) => kind === "impact" || kind === "blocked" || kind === "deadlineToday")) {
+    return true;
+  }
+  const isProblem =
+    understanding.intent === "open_ticket" || understanding.ticketSignals.kind === "INC";
+  return isProblem && asked.includes("os");
+}
+
+/** Tira do texto as perguntas indicadas (as demais frases ficam). */
+function withoutQuestionsMatching(text: string, questions: string[]): string {
+  let result = text;
+  for (const question of questions) result = result.replace(question, "");
+  return result
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** Markdown cru (`>`, `**`, `#`) não chega ao funcionário: o chat não renderiza. */
+function tidyMarkdown(turn: Turn): void {
+  const text = modelText(turn);
+  const clean = stripMarkdown(text);
+  if (clean === text) return;
+  replaceModelText(turn, clean);
+  turn.corrections.push(correction("markdown_removed", "O texto tinha markdown cru e foi limpo."));
 }
 
 /**
@@ -736,6 +1049,10 @@ function toolSession(turn: Turn, understanding: Understanding): ToolSession {
       department: turn.context.snapshot.employee.department,
     },
     understanding,
+    facts: {
+      employeeTexts: turn.facts.employeeTexts,
+      articlesTried: turn.facts.articlesTried,
+    },
     store: turn.deps.store,
     workspace: turn.workspace,
   };
@@ -753,6 +1070,9 @@ function describeState(context: LoadedContext, userText: string): string {
       ? `Chamado em foco: ${conversation.selectedTicketCode}.`
       : "Nenhum chamado em foco.",
     conversation.pendingHandoffOffer ? "O assistente acabou de oferecer chamar um analista." : null,
+    conversation.returnNote
+      ? `O analista acabou de devolver a conversa ao assistente com esta nota: "${conversation.returnNote}". Mensagens sobre o que o analista fez ("E aí, conseguiu?", "e então?") são sobre essa nota: intent question, confiança alta; não é pedido de analista.`
+      : null,
     context.rollingSummary ? `Resumo da conversa: ${context.rollingSummary}` : null,
     picked ? describePickedReply(picked) : null,
   ]

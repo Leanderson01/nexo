@@ -32,7 +32,9 @@ entities: o que já se sabe na conversa inteira, não só na última mensagem; n
 - os: como o funcionário disse ("Windows 11"). "Não sei" também vale.
 - ticketRef: sempre que ele falar de um chamado existente, o código citado ("INC-20311") ou a descrição do chamado ("e o meu chamado do notebook?" → "notebook"; "o pedido do monitor" → "monitor"; "como está o chamado da impressora do 2º andar?" → "impressora do 2º andar").
 
-ticketSignals: o que o funcionário já disse na conversa inteira, não só na última mensagem (a resposta "Não" a "Isso resolveu?" mantém os sinais ditos antes). null quando ele não disse; não deduza.
+signalEvidence: para cada sinal (impact, blocked, deadlineToday), copie o trecho LITERAL de uma mensagem do funcionário que diz aquele valor, palavra por palavra (ex.: "não consigo trabalhar de casa sem ela", "Só eu", "sem compromisso hoje"). Sem trecho que diga o valor, null. O sistema confere: sinal sem trecho é descartado e o assistente pergunta.
+
+ticketSignals: o que o funcionário já disse na conversa inteira, não só na última mensagem (a resposta "Não" a "Isso resolveu?" mantém os sinais ditos antes). null quando ele não disse; não deduza. "O Wi-Fi da sala 3 caiu" não diz quem é afetado nem se a pessoa está parada: impact e blocked ficam null.
 - kind: INC = algo parou ou não funciona; REQ = pedido de acesso, equipamento ou software.
 - category: ${TICKET_CATEGORIES.join(", ")} (network_vpn inclui Wi-Fi e VPN; access inclui senhas e permissões).
 - impact: individual (só a pessoa), team (equipe, setor, time), company (a empresa toda).
@@ -40,7 +42,7 @@ ticketSignals: o que o funcionário já disse na conversa inteira, não só na �
   true: "não consigo trabalhar sem ela", "não consigo trabalhar de casa sem a VPN", "ninguém consegue registrar o ponto e não temos alternativa", "estou parado", "não tenho como fazer meu trabalho".
   false: "dá para usar a impressora do 3º andar", "consigo trabalhar pelo celular por enquanto", "atrapalha, mas dá para seguir", "Sim" a "Consegue trabalhar de outro jeito?".
   null: ele não falou disso ("a impressora não imprime" sozinho é null; "erro 809" sozinho é null).
-- deadlineToday: true se há compromisso hoje que depende disso; false se disse que não há ("não tenho nenhum compromisso hoje que dependa disso" é false).
+- deadlineToday: true se há compromisso hoje que depende disso; false se disse que não há ("não tenho nenhum compromisso hoje que dependa disso" e "sem compromisso hoje" são false).
 
 missingFields: o que falta saber para abrir um chamado, entre "impact", "blocked", "deadlineToday", "os" e "description".
 

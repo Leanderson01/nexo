@@ -17,12 +17,22 @@ export function offerQuickRepliesTool(session: ToolSession): AgentTool<Input, Ou
   return {
     name: "offerQuickReplies",
     label: "ofereceu opções rápidas",
+    failureLabel: "manteve as opções do turno",
     description:
-      "Anexa opções rápidas à resposta quando a pergunta for fechada. Uma nova chamada substitui a anterior.",
+      "Anexa opções rápidas à resposta quando a pergunta for fechada. Só uma chamada por turno, para a única pergunta do turno.",
     inputSchema: input,
     describeInput: ({ options }) => options.join(" | "),
     describeOutput: () => "opções anexadas",
     async run({ options }) {
+      // Uma pergunta por turno, uma chamada de opções (QA: três chamadas no mesmo turno deixavam
+      // botões de uma pergunta embaixo de outra). Opções já postas em código também ficam.
+      if (session.workspace.quickReplyLabels() !== null) {
+        return {
+          ok: false,
+          error:
+            "As opções deste turno já estão na resposta. Não chame de novo e não faça outra pergunta.",
+        };
+      }
       const labels = options.map((option) => option.trim()).filter((option) => option !== "");
       session.workspace.offerQuickReplies(labels);
       return { ok: true };

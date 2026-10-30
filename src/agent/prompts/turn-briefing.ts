@@ -3,6 +3,7 @@ import type { SimilarTicket } from "@/agent/tools/find-similar-tickets";
 import type { ArticleForModel } from "@/agent/tools/search-knowledge-base";
 import type { PendingAction } from "@/domain/pending-action";
 import type { TicketSummary } from "@/domain/ticket";
+import { nextMissingSignal } from "@/domain/intake-questions";
 import type { Understanding } from "@/domain/understanding";
 
 import { ticketLine } from "../tools/ticket-view";
@@ -42,7 +43,10 @@ export function buildTurnBriefing(input: TurnBriefingInput): string {
     section("O que o funcionário quer (etapa ENTENDER)", understandingLines(input.understanding)),
     input.rollingSummary ? section("Resumo da conversa até aqui", [input.rollingSummary]) : null,
     input.returnNote
-      ? section("Nota do analista ao devolver a conversa", [input.returnNote])
+      ? section("Nota do analista ao devolver a conversa (use nesta resposta)", [
+          input.returnNote,
+          "O funcionário acabou de voltar do atendimento com o analista. Comece respondendo com base nesta nota: explique, em linguagem simples, o que o analista viu ou fez e o que falta. Não transfira de novo, a não ser que ele peça uma pessoa.",
+        ])
       : null,
     input.returnContext ? section("Retomada", [input.returnContext]) : null,
     input.pendingDraft ? section("Rascunho pendente", [describeDraft(input.pendingDraft)]) : null,
@@ -169,6 +173,8 @@ function decisionLines(input: TurnBriefingInput): string[] {
   }
   const known = knownSignalsLine(input.understanding, hasApplicableArticle(input));
   if (known) lines.push(known);
+  const missing = missingSignalsLine(input.understanding);
+  if (missing) lines.push(missing);
   if (input.sensitiveNoticeWritten) {
     lines.push("O aviso sobre a senha removida já foi escrito no começo da resposta; não repita.");
   }
@@ -187,6 +193,24 @@ function knownSignalsLine(understanding: Understanding, articleFirst: boolean): 
     : "";
   return `Impacto (${impact}), bloqueio (${blocked ? "sim" : "não"})${urgency} já informados: NÃO pergunte isso de novo.${article} Se for abrir chamado, siga direto para findSimilarTickets e a proposta neste turno.`;
 }
+
+/**
+ * Faltam sinais para um chamado novo: o modelo não chama proposeTicketDraft nem pergunta; a
+ * pergunta, com as opções, sai em código depois do AGIR (QA C1).
+ */
+function missingSignalsLine(understanding: Understanding): string | null {
+  if (!["open_ticket", "question"].includes(understanding.intent)) return null;
+  const { impact, blocked, deadlineToday } = understanding.ticketSignals;
+  const next = nextMissingSignal({ impact, blocked, deadlineToday });
+  if (!next) return null;
+  return `Para um chamado NOVO ainda falta saber ${MISSING_SIGNAL_NAMES[next.signal]}: não chame proposeTicketDraft neste turno e não pergunte isso (o sistema pergunta, com as opções). Atualizar ou reabrir um chamado parecido não depende disso. Se for orientar um artigo que vale para o caso, oriente normalmente.`;
+}
+
+const MISSING_SIGNAL_NAMES = {
+  impact: "quem é afetado",
+  blocked: "se dá para trabalhar de outro jeito",
+  deadlineToday: "se há compromisso hoje",
+} as const;
 
 /** Há artigo que vale para o caso e nenhum chamado parecido para seguir no lugar dele. */
 function hasApplicableArticle(input: TurnBriefingInput): boolean {

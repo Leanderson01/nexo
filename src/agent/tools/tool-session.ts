@@ -29,7 +29,15 @@ export interface ToolSession {
   now: number;
   conversationId: string;
   employee: { name: string; department: string };
+  /** O ENTENDER com os sinais e o sistema operacional já conferidos contra a conversa. */
   understanding: Understanding;
+  /** O que a conversa mostra de fato: base para a descrição não inventar nada (§11.2). */
+  facts: {
+    /** As mensagens do funcionário na janela do turno, terminando na atual. */
+    employeeTexts: string[];
+    /** Artigos que o funcionário disse que não resolveram. */
+    articlesTried: string[];
+  };
   store: Pick<AgentStore, "createDraft" | "transfer">;
   workspace: TurnWorkspace;
 }
@@ -53,6 +61,8 @@ export interface AgentTool<Input, Output extends ToolSuccess> {
   name: ToolName;
   /** Texto do chip na resposta: "consultou seus chamados". */
   label: string;
+  /** Chip quando a tool recusa (ex.: rascunho sem os sinais); sem ele, vale o `label`. */
+  failureLabel?: string;
   /** O que o modelo lê para decidir quando usar a tool. */
   description: string;
   inputSchema: z.ZodType<Input>;

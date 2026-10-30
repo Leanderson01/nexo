@@ -48,7 +48,7 @@ export function withTrace<Input, Output extends ToolSuccess>(
 
     environment.traces.push({
       tool: tool.name,
-      label: tool.label,
+      label: output.ok ? tool.label : (tool.failureLabel ?? tool.label),
       inputSummary: shorten(tool.describeInput(input)),
       outputSummary: shorten(outputSummary),
       status: output.ok ? "ok" : "error",

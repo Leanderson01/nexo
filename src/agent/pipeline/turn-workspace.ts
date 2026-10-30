@@ -11,6 +11,14 @@ import type { TicketCode, TicketSummary } from "@/domain/ticket";
 type ArticlePart = Extract<MessagePart, { type: "article" }>;
 export type DerivedPriorityRecord = NonNullable<NonNullable<DecisionRecord["derived"]>["priority"]>;
 
+/** O artigo mais relevante: vale, falta confirmar a condição ou não vale (e por quê). */
+export interface TopArticle {
+  part: ArticlePart;
+  status: "applies" | "needs_confirmation" | "does_not_apply";
+  appliesTo: string[];
+  knownValue: string | null;
+}
+
 export class TurnWorkspace {
   /** Preenchido pelo `withTrace`, na ordem das chamadas. */
   readonly traces: ToolCallTrace[] = [];
@@ -29,10 +37,16 @@ export class TurnWorkspace {
 
   /** O artigo mais relevante tem condição ainda não confirmada: o turno pergunta antes (F1). */
   askedArticleCondition = false;
+  /** A pergunta da condição (texto e opções definidos em código), quando o turno pergunta. */
+  conditionQuestion: { question: string; options: string[] } | null = null;
+  /** O artigo mais relevante da busca e se ele vale para o caso (o texto final depende disso). */
+  topArticle: TopArticle | null = null;
 
   /** A CriticalPolicy mandou: o rascunho transfere ao confirmar ou cancelar. */
   criticalCase = false;
   draft: { pendingActionId: string; kind: PendingActionKind } | null = null;
+  /** Campos do texto do rascunho trocados pela fala do funcionário (§11.2, sem invenção). */
+  correctedDescriptionFields: string[] = [];
   derivedPriority: DerivedPriorityRecord | null = null;
   handoff: HandoffReason | null = null;
   /** O serviço de chamados falhou depois das tentativas: o turno termina com erro honesto. */

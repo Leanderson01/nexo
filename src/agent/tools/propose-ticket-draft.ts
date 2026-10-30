@@ -1,27 +1,36 @@
 import { z } from "zod";
 
-import { IMPACTS, TICKET_CATEGORIES, TICKET_KINDS, type Impact } from "@/domain/enums";
+import { TICKET_CATEGORIES, TICKET_KINDS, type Impact } from "@/domain/enums";
+import { nextMissingSignal } from "@/domain/intake-questions";
 import { PRIORITY_LABELS } from "@/domain/labels";
 import { derivePriority, PRIORITY_DEADLINES } from "@/domain/priority";
 import { computeDueAt } from "@/domain/sla";
 import type { NewTicket, PrioritySignals } from "@/domain/ticket";
-import { normalizeText } from "@/shared/normalize-text";
+import { buildTicketDescription, problemStatement } from "@/domain/ticket-description";
 
 import type { AgentTool, ToolFailure, ToolSession } from "./tool-session";
+
+const EVIDENCE =
+  "Trecho LITERAL de uma mensagem do funcionário que sustenta o campo, palavra por palavra.";
 
 const input = z.object({
   kind: z.enum(TICKET_KINDS).describe("INC: algo parou ou não funciona. REQ: pedido."),
   category: z.enum(TICKET_CATEGORIES),
   title: z.string().describe("Título objetivo, passado a limpo (até ~60 caracteres)."),
-  description: z
+  symptom: z
     .string()
-    .describe(
-      "Descrição em norma culta: sintoma, desde quando, o que já foi tentado (inclusive os passos de artigo da central que não resolveram), impacto e ambiente (sistema operacional).",
-    ),
-  affected: z.string().nullable().describe('Quem é afetado, ex.: "Equipe Comercial".'),
-  impact: z.enum(IMPACTS).nullable(),
-  blocked: z.boolean().nullable().describe("Impedido de trabalhar, sem alternativa?"),
-  deadlineToday: z.boolean().nullable().describe("Há compromisso hoje que depende disso?"),
+    .describe("O sintoma em norma culta, só com o que o funcionário disse (sem completar nada)."),
+  symptomEvidence: z.string().describe(EVIDENCE),
+  since: z
+    .string()
+    .nullable()
+    .describe('Desde quando, se o funcionário disse (ex.: "Desde ontem."); senão null.'),
+  sinceEvidence: z.string().nullable().describe(EVIDENCE),
+  tried: z
+    .string()
+    .nullable()
+    .describe("O que o funcionário disse que já tentou; null se ele não contou nenhuma tentativa."),
+  triedEvidence: z.string().nullable().describe(EVIDENCE),
   referenceCode: z
     .string()
     .nullable()
@@ -48,6 +57,8 @@ export function proposeTicketDraftTool(session: ToolSession): AgentTool<Input, O
   return {
     name: "proposeTicketDraft",
     label: "preparou o rascunho do chamado",
+    // Recusado (falta de sinais, ordem das tools): o chip não promete um card que não veio.
+    failureLabel: "conferiu o que falta para o chamado",
     description:
       "Propõe um chamado NOVO como rascunho para o funcionário conferir e confirmar. Chame findSimilarTickets antes. A prioridade é calculada pelo sistema.",
     inputSchema: input,
@@ -60,23 +71,24 @@ export function proposeTicketDraftTool(session: ToolSession): AgentTool<Input, O
       const blocked = checkPreconditions(fields, session);
       if (blocked) return blocked;
 
-      const signals = resolveSignals(fields, session);
+      const signals = resolveSignals(session);
       if (!signals.ok) return signals;
 
       const derived = derivePriority({ kind: fields.kind, ...signals.value });
+      const built = describeTicket(fields, signals.value, session);
       const ticket: NewTicket = {
         kind: fields.kind,
         category: fields.category,
         title: fields.title.trim(),
-        description: withOperatingSystem(fields.description, session.understanding.entities.os),
-        affected: fields.affected?.trim() || defaultAffected(signals.value.impact, session),
+        description: built.description,
+        affected: defaultAffected(signals.value.impact, session),
         prioritySignals: signals.value,
         priority: derived.priority,
         priorityReason: derived.reason,
         ...(fields.referenceCode && { reopenedFrom: fields.referenceCode }),
       };
       // Crítico transfere ao confirmar ou cancelar (CriticalPolicy, §6.3); vale também quando o
-      // crítico só aparece nos sinais do rascunho.
+      // crítico só aparece nos sinais do rascunho (sempre conferidos contra a conversa).
       const transfersOnConfirm = workspace.criticalCase || derived.priority === "CRITICAL";
       const draft = await session.store.createDraft(
         { kind: "create_ticket", ticket },
@@ -84,6 +96,7 @@ export function proposeTicketDraftTool(session: ToolSession): AgentTool<Input, O
       );
 
       workspace.draft = { pendingActionId: draft.pendingActionId, kind: "create_ticket" };
+      workspace.correctedDescriptionFields = built.corrected;
       workspace.derivedPriority = {
         value: derived.priority,
         reason: derived.reason,
@@ -102,16 +115,23 @@ export function proposeTicketDraftTool(session: ToolSession): AgentTool<Input, O
 }
 
 /**
- * O sistema operacional que o funcionário informou entra na descrição (§11.2, ambiente) mesmo
- * quando o modelo esquece; "Não sei" não entra.
+ * Descrição passada a limpo (§11.2) montada em código: cada campo do modelo precisa citar a
+ * fala do funcionário; impacto e sistema operacional saem do que já foi conferido.
  */
-export function withOperatingSystem(description: string, os: string | null): string {
-  const text = description.trim();
-  const informed = os?.trim() ?? "";
-  if (informed === "" || normalizeText(informed).startsWith("nao sei")) return text;
-  if (normalizeText(text).includes(normalizeText(informed))) return text;
-  const separator = text === "" || /[.!?]$/.test(text) ? " " : ". ";
-  return `${text}${separator}Sistema operacional: ${informed}.`.trim();
+function describeTicket(fields: Input, signals: PrioritySignals, session: ToolSession) {
+  const { employeeTexts, articlesTried } = session.facts;
+  const statement = (text: string | null, evidence: string | null) =>
+    text && evidence ? { text, evidence } : null;
+  return buildTicketDescription({
+    symptom: { text: fields.symptom, evidence: fields.symptomEvidence },
+    since: statement(fields.since, fields.sinceEvidence),
+    tried: statement(fields.tried, fields.triedEvidence),
+    articlesTried,
+    signals,
+    operatingSystem: session.understanding.entities.os,
+    employeeTexts,
+    fallbackSymptom: problemStatement(employeeTexts, session.understanding.summary),
+  });
 }
 
 function draftInstruction(transfersOnConfirm: boolean, referenceCode: string | null): string {
@@ -148,37 +168,28 @@ function checkPreconditions(fields: Input, session: ToolSession): ToolFailure | 
   };
 }
 
-const SIGNAL_QUESTIONS = {
-  impact: 'impacto ("Só eu", "Minha equipe", "A empresa toda")',
-  blocked: 'bloqueio ("Consegue trabalhar de outro jeito por enquanto?")',
-} as const;
-
 /**
- * Sinais do rascunho: o que o modelo mandou ou, na falta, o que o ENTENDER extraiu. Sem
- * impacto ou bloqueio não há como derivar a prioridade: o agent pergunta antes (§8 F4).
- * Urgência não informada conta como "sem compromisso hoje", como em `deriveSignalsPriority`.
+ * Sinais do rascunho: só os do ENTENDER, já conferidos contra a fala do funcionário (o modelo
+ * do AGIR não informa sinais; na validação, ele inventava bloqueio e compromisso hoje). Sem
+ * sinais suficientes, nada de rascunho: o turno faz a próxima pergunta, definida em código.
  */
-function resolveSignals(
-  fields: Input,
-  session: ToolSession,
-): { ok: true; value: PrioritySignals } | ToolFailure {
-  const understood = session.understanding.ticketSignals;
-  const impact = fields.impact ?? understood.impact;
-  const blocked = fields.blocked ?? understood.blocked;
-  const deadlineToday = fields.deadlineToday ?? understood.deadlineToday ?? false;
-
-  const missing = [
-    impact === null ? SIGNAL_QUESTIONS.impact : null,
-    blocked === null ? SIGNAL_QUESTIONS.blocked : null,
-  ].filter((question) => question !== null);
-  if (impact === null || blocked === null) {
+function resolveSignals(session: ToolSession): { ok: true; value: PrioritySignals } | ToolFailure {
+  const { impact, blocked, deadlineToday } = session.understanding.ticketSignals;
+  const missing = nextMissingSignal({ impact, blocked, deadlineToday });
+  if (missing || impact === null || blocked === null) {
     return {
       ok: false,
-      error: `Falta saber: ${missing.join(" e ")}. Pergunte ao funcionário, uma coisa por vez, com offerQuickReplies.`,
+      error: `Ainda não dá para propor: falta saber ${MISSING_LABELS[missing?.signal ?? "impact"]}. Não pergunte nada sobre isso: o sistema faz a pergunta, com as opções, depois da sua resposta. Escreva no máximo uma frase curta de acolhimento.`,
     };
   }
-  return { ok: true, value: { impact, blocked, deadlineToday } };
+  return { ok: true, value: { impact, blocked, deadlineToday: deadlineToday ?? false } };
 }
+
+const MISSING_LABELS = {
+  impact: "quem é afetado",
+  blocked: "se dá para trabalhar de outro jeito",
+  deadlineToday: "se há compromisso hoje",
+} as const;
 
 function defaultAffected(impact: Impact, session: ToolSession): string {
   switch (impact) {

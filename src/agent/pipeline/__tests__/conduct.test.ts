@@ -1,0 +1,190 @@
+import { describe, expect, it } from "vitest";
+
+import { makeUnderstanding } from "@/agent/policies/__tests__/fixtures";
+import { BLOCKED_QUESTION, IMPACT_QUESTION } from "@/domain/intake-questions";
+
+import { readConversationFacts } from "../conversation-facts";
+import {
+  classifyQuestion,
+  closedQuestionOptions,
+  inapplicableArticleSentence,
+  intakeText,
+  keepOneQuestion,
+  looksLikeArticleAnswer,
+  stripMarkdown,
+  withCodeQuestion,
+  withFinalQuestion,
+  withoutQuestions,
+} from "../reply-conduct";
+import { applyReturnNoteRules, asksForAPerson, replyUsesNote } from "../return-note";
+import { continueIntake, verifyUnderstanding } from "../verify-understanding";
+import { assistantMessage, userMessage } from "./fakes";
+
+const text = (value: string) => ({ type: "text" as const, text: value });
+const options = (...labels: string[]) => ({
+  type: "quickReplies" as const,
+  options: labels.map((label) => ({ label, value: label })),
+});
+
+describe("readConversationFacts", () => {
+  it("lê as respostas às perguntas de abertura e o artigo que não resolveu", () => {
+    const facts = readConversationFacts(
+      [
+        userMessage("Minha VPN dá erro 809."),
+        assistantMessage([
+          text("1. Reinstale o cliente. Isso resolveu?"),
+          { type: "article", slug: "vpn-erro-809", title: "VPN com erro 809", excerpt: "" },
+          options("Sim", "Não"),
+        ]),
+        userMessage("Não"),
+        assistantMessage([text(intakeText(IMPACT_QUESTION, false)), options("Só eu")]),
+        userMessage("Só eu"),
+        assistantMessage([text(intakeText(BLOCKED_QUESTION, true))]),
+        userMessage("Não, sem alternativa"),
+      ],
+      "Não, sem alternativa",
+    );
+    expect(facts.answeredSignals).toEqual({ impact: "individual", blocked: true });
+    expect(facts.articlesTried).toEqual(["VPN com erro 809"]);
+    expect(facts.previousAskedIntake).toBe(true);
+    expect(facts.answeredIntakeNow).toBe(true);
+    expect(facts.employeeTexts).toEqual([
+      "Minha VPN dá erro 809.",
+      "Não",
+      "Só eu",
+      "Não, sem alternativa",
+    ]);
+  });
+});
+
+describe("verifyUnderstanding e continueIntake", () => {
+  const facts = readConversationFacts([userMessage("O Wi-Fi da sala 3 caiu de novo")], "");
+
+  it("descarta impacto, bloqueio e sistema operacional que ninguém disse", () => {
+    const understanding = makeUnderstanding({
+      entities: { ...makeUnderstanding().entities, os: "Windows 10" },
+      ticketSignals: {
+        kind: "INC",
+        category: "network_vpn",
+        impact: "team",
+        blocked: true,
+        deadlineToday: null,
+      },
+    });
+    const verified = verifyUnderstanding(
+      understanding,
+      { impact: "sala 3", blocked: "caiu", deadlineToday: null },
+      facts,
+    );
+    expect(verified.understanding.ticketSignals).toMatchObject({ impact: null, blocked: null });
+    expect(verified.understanding.entities.os).toBeNull();
+    expect(verified.corrections.map((item) => item.rule)).toEqual([
+      "unsupported_signal",
+      "unsupported_signal",
+    ]);
+  });
+
+  it("a resposta a uma pergunta da abertura continua a abertura", () => {
+    const answering = readConversationFacts(
+      [assistantMessage([text(intakeText(IMPACT_QUESTION, false))]), userMessage("Só eu")],
+      "Só eu",
+    );
+    const understanding = makeUnderstanding({ intent: "confirm_or_edit_draft", confidence: 0.6 });
+    expect(continueIntake(understanding, answering)).toMatchObject({
+      intent: "open_ticket",
+      confidence: 0.9,
+    });
+    expect(continueIntake(understanding, facts)).toBe(understanding);
+  });
+});
+
+describe("reply-conduct", () => {
+  it("classifica as perguntas conhecidas", () => {
+    expect(classifyQuestion("Qual o sistema operacional que você usa?")).toBe("os");
+    expect(classifyQuestion("Há algum compromisso hoje que depende disso?")).toBe("deadlineToday");
+    expect(classifyQuestion("Você consegue trabalhar de outro jeito?")).toBe("blocked");
+    expect(classifyQuestion("Qual o impacto desse problema?")).toBe("impact");
+    expect(classifyQuestion("Isso respondeu sua dúvida?")).toBe("article_worked");
+    expect(classifyQuestion("Qual é o modelo do mouse?")).toBeNull();
+  });
+
+  it("troca as perguntas do modelo pela pergunta em código", () => {
+    expect(
+      withCodeQuestion(
+        "Entendi. Qual o sistema operacional? É um caso crítico.",
+        "Qual é o seu Windows?",
+      ),
+    ).toBe("Entendi. Qual é o seu Windows?");
+    expect(intakeText(IMPACT_QUESTION, true)).toBe("Anotado. Quem está sendo afetado por isso?");
+  });
+
+  it("uma pergunta por turno e nenhuma repetida no seletor", () => {
+    expect(keepOneQuestion("Consegue trabalhar de outro jeito?Há algum compromisso hoje?")).toEqual(
+      {
+        text: "Há algum compromisso hoje?",
+        removed: ["Consegue trabalhar de outro jeito?"],
+      },
+    );
+    expect(keepOneQuestion("Entendi. Qual é o modelo?")).toBeNull();
+    expect(withoutQuestions("Encontrei dois chamados. Qual deles?")).toBe(
+      "Encontrei dois chamados.",
+    );
+  });
+
+  it("resposta baseada no artigo termina em Isso resolveu? e mantém os passos", () => {
+    const answer =
+      "Siga os passos:\n1. Reinstale o cliente.\n2. Reinicie.\nIsso respondeu sua dúvida?";
+    expect(looksLikeArticleAnswer(answer)).toBe(true);
+    expect(withFinalQuestion(answer, "Isso resolveu?")).toBe(
+      "Siga os passos:\n1. Reinstale o cliente.\n2. Reinicie.\nIsso resolveu?",
+    );
+    expect(looksLikeArticleAnswer("Quem está sendo afetado por isso?")).toBe(false);
+  });
+
+  it("pergunta fechada ganha Sim/Não; pergunta aberta ou com alternativas, não", () => {
+    expect(closedQuestionOptions("Você já reiniciou o computador?")).toEqual(["Sim", "Não"]);
+    expect(closedQuestionOptions("Quer que eu abra um chamado?")).toEqual(["Sim", "Não"]);
+    expect(closedQuestionOptions("É no notebook ou no desktop?")).toBeNull();
+    expect(closedQuestionOptions("Qual é a mensagem de erro?")).toBeNull();
+  });
+
+  it("tira markdown cru", () => {
+    expect(stripMarkdown("> **Atenção**: reinicie.\n## Passos")).toBe("Atenção: reinicie.\nPassos");
+  });
+
+  it("explica por que o artigo não vale, se o texto não explicou", () => {
+    const article = {
+      title: "VPN com erro 809",
+      appliesTo: ["Windows 10"],
+      knownValue: "Windows 11",
+    };
+    expect(inapplicableArticleSentence("Vou abrir um chamado.", article)).toBe(
+      'O artigo "VPN com erro 809" vale só para Windows 10, então não se aplica ao seu Windows 11.',
+    );
+    expect(
+      inapplicableArticleSentence("Esse artigo só vale para o Windows 10.", article),
+    ).toBeNull();
+  });
+});
+
+describe("nota do analista", () => {
+  const NOTE = "Está aguardando ela aceitar o convite do Figma (REQ-10510).";
+
+  it('"E aí, conseguiu?" é sobre a nota, não pedido de analista', () => {
+    const asked = makeUnderstanding({ intent: "talk_to_analyst", confidence: 0.9 });
+    const result = applyReturnNoteRules(asked, "E aí, conseguiu?", NOTE);
+    expect(result.understanding.intent).toBe("question");
+    expect(result.adjusted).toBe(true);
+    expect(applyReturnNoteRules(asked, "Quero falar com o analista de novo", NOTE).adjusted).toBe(
+      false,
+    );
+    expect(applyReturnNoteRules(asked, "E aí?", null).adjusted).toBe(false);
+    expect(asksForAPerson("me passa para um atendente")).toBe(true);
+  });
+
+  it("a resposta usou a nota quando cita o código ou o conteúdo dela", () => {
+    expect(replyUsesNote("O REQ-10510 aguarda você.", NOTE)).toBe(true);
+    expect(replyUsesNote("Falta você aceitar o convite que chegou do Figma.", NOTE)).toBe(true);
+    expect(replyUsesNote("Vou chamar um analista.", NOTE)).toBe(false);
+  });
+});
