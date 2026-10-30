@@ -92,6 +92,7 @@ import {
   stripMarkdown,
   withCodeQuestion,
   withFinalQuestion,
+  withoutNotFound,
   withoutQuestions,
   YES_NO,
 } from "./reply-conduct";
@@ -802,6 +803,20 @@ async function conductReply(
       correction(
         "one_question",
         "A resposta perguntava o sistema operacional sem nenhum artigo que dependa dele; a pergunta saiu.",
+      ),
+    );
+  }
+
+  // Com o seletor, os chamados foram encontrados: "não encontrei" não fica (QA R1, F2).
+  if (
+    workspace.hasTicketSelector() &&
+    withoutNotFound(modelText(turn)) !== modelText(turn).trim()
+  ) {
+    replaceModelText(turn, withoutNotFound(modelText(turn)) || "Encontrei mais de um chamado seu.");
+    turn.corrections.push(
+      correction(
+        "no_ticket_found_offer",
+        "O texto dizia que não encontrou o chamado, mas a resposta mostra o seletor com os chamados do funcionário: a frase saiu.",
       ),
     );
   }

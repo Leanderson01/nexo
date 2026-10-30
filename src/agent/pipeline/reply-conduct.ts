@@ -140,6 +140,18 @@ export function keepOneQuestion(text: string): { text: string; removed: string[]
   return { text: joinSentences(kept), removed };
 }
 
+const SAYS_NOT_FOUND = /n[aã]o (encontrei|achei|localizei)/i;
+
+/**
+ * Sem as frases de "não encontrei": com o seletor na resposta, os chamados foram encontrados
+ * (QA R1: "Não encontrei esse chamado entre os seus." vinha antes de "Qual desses chamados?").
+ */
+export function withoutNotFound(text: string): string {
+  return joinSentences(
+    splitSentences(text).filter((sentence) => !SAYS_NOT_FOUND.test(sentence.text)),
+  );
+}
+
 /** Sem as perguntas (o seletor de chamados já traz a dele). */
 export function withoutQuestions(text: string): string {
   return joinSentences(splitSentences(text).filter((sentence) => !sentence.isQuestion));

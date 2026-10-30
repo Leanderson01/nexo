@@ -14,6 +14,7 @@ import {
   stripMarkdown,
   withCodeQuestion,
   withFinalQuestion,
+  withoutNotFound,
   withoutQuestions,
 } from "../reply-conduct";
 import { applyReturnNoteRules, asksForAPerson, replyUsesNote } from "../return-note";
@@ -193,6 +194,16 @@ describe("reply-conduct", () => {
     expect(withoutQuestions("Encontrei dois chamados. Qual deles?")).toBe(
       "Encontrei dois chamados.",
     );
+  });
+
+  it('com o seletor, "não encontrei" sai do texto (QA R1, F2)', () => {
+    expect(
+      withoutNotFound(
+        "Não encontrei esse chamado entre os seus. Qual desses chamados você quer saber o status?",
+      ),
+    ).toBe("Qual desses chamados você quer saber o status?");
+    expect(withoutNotFound("Não encontrei esse chamado entre os seus.")).toBe("");
+    expect(withoutNotFound("Você tem três chamados.")).toBe("Você tem três chamados.");
   });
 
   it("resposta baseada no artigo termina em Isso resolveu? e mantém os passos", () => {
