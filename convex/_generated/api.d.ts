@@ -22,6 +22,7 @@ import type * as knowledge_ranking from "../knowledge/ranking.js";
 import type * as knowledge_searchTerms from "../knowledge/searchTerms.js";
 import type * as lib_guards from "../lib/guards.js";
 import type * as lib_handoff from "../lib/handoff.js";
+import type * as lib_secrets from "../lib/secrets.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as messages from "../messages.js";
 import type * as metrics from "../metrics.js";
@@ -60,6 +61,7 @@ declare const fullApi: ApiFromModules<{
   "knowledge/searchTerms": typeof knowledge_searchTerms;
   "lib/guards": typeof lib_guards;
   "lib/handoff": typeof lib_handoff;
+  "lib/secrets": typeof lib_secrets;
   "lib/validators": typeof lib_validators;
   messages: typeof messages;
   metrics: typeof metrics;

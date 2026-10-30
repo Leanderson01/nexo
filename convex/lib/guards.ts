@@ -3,6 +3,7 @@ import { ConvexError } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
+import { secretsMatch } from "./secrets";
 
 // Guards únicos de autorização (§5.10). Nenhuma checagem de permissão fica fora daqui.
 // A pessoa logada é o usuário do Convex Auth ligado à tabela `people` pelo e-mail.
@@ -62,7 +63,7 @@ export function canReadConversation(
 /** Protege as funções de escrita do agent: só o servidor do Next conhece o segredo. */
 export function requireAgentServer(secret: string): void {
   const expected = process.env.AGENT_SERVER_SECRET;
-  if (!expected || secret !== expected) {
+  if (!expected || !secretsMatch(secret, expected)) {
     throw new ConvexError("Acesso negado: chamada do agent sem o segredo do servidor.");
   }
 }

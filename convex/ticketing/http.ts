@@ -15,6 +15,7 @@ import {
 import type { Result } from "../../src/domain/result";
 import type { NewTicket, TicketFieldChanges } from "../../src/domain/ticket";
 import { assertTypesMatch, type Equals } from "../../src/shared/type-equals";
+import { secretsMatch } from "../lib/secrets";
 import { pickLatencyMs, readChaosConfig, shouldFail } from "./chaos";
 import type { ServiceError } from "./reads";
 
@@ -204,7 +205,7 @@ async function handle<Body>(
 function hasValidServiceKey(request: Request): boolean {
   const expected = process.env.TICKETING_SERVICE_KEY;
   if (!expected) return false;
-  return request.headers.get("Authorization") === `Bearer ${expected}`;
+  return secretsMatch(request.headers.get("Authorization") ?? "", `Bearer ${expected}`);
 }
 
 /** JSON do corpo, ou undefined se não for JSON (o Zod recusa em seguida). */

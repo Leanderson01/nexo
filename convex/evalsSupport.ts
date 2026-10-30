@@ -3,6 +3,7 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { secretsMatch } from "./lib/secrets";
 import { buildSeedTickets } from "./seedData";
 
 // Apoio ao runner de evals (T14b, `npm run evals`). Só funciona num deployment com
@@ -14,7 +15,7 @@ import { buildSeedTickets } from "./seedData";
 
 function requireEvalsSecret(secret: string): void {
   const expected = process.env.EVALS_SECRET;
-  if (!expected || secret !== expected) {
+  if (!expected || !secretsMatch(secret, expected)) {
     throw new ConvexError("Acesso negado: apoio aos evals sem o EVALS_SECRET.");
   }
 }
