@@ -69,6 +69,11 @@ export default defineSchema({
     parts: v.array(vMessagePart),
     status: vMessageStatus,
     decisionId: v.optional(v.id("decisions")),
+    /**
+     * Erro ao confirmar este rascunho (legado fora do ar): o "Tentar de novo" confirma de
+     * novo, em vez de repetir o turno do agent (T11).
+     */
+    failedPendingActionId: v.optional(v.id("pendingActions")),
     createdAt: v.number(),
   }).index("by_conversation_createdAt", ["conversationId", "createdAt"]),
 
