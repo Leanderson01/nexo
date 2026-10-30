@@ -249,7 +249,8 @@ function useConfirmShortcut(enabled: boolean, onConfirm: () => void) {
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Enter" || !(event.metaKey || event.ctrlKey)) return;
-      if (isTypingSomewhere(event.target)) return;
+      // Só um card responde ao atalho, mesmo que haja mais de um pendente na tela.
+      if (event.defaultPrevented || isTypingSomewhere(event.target)) return;
       event.preventDefault();
       onConfirm();
     }

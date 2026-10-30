@@ -8,6 +8,7 @@ import { QuickReplies } from "./blocks/quick-replies";
 import { ReplyBubble } from "./blocks/reply-bubble";
 import { LiveActionChips, ReplyHeader } from "./blocks/reply-header";
 import { toReplySegments } from "./blocks/reply-segments";
+import { TypingBubble } from "./blocks/typing-bubble";
 import classes from "./chat.module.css";
 import { analystLevelLabel } from "./chat-texts";
 import { MessagePartView, type PartActions } from "./message-part-view";
@@ -65,11 +66,7 @@ function AssistantMessage({
           />
         )}
       </ReplyHeader>
-      {isStreaming && !hasText && (
-        <div className={classes.replyCard}>
-          <TypingIndicator />
-        </div>
-      )}
+      {isStreaming && !hasText && <TypingBubble />}
       <ReplyParts message={message} actions={actions} showCaret={isStreaming} />
     </div>
   );
@@ -139,15 +136,5 @@ function SystemMessage({ message, actions }: { message: ChatMessage; actions: Pa
         <MessagePartView key={index} part={part} actions={actions} createdAt={message.createdAt} />
       ))}
     </>
-  );
-}
-
-function TypingIndicator() {
-  return (
-    <span className={classes.typing} role="status" aria-label="Nexo Assist está digitando">
-      <span />
-      <span />
-      <span />
-    </span>
   );
 }

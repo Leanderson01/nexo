@@ -263,7 +263,7 @@
 
   &:disabled {
     cursor: default;
-    color: var(--mantine-color-gray-6);
+    color: var(--mantine-color-gray-7);
   }
 
   &[data-chosen] {
