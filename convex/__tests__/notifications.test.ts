@@ -114,7 +114,7 @@ describe("console.registerTicketUpdate", () => {
         kind: "ticket_updated",
         ticketCode: "INC-20311",
         ticketStatus: "in_progress",
-        actorName: "Ana Ribeiro (Suporte N1)",
+        actorName: "Ana Ribeiro",
       },
     ]);
     // A encerrada (mesmo sendo a mais recente) e a conversa de outra pessoa não recebem nada.
@@ -145,7 +145,7 @@ describe("console.registerTicketUpdate", () => {
       type: "event",
       kind: "ticket_updated",
       ticketCode: "REQ-10442",
-      actorName: "Ana Ribeiro (Suporte N1)",
+      actorName: "Ana Ribeiro",
     });
     const latest = await (
       await loginAs(t, MARIANA)
@@ -247,7 +247,7 @@ describe("notifications.latestSupportUpdate", () => {
       code: "INC-20311",
       status: "in_progress",
       text: "Em análise.",
-      authorName: "Ana Ribeiro (Suporte N1)",
+      authorName: "Ana Ribeiro",
     });
     expect(after?.id).not.toBe(before?.id);
   });

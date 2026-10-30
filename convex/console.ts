@@ -503,7 +503,8 @@ export const registerTicketUpdate = mutation({
       text: maskSensitiveData(trimmed).text,
       fieldChanges: args.status === undefined ? undefined : { status: args.status },
       authorType: "analyst",
-      authorName: analystDisplayName(analyst),
+      // Só o nome, como no histórico do seed: o painel já escreve "Analista" ao lado.
+      authorName: analyst.name,
     });
     if (!recorded.ok) return err(recorded.error.kind === "conflict" ? "closed" : "not_found");
     return ok(null);
