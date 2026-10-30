@@ -2,6 +2,7 @@ import { Suspense } from "react";
 
 import classes from "@/features/chat/chat.module.css";
 import { ChatSidebar } from "@/features/chat/chat-sidebar";
+import { TicketUpdateToast } from "@/features/notifications/ticket-update-toast";
 
 /** Moldura do chat: navegação lateral com o histórico e a área da conversa. */
 export default function ChatLayout({ children }: { children: React.ReactNode }) {
@@ -12,6 +13,7 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
         <ChatSidebar />
       </Suspense>
       <main className={classes.main}>{children}</main>
+      <TicketUpdateToast />
     </div>
   );
 }

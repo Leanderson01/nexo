@@ -2,7 +2,21 @@ import { describe, expect, test } from "vitest";
 
 import { conversationEventText } from "@/features/chat/chat-texts";
 import { consoleEventText } from "@/features/console/console-texts";
+import { isNewNotice } from "../notice-tracking";
 import { ticketUpdatedText } from "../notification-texts";
+
+describe("isNewNotice", () => {
+  test("a primeira leitura é a base: nada vira toast ao abrir o chat", () => {
+    expect(isNewNotice(undefined, "u1")).toBe(false);
+  });
+
+  test("id diferente da base é novo; o mesmo id, não", () => {
+    expect(isNewNotice("u1", "u2")).toBe(true);
+    expect(isNewNotice(null, "u1")).toBe(true);
+    expect(isNewNotice("u1", "u1")).toBe(false);
+    expect(isNewNotice("u1", null)).toBe(false);
+  });
+});
 
 describe("ticketUpdatedText", () => {
   test("com mudança de status, diz o status novo", () => {
