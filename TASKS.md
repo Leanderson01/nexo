@@ -68,6 +68,8 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 24. ~~**Autoria dos commits**~~ → **decidido (30/10):** autor e committer `Leanderson01 <leandersonnunes.alu.lmb@gmail.com>` (fixado na configuração do repo) e **sem** a linha `Co-Authored-By`. O histórico inteiro foi reescrito para isso; os hashes citados aqui já são os novos.
 25. **Falhas do agent achadas pelos evals** (aberta, ver `docs/evals/resultado.md`; 42/54 execuções, 11 de 13 cenários da spec estáveis): (a) "o sistema de folha de ponto caiu para a equipe" vira `out_of_scope` e é recusado em vez de Crítico; (b) chamado alheio por descrição não oferece abrir chamado e, às vezes, o modelo inventa códigos nas opções rápidas; (c) o sinal `blocked` oscila ("não consigo trabalhar sem ela") e a prioridade cai de Alta para Média; (d) às vezes o texto diz que preparou um card sem chamar a tool. Propostas: ajustar o prompt do ENTENDER (sistema fora do ar é TI; exemplos de `blocked`), validar em código depois do AGIR (todo código citado precisa ser do funcionário; "rascunho/card" no texto exige a parte `draft`) e oferecer "abrir chamado" fixo em código quando não há chamado.
 
+26. ~~**Ordem do fechamento**~~ → **decidido (30/10):** o deploy (parte da T18) fica para depois. Primeiro termina todo o código (T10b, acabamento e o que entrar da T17); depois o usuário e o Claude revisam **todas as telas juntos**; só então README final e deploy.
+
 ## Desvios da spec feitos no T0
 
 Valem para todas as tasks; entram no README (T18).
