@@ -15,27 +15,45 @@ interface RankableArticle {
   tags: string[];
 }
 
+/** Os termos do assunto do artigo (título e tags), que pesam mais que os do corpo. */
+function subjectTerms(article: RankableArticle): Set<string> {
+  return new Set(toSearchTerms([article.title, ...article.tags].join(" ")));
+}
+
 /**
  * Pontuação do artigo para os termos da consulta: 2 por termo no título ou nas tags (o
  * assunto do artigo) e 1 por termo que só aparece no corpo. Zero = não tem a ver.
  */
 export function scoreArticle(article: RankableArticle, queryTerms: string[]): number {
-  const subjectTerms = new Set(toSearchTerms([article.title, ...article.tags].join(" ")));
+  const subject = subjectTerms(article);
   const bodyTerms = new Set(toSearchTerms(article.body));
 
   let score = 0;
   for (const term of queryTerms) {
-    if (subjectTerms.has(term)) score += 2;
+    if (subject.has(term)) score += 2;
     else if (bodyTerms.has(term)) score += 1;
   }
   return score;
 }
 
-/** Os artigos com pontuação > 0, do mais pontuado ao menos; empate mantém a ordem de chegada. */
+/**
+ * Corte mínimo de relevância: algum termo da consulta precisa estar no assunto do artigo.
+ * Só palavras do corpo não bastam, porque elas se repetem entre artigos ("abra um chamado",
+ * "portal", "celular") e traziam o artigo do SAP ou do e-mail para a impressora quebrada.
+ */
+export function matchesArticleSubject(article: RankableArticle, queryTerms: string[]): boolean {
+  const subject = subjectTerms(article);
+  return queryTerms.some((term) => subject.has(term));
+}
+
+/**
+ * Os artigos que passam no corte de relevância, do mais pontuado ao menos; empate mantém a
+ * ordem de chegada.
+ */
 export function rankArticles<T extends RankableArticle>(articles: T[], queryTerms: string[]): T[] {
   return articles
+    .filter((article) => matchesArticleSubject(article, queryTerms))
     .map((article) => ({ article, score: scoreArticle(article, queryTerms) }))
-    .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_ARTICLE_RESULTS)
     .map(({ article }) => article);

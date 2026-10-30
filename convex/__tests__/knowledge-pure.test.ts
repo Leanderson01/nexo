@@ -1,6 +1,12 @@
 import { describe, expect, test } from "vitest";
 
-import { buildExcerpt, MAX_EXCERPT_LENGTH, rankArticles, scoreArticle } from "../knowledge/ranking";
+import {
+  buildExcerpt,
+  matchesArticleSubject,
+  MAX_EXCERPT_LENGTH,
+  rankArticles,
+  scoreArticle,
+} from "../knowledge/ranking";
 import { buildArticleSearchText, stem, toSearchTerms } from "../knowledge/searchTerms";
 
 describe("toSearchTerms", () => {
@@ -46,7 +52,25 @@ describe("rankArticles", () => {
     const terms = toSearchTerms("segundo monitor");
     expect(scoreArticle(hours, terms)).toBe(1);
     expect(scoreArticle(equipment, terms)).toBe(2);
-    expect(rankArticles([hours, equipment], terms)).toEqual([equipment, hours]);
+    expect(rankArticles([equipment, hours], terms)).toEqual([equipment]);
+  });
+
+  test("ordena pela pontuação: mais termos no assunto vem primeiro", () => {
+    const terms = toSearchTerms("horário do monitor");
+    const both = { title: "Horário", body: "Monitores.", tags: ["monitor"] };
+    expect(rankArticles([hours, both], terms)).toEqual([both, hours]);
+  });
+
+  test("corte de relevância: termo só no corpo não traz o artigo", () => {
+    const sap = {
+      title: "Senha do SAP bloqueada",
+      body: "Se persistir, abra um chamado.",
+      tags: ["sap", "senha"],
+    };
+    const terms = toSearchTerms("impressora não imprime, quero atualizar o chamado");
+    expect(scoreArticle(sap, terms)).toBe(1);
+    expect(matchesArticleSubject(sap, terms)).toBe(false);
+    expect(rankArticles([sap], terms)).toEqual([]);
   });
 
   test("descarta o que não tem termo em comum", () => {

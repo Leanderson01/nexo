@@ -65,6 +65,16 @@ describe("knowledge.articles.search", () => {
     ).toEqual([]);
   });
 
+  test("palavras que só aparecem no corpo de artigos não trazem artigo sem relação", async () => {
+    const { mariana } = await setupAsMariana();
+    for (const query of [
+      "Impressora do 2º andar não imprime; usuário quer atualizar o chamado existente",
+      "O sistema de folha de ponto caiu para toda a equipe. Ninguém consegue registrar o ponto.",
+    ]) {
+      expect(await mariana.query(api.knowledge.articles.search, { query })).toEqual([]);
+    }
+  });
+
   test("analista também pode buscar", async () => {
     const { t } = await setupAsMariana();
     const ana = await loginAs(t, "ana.ribeiro@nexo.com.br");
