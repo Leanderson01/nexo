@@ -1,3 +1,4 @@
+import { SILENCE_WARNING_SECONDS, isVoiceLevel, meterLevel } from "./audio-level";
 import { NOT_UNDERSTOOD_MESSAGE } from "./transcribe-errors";
 
 // Estados do gravador do campo de mensagem (§11.1), sem React nem navegador:
@@ -6,14 +7,23 @@ import { NOT_UNDERSTOOD_MESSAGE } from "./transcribe-errors";
 export type RecorderState =
   | { status: "idle" }
   | { status: "requesting_permission" }
-  | { status: "recording"; startedAt: number; elapsedSeconds: number }
+  | {
+      status: "recording";
+      startedAt: number;
+      elapsedSeconds: number;
+      /** Nível do microfone agora, de 0 a 1, para o medidor. */
+      level: number;
+      /** Já captou algo no nível de voz nesta gravação. */
+      heardVoice: boolean;
+    }
   | { status: "transcribing" }
   | { status: "error"; message: string };
 
 export type RecorderEvent =
   | { type: "start_requested" }
   | { type: "recording_started"; now: number }
-  | { type: "tick"; now: number }
+  /** `levelDbfs` é null quando o navegador não deixa medir o nível. */
+  | { type: "tick"; now: number; levelDbfs: number | null }
   | { type: "stopped" }
   | { type: "cancelled" }
   | { type: "transcribed" }
@@ -28,12 +38,16 @@ export function recorderReducer(state: RecorderState, event: RecorderEvent): Rec
       return canStart(state) ? { status: "requesting_permission" } : state;
     case "recording_started":
       return state.status === "requesting_permission"
-        ? { status: "recording", startedAt: event.now, elapsedSeconds: 0 }
+        ? {
+            status: "recording",
+            startedAt: event.now,
+            elapsedSeconds: 0,
+            level: 0,
+            heardVoice: false,
+          }
         : state;
     case "tick":
-      return state.status === "recording"
-        ? { ...state, elapsedSeconds: (event.now - state.startedAt) / 1000 }
-        : state;
+      return state.status === "recording" ? tick(state, event) : state;
     case "stopped":
       return state.status === "recording" ? { status: "transcribing" } : state;
     case "cancelled":
@@ -45,6 +59,31 @@ export function recorderReducer(state: RecorderState, event: RecorderEvent): Rec
     case "dismissed":
       return state.status === "error" ? IDLE : state;
   }
+}
+
+type Recording = Extract<RecorderState, { status: "recording" }>;
+
+function tick(state: Recording, event: { now: number; levelDbfs: number | null }): Recording {
+  const elapsedSeconds = (event.now - state.startedAt) / 1000;
+  if (event.levelDbfs === null) return { ...state, elapsedSeconds };
+  return {
+    ...state,
+    elapsedSeconds,
+    level: meterLevel(event.levelDbfs),
+    heardVoice: state.heardVoice || isVoiceLevel(event.levelDbfs),
+  };
+}
+
+/**
+ * Gravando há alguns segundos sem nenhum som no nível de voz: provavelmente o microfone está
+ * mudo ou é o dispositivo errado. A tela avisa enquanto ainda dá para corrigir.
+ */
+export function shouldWarnSilence(state: RecorderState): boolean {
+  return (
+    state.status === "recording" &&
+    !state.heardVoice &&
+    state.elapsedSeconds >= SILENCE_WARNING_SECONDS
+  );
 }
 
 /** Dá para começar a gravar parado ou depois de um erro (o erro some ao tentar de novo). */
@@ -77,7 +116,8 @@ export function appendTranscript(current: string, transcript: string): string {
 }
 
 /** Falhas do lado do navegador, antes de o áudio chegar ao servidor. */
-export type MicrophoneProblem = "unsupported" | "permission_denied" | "no_microphone" | "empty";
+export type MicrophoneProblem =
+  "unsupported" | "permission_denied" | "no_microphone" | "empty" | "silent";
 
 export const MICROPHONE_MESSAGES: Record<MicrophoneProblem, string> = {
   unsupported: "Seu navegador não grava áudio. Digite sua mensagem.",
@@ -85,7 +125,13 @@ export const MICROPHONE_MESSAGES: Record<MicrophoneProblem, string> = {
     "O navegador bloqueou o microfone. Libere o acesso nas permissões do site ou digite sua mensagem.",
   no_microphone: "Não encontramos um microfone. Conecte um ou digite sua mensagem.",
   empty: NOT_UNDERSTOOD_MESSAGE,
+  silent:
+    "Não captamos sua voz. Confira se o microfone certo está selecionado no navegador e tente de novo.",
 };
+
+/** Aviso enquanto grava e nada chega no nível de voz (ver `shouldWarnSilence`). */
+export const SILENCE_WARNING =
+  "Não estamos ouvindo sua voz. Confira se o microfone certo está selecionado no navegador.";
 
 /** Traduz o erro do `getUserMedia` (DOMException pelo `name`). */
 export function microphoneProblemOf(error: unknown): MicrophoneProblem {

@@ -4,7 +4,7 @@ import { ActionIcon, CloseButton, Group, Loader, Text, Tooltip } from "@mantine/
 
 import { MAX_RECORDING_SECONDS } from "./audio-format";
 import { CloseIcon, ICON_SIZE, MicrophoneIcon, StopIcon } from "@/shared/icons";
-import { formatElapsed } from "./recorder-state";
+import { SILENCE_WARNING, formatElapsed, shouldWarnSilence } from "./recorder-state";
 import type { VoiceRecorder } from "./use-voice-recorder";
 import classes from "./voice.module.css";
 
@@ -44,6 +44,7 @@ export function VoiceButton({ voice, disabled }: { voice: VoiceRecorder; disable
       return (
         <Group gap={4} wrap="nowrap" className={classes.recording} role="status">
           <span className={classes.recordingDot} aria-hidden />
+          <LevelMeter level={state.level} />
           <Text size="sm" className={classes.elapsed} aria-label="Tempo de gravação">
             {formatElapsed(state.elapsedSeconds)}
             <span className={classes.elapsedLimit}> / {formatElapsed(MAX_RECORDING_SECONDS)}</span>
@@ -84,7 +85,27 @@ export function VoiceButton({ voice, disabled }: { voice: VoiceRecorder; disable
   }
 }
 
+/** Barrinhas que sobem com a voz: a pessoa vê que o microfone está captando. */
+function LevelMeter({ level }: { level: number }) {
+  return (
+    <span className={classes.meter} aria-hidden data-testid="voice-level">
+      {METER_STEPS.map((step) => (
+        <span key={step} className={classes.meterBar} data-on={level >= step} />
+      ))}
+    </span>
+  );
+}
+
+const METER_STEPS = [0.05, 0.3, 0.55, 0.8];
+
 export function VoiceNotice({ voice }: { voice: VoiceRecorder }) {
+  if (shouldWarnSilence(voice.state)) {
+    return (
+      <Text size="xs" c="dimmed" mb={8} role="status">
+        {SILENCE_WARNING}
+      </Text>
+    );
+  }
   if (voice.state.status !== "error") return null;
   return (
     <Group gap={6} mb={8} wrap="nowrap" justify="space-between" className={classes.error}>
