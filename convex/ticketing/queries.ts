@@ -37,3 +37,16 @@ export const employeeTickets = query({
     return tickets.map(toSummary);
   },
 });
+
+/**
+ * Detalhe de um chamado do funcionário com o histórico de atualizações, para o painel do
+ * console (§7.4). Null se o código não existe ou é de outra pessoa.
+ */
+export const employeeTicket = query({
+  args: { employeeId: v.id("people"), code: v.string() },
+  handler: async (ctx, args): Promise<TicketDetail | null> => {
+    await requireAnalyst(ctx);
+    const ticket = await findOwnedTicket(ctx, args.employeeId, args.code);
+    return ticket ? await loadDetail(ctx, ticket) : null;
+  },
+});
