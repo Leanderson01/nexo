@@ -13,32 +13,36 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 
 ## Quadro
 
-| Task | Descrição                           | Onda | Depende de         | Status  | Branch / commit      |
-| ---- | ----------------------------------- | ---- | ------------------ | ------- | -------------------- |
-| T0.1 | Repositório e setup                 | 0    | —                  | feito   | `563682f`            |
-| T0.2 | Contratos travados                  | 0    | T0.1               | feito   | `1d61b2f`..`75caf37` |
-| T1   | Domínio puro + testes               | 1    | T0                 | feito   | `9a67b55`..`3c7e07a` |
-| T2   | Auth, seed e login                  | 1    | T0                 | feito   | `e3f4e21`..`64040d5` |
-| T3   | Serviço de chamados + gateway       | 1    | T0                 | feito   | `8542296`..`5af370c` |
-| T4   | Central de ajuda                    | 1    | T0                 | feito   | `c3b7876`..`3569ce7` |
-| T5   | Chat core com agent de eco          | 1    | T0                 | feito   | `e77c42a`..`42105c4` |
-| T6   | Teste do Mastra + escolha do LLM    | 1    | —                  | feito   | `4239a66`..`b1f15aa` |
-| T7   | Blocos de mensagem                  | 1    | T0                 | feito   | `cc0e824`..`005da74` |
-| T8   | Painel de decisão                   | 1    | T0                 | feito   | `71e0cc8`..`c4c6376` |
-| T9   | Políticas de decisão                | 1    | T0, T1             | feito   | `fcd7b1f`..`46303d4` |
-| T14a | Cenários de eval (escrita)          | 1    | T0                 | feito   | `751f366`..`0fec9aa` |
-| T10  | Pipeline do agent                   | 2    | T3, T4, T5, T6, T9 | feito   | `e06954d`..`bfa92dd` |
-| T10b | Correções do agent (evals)          | 2    | T10, T14b          | feito   | `2001b22`..`a744703` |
-| T11  | Rascunho fora do LLM                | 2    | T3, T5, T7         | feito   | `ba10492`..`325f1be` |
-| T12  | Console do analista                 | 2    | T2, T5, T7, T8     | feito   | `d1a56de`..`b266e0b` |
-| T15  | Voz                                 | 2    | T5                 | feito   | `1b065c1`..`ac08637` |
-| T20  | Tela "Meu perfil" (só no protótipo) | 1    | T2                 | feito   | `472ca97`..`4529600` |
-| T14b | Runner de evals                     | 3    | T10, T11           | feito   | `f6f6b07`..`0b2bc11` |
-| T16  | Limites e custo                     | 3    | T10                | feito   | `aff9dd0`..`fdef973` |
-| T17  | Faixa 2: métricas e notificações    | 3    | T10, T12           | feito   | `1a1617b`..`f58a0d6` |
-| T18  | README e deploy                     | 3    | tudo               | a fazer |                      |
-| T19a | Acabamento (12 pontos)              | 3    | T10b               | feito   | `0e3566b`..`a94f119` |
-| T19  | QA de ponta a ponta                 | 3    | tudo               | a fazer |                      |
+| Task | Descrição                              | Onda | Depende de         | Status  | Branch / commit      |
+| ---- | -------------------------------------- | ---- | ------------------ | ------- | -------------------- |
+| T0.1 | Repositório e setup                    | 0    | —                  | feito   | `563682f`            |
+| T0.2 | Contratos travados                     | 0    | T0.1               | feito   | `1d61b2f`..`75caf37` |
+| T1   | Domínio puro + testes                  | 1    | T0                 | feito   | `9a67b55`..`3c7e07a` |
+| T2   | Auth, seed e login                     | 1    | T0                 | feito   | `e3f4e21`..`64040d5` |
+| T3   | Serviço de chamados + gateway          | 1    | T0                 | feito   | `8542296`..`5af370c` |
+| T4   | Central de ajuda                       | 1    | T0                 | feito   | `c3b7876`..`3569ce7` |
+| T5   | Chat core com agent de eco             | 1    | T0                 | feito   | `e77c42a`..`42105c4` |
+| T6   | Teste do Mastra + escolha do LLM       | 1    | —                  | feito   | `4239a66`..`b1f15aa` |
+| T7   | Blocos de mensagem                     | 1    | T0                 | feito   | `cc0e824`..`005da74` |
+| T8   | Painel de decisão                      | 1    | T0                 | feito   | `71e0cc8`..`c4c6376` |
+| T9   | Políticas de decisão                   | 1    | T0, T1             | feito   | `fcd7b1f`..`46303d4` |
+| T14a | Cenários de eval (escrita)             | 1    | T0                 | feito   | `751f366`..`0fec9aa` |
+| T10  | Pipeline do agent                      | 2    | T3, T4, T5, T6, T9 | feito   | `e06954d`..`bfa92dd` |
+| T10b | Correções do agent (evals)             | 2    | T10, T14b          | feito   | `2001b22`..`a744703` |
+| T11  | Rascunho fora do LLM                   | 2    | T3, T5, T7         | feito   | `ba10492`..`325f1be` |
+| T12  | Console do analista                    | 2    | T2, T5, T7, T8     | feito   | `d1a56de`..`b266e0b` |
+| T15  | Voz                                    | 2    | T5                 | feito   | `1b065c1`..`ac08637` |
+| T20  | Tela "Meu perfil" (só no protótipo)    | 1    | T2                 | feito   | `472ca97`..`4529600` |
+| T14b | Runner de evals                        | 3    | T10, T11           | feito   | `f6f6b07`..`0b2bc11` |
+| T16  | Limites e custo                        | 3    | T10                | feito   | `aff9dd0`..`fdef973` |
+| T17  | Faixa 2: métricas e notificações       | 3    | T10, T12           | feito   | `1a1617b`..`f58a0d6` |
+| T18  | README e deploy                        | 3    | tudo               | a fazer |                      |
+| T19a | Acabamento (12 pontos)                 | 3    | T10b               | feito   | `0e3566b`..`a94f119` |
+| V0   | Fundação visual (tema, fontes, ícones) | 3    | T19a               | feito   | `ff30b95`..`9b69f9b` |
+| V1   | Login e perfil iguais aos prints       | 3    | V0                 | feito   | `7a044c7`..`8a065d9` |
+| V2   | Chat igual aos prints                  | 3    | V0                 | feito   | `f6f124b`..`e5e503c` |
+| V3   | Console igual aos prints               | 3    | V0                 | feito   | `2917677`..`97350bc` |
+| T19  | QA de ponta a ponta                    | 3    | tudo               | a fazer |                      |
 
 ## Decisões em aberto
 
@@ -76,6 +80,9 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 
 28. ~~**Fidelidade visual aos prints**~~ → **decidido (30/10):** antes da revisão das telas com o usuário, uma validação visual contra `docs/prototipo/`: primeiro a **fundação** (fontes, tamanhos, pesos, cores, raios, sombras, espaçamentos e ícones extraídos dos prints, aplicados no tema e nos estilos compartilhados) e depois **três agents em paralelo** (login + perfil; chat; console), cada um comparando captura × print nas mesmas dimensões e corrigindo até ficar igual. Onde o print diverge de uma decisão já tomada (ex.: presença "online", "há 42 dias"), mantém-se a decisão e iguala-se só o visual.
 29. **Números do login** (aberta, decisão 14): a T17 entrou, mas a proposta é mantê-los estáticos, porque num ambiente de demonstração os números reais seriam pequenos ou zero. Confirmar na revisão das telas.
+
+30. **Ajustes visuais pequenos** (aberta, decidir na revisão das telas): (a) título do login pede 50 px e o token `--nexo-font-size-display` vale 48; (b) anel de foco azul dos campos só existe no login — levar para o tema?; (c) Newsreader carregada sem tamanho óptico (letras do título um pouco mais baixas que no print); (d) botão `sm` do tema tem 18 px de padding lateral e o print usa ~14 (o console sobrescreve); (e) no chat, "Aprovado"/"Resolvido" usam `teal`, e o print usa verde/cinza (o console já usa as cores do print).
+31. **Pergunta fechada sem opções** (aberta): às vezes o modelo pergunta algo fechado ("qual o seu sistema?") sem oferecer opções nem escrevê-las no texto; nenhuma regra converte esse caso. Avaliar na revisão se vale uma regra em código.
 
 ## Desvios da spec feitos no T0
 
