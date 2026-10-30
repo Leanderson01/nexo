@@ -32,7 +32,11 @@ export function MobileNavigation() {
         onClose={() => setOpenedAt(null)}
         size={280}
         title={<NexoBrand />}
-        classNames={{ content: classes.drawerContent, body: classes.drawerBody }}
+        classNames={{
+          content: classes.drawerContent,
+          header: classes.drawerHeader,
+          body: classes.drawerBody,
+        }}
         closeButtonProps={{ "aria-label": "Fechar menu" }}
       >
         <nav className={classes.drawerNavigation} aria-label="Navegação">

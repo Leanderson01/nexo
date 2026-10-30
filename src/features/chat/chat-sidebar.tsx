@@ -1,6 +1,6 @@
 "use client";
 
-import { Avatar, Button, Group, NavLink, Skeleton, Stack, Text } from "@mantine/core";
+import { Avatar, NavLink, Skeleton, Stack, Text } from "@mantine/core";
 import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
@@ -8,12 +8,12 @@ import { useParams, usePathname } from "next/navigation";
 import { useSignedInQuery } from "@/features/auth/use-signed-in-query";
 import { NexoMark } from "@/features/auth/login/icons";
 import { SignOutButton } from "@/features/auth/sign-out-button";
+import { ChatIcon, LogoutIcon, PlusIcon, UserIcon } from "@/shared/icons";
 import { api } from "../../../convex/_generated/api";
 import classes from "./chat.module.css";
 import { activeNavItem, CHAT_PATH, PROFILE_PATH } from "./chat-navigation";
 import { formatConversationDate } from "./chat-texts";
 import { DailyLimitNotice } from "./daily-limit-notice";
-import { ChatBubbleIcon, PlusIcon, UserIcon } from "./icons";
 import { useNewConversation } from "./use-new-conversation";
 
 /** Navegação lateral do protótipo + histórico de conversas e "Nova conversa" (decisão 13). */
@@ -30,12 +30,18 @@ export function NexoBrand() {
   return (
     <div className={classes.brand}>
       <span className={classes.brandMark}>
-        <NexoMark />
+        <NexoMark size={18} />
       </span>
       Nexo Assist
     </div>
   );
 }
+
+const NAV_ITEM_CLASSES = {
+  root: classes.navItem,
+  label: classes.navItemLabel,
+  section: classes.navItemSection,
+};
 
 /**
  * O conteúdo da navegação: telas, histórico, "Nova conversa", a pessoa e "Sair". A lateral
@@ -50,15 +56,17 @@ export function ChatNavigation() {
         component={Link}
         href={CHAT_PATH}
         label="Atendimento"
-        leftSection={<ChatBubbleIcon size={15} />}
+        leftSection={<ChatIcon />}
         active={activeItem === "attendance"}
+        classNames={NAV_ITEM_CLASSES}
       />
       <NavLink
         component={Link}
         href={PROFILE_PATH}
         label="Meu perfil"
-        leftSection={<UserIcon size={15} />}
+        leftSection={<UserIcon />}
         active={activeItem === "profile"}
+        classNames={NAV_ITEM_CLASSES}
       />
 
       <ConversationHistory />
@@ -75,19 +83,16 @@ function ConversationHistory() {
   return (
     <>
       <div className={classes.sectionTitle}>Conversas</div>
-      <Button
-        variant="light"
-        size="xs"
-        mx={8}
-        mb={6}
-        leftSection={<PlusIcon size={14} />}
-        loading={isCreating}
+      <NavLink
+        component="button"
+        label="Nova conversa"
+        leftSection={<PlusIcon />}
+        disabled={isCreating}
         onClick={() => startNewConversation()}
-      >
-        Nova conversa
-      </Button>
+        classNames={NAV_ITEM_CLASSES}
+      />
       {error && (
-        <Text size="xs" c="red.7" px={8} pb={6}>
+        <Text size="xs" c="red.7" px={10} pb={6}>
           {error}
         </Text>
       )}
@@ -95,14 +100,12 @@ function ConversationHistory() {
 
       <div className={classes.history}>
         {conversations === undefined ? (
-          <Stack gap={6} px={8}>
-            <Skeleton height={34} />
-            <Skeleton height={34} />
+          <Stack gap={6}>
+            <Skeleton height={40} />
+            <Skeleton height={40} />
           </Stack>
         ) : conversations.length === 0 ? (
-          <Text size="xs" c="dimmed" px={8}>
-            Suas conversas aparecem aqui.
-          </Text>
+          <div className={classes.historyEmpty}>Suas conversas aparecem aqui.</div>
         ) : (
           conversations.map((conversation) => (
             <Link
@@ -114,10 +117,10 @@ function ConversationHistory() {
               <div className={classes.historySubject}>
                 {conversation.subject ?? "Conversa nova"}
               </div>
-              <Text size="xs" c="dimmed">
+              <div className={classes.historyDate}>
                 {formatConversationDate(conversation.lastMessageAt)}
                 {conversation.status === "closed" && " · encerrada"}
-              </Text>
+              </div>
             </Link>
           ))
         )}
@@ -131,20 +134,25 @@ function CurrentPerson() {
 
   return (
     <div className={classes.sidebarFooter}>
-      <Group gap={8} wrap="nowrap" mb={8}>
-        <Avatar size={30} radius="xl" color="blue">
+      <div className={classes.person}>
+        <Avatar size={34} radius="xl" classNames={{ placeholder: classes.avatar }}>
           {person ? initials(person.name) : null}
         </Avatar>
-        <div style={{ minWidth: 0 }}>
-          <Text size="sm" fw={600} truncate>
-            {person?.name ?? " "}
-          </Text>
-          <Text size="xs" c="dimmed" truncate>
-            {person?.email ?? " "}
-          </Text>
+        <div className={classes.personText}>
+          <div className={classes.personName}>{person?.name ?? " "}</div>
+          <div className={classes.personEmail}>{person?.email ?? " "}</div>
         </div>
-      </Group>
-      <SignOutButton variant="subtle" color="gray" fullWidth justify="flex-start" />
+      </div>
+      <SignOutButton
+        variant="subtle"
+        color="gray"
+        leftSection={<LogoutIcon />}
+        classNames={{
+          root: classes.signOut,
+          inner: classes.signOutInner,
+          section: classes.signOutSection,
+        }}
+      />
     </div>
   );
 }

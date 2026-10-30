@@ -1,16 +1,15 @@
-import { Badge } from "@mantine/core";
-
 import type { ConversationStatus } from "@/domain/enums";
+import { ChevronRightIcon, ICON_SIZE } from "@/shared/icons";
 import classes from "./chat.module.css";
 import { conversationStatusText, type AnalystInfo } from "./chat-texts";
-import { ChevronRightIcon } from "./icons";
 import { MobileNavigation } from "./mobile-navigation";
 
-const STATUS_COLORS: Record<ConversationStatus, string> = {
-  agent: "green",
-  waiting_analyst: "orange",
-  with_analyst: "blue",
-  closed: "gray",
+/** Tom do selo (cores de status da fundação visual: --nexo-color-status-<tom>-*). */
+const STATUS_TONES: Record<ConversationStatus, string> = {
+  agent: "success",
+  waiting_analyst: "warning",
+  with_analyst: "progress",
+  closed: "neutral",
 };
 
 /** Breadcrumb do protótipo e o selo com o estado da conversa, sempre visível (§7.2). */
@@ -38,7 +37,7 @@ export function PageHeader({ current, children }: { current: string; children?: 
         {/* No celular sobra pouco espaço: fica só a tela atual, ao lado do menu. */}
         <span className={classes.breadcrumbRoot}>
           Service desk de TI
-          <ChevronRightIcon size={12} />
+          <ChevronRightIcon size={ICON_SIZE.sm} />
         </span>
         <span className={classes.breadcrumbCurrent}>{current}</span>
       </div>
@@ -54,33 +53,22 @@ function StatusBadge({
   status: ConversationStatus;
   analyst: AnalystInfo | null;
 }) {
-  const color = STATUS_COLORS[status];
+  const tone = STATUS_TONES[status];
   const text = conversationStatusText(status, analyst);
-  return (
-    <Badge
-      variant="light"
-      color={color}
-      radius="xl"
-      tt="none"
-      fw={500}
-      leftSection={<StatusDot color={color} />}
-      aria-label={`Estado da conversa: ${text}`}
-    >
-      {text}
-    </Badge>
-  );
-}
-
-function StatusDot({ color }: { color: string }) {
+  const toneVariables = {
+    "--status-bg": `var(--nexo-color-status-${tone}-bg)`,
+    "--status-text": `var(--nexo-color-status-${tone}-text)`,
+    "--status-dot": `var(--nexo-color-status-${tone}-dot)`,
+  } as React.CSSProperties;
   return (
     <span
-      style={{
-        display: "inline-block",
-        width: 6,
-        height: 6,
-        borderRadius: "50%",
-        background: `var(--mantine-color-${color}-6)`,
-      }}
-    />
+      className={classes.statusBadge}
+      style={toneVariables}
+      role="status"
+      aria-label={`Estado da conversa: ${text}`}
+    >
+      <span className={classes.statusDot} aria-hidden />
+      {text}
+    </span>
   );
 }

@@ -1,4 +1,5 @@
-/* Chat do funcionário (docs/prototipo/02-chat-rascunho.png e 03-chat-consulta.png). */
+/* Chat do funcionário (docs/prototipo/02-chat-rascunho.png e 03-chat-consulta.png). Medidas em
+   px reais (print × 1,62) e cores das variáveis --nexo-* (docs/design/fundacao-visual.md). */
 
 /* ---------- Moldura: navegação lateral + área principal ---------- */
 
@@ -6,10 +7,10 @@
   display: grid;
   grid-template-columns: 1fr;
   height: 100vh;
-  background: var(--mantine-color-white);
+  background: var(--nexo-color-surface);
 
   @media (min-width: $mantine-breakpoint-sm) {
-    grid-template-columns: 232px 1fr;
+    grid-template-columns: 228px 1fr;
   }
 }
 
@@ -17,76 +18,179 @@
   display: none;
   flex-direction: column;
   min-height: 0;
-  padding: 14px 10px 12px;
-  border-right: 1px solid var(--mantine-color-gray-2);
-  background: #fbfbfc;
+  padding: 0 12px 6px 10px;
+  border-right: 1px solid var(--nexo-color-border);
+  background: var(--nexo-color-surface);
 
   @media (min-width: $mantine-breakpoint-sm) {
     display: flex;
   }
 }
 
+/* A marca ocupa a altura do cabeçalho (60 px), alinhada com o breadcrumb. */
 .brand {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
-  gap: 8px;
-  padding: 2px 8px 14px;
-  font-weight: 700;
+  gap: 10px;
+  height: 60px;
+  padding-left: 10px;
   font-size: 15px;
-  color: #1e2430;
+  font-weight: 700;
+  color: var(--nexo-color-text);
 }
 
 .brandMark {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
-  background: var(--mantine-color-blue-7);
-  color: var(--mantine-color-white);
+  display: inline-flex;
+  color: var(--nexo-color-primary);
+}
+
+/* Item da navegação: "Atendimento", "Meu perfil", "Nova conversa" e "Sair". */
+.navItem {
+  height: 36px;
+  margin-bottom: 2px;
+  padding: 0 10px;
+  border-radius: var(--nexo-radius-control);
+  color: var(--nexo-color-text-nav);
+
+  &:hover {
+    background: var(--nexo-color-surface-subtle);
+  }
+
+  &[data-active] {
+    background: var(--nexo-color-primary-subtle);
+    color: var(--nexo-color-primary);
+  }
+}
+
+.navItemLabel {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.navItemSection {
+  margin-inline-end: 10px;
 }
 
 .sectionTitle {
-  padding: 16px 8px 6px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--mantine-color-gray-6);
+  padding: 20px 10px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--nexo-color-text-tertiary);
 }
 
 .history {
   flex: 1;
   min-height: 0;
+  margin-top: 6px;
   overflow-y: auto;
 }
 
 .historyItem {
   display: block;
-  padding: 6px 8px;
-  border-radius: var(--mantine-radius-sm);
-  color: inherit;
+  margin-bottom: 2px;
+  padding: 7px 10px;
+  border-radius: var(--nexo-radius-control);
+  color: var(--nexo-color-text-nav);
   text-decoration: none;
 
   &:hover {
-    background: var(--mantine-color-gray-1);
+    background: var(--nexo-color-surface-subtle);
   }
 
   &[data-active] {
-    background: var(--mantine-color-blue-0);
+    background: var(--nexo-color-primary-subtle);
+    color: var(--nexo-color-primary);
   }
 }
 
 .historySubject {
   overflow: hidden;
   font-size: 13px;
+  line-height: 1.45;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
+.historyDate {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--nexo-color-text-tertiary);
+}
+
+.historyEmpty {
+  padding: 0 10px;
+  font-size: 12px;
+  color: var(--nexo-color-text-tertiary);
+}
+
 .sidebarFooter {
-  padding: 12px 8px 0;
-  border-top: 1px solid var(--mantine-color-gray-2);
+  flex-shrink: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--nexo-color-border);
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+}
+
+.personText {
+  min-width: 0;
+}
+
+.personName {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--nexo-color-text);
+}
+
+.personEmail {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--nexo-color-text-secondary);
+}
+
+.avatar {
+  flex-shrink: 0;
+  background: var(--nexo-color-primary-subtle);
+  color: var(--nexo-color-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* "Sair" com o mesmo desenho dos itens da navegação. */
+.signOut {
+  justify-content: flex-start;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: var(--nexo-radius-control);
+  background: transparent;
+  color: var(--nexo-color-text-nav);
+  font-size: 13px;
+  font-weight: 400;
+
+  &:hover {
+    background: var(--nexo-color-surface-subtle);
+  }
+}
+
+.signOutInner {
+  justify-content: flex-start;
+}
+
+.signOutSection {
+  margin-inline-end: 10px;
 }
 
 /* ---------- Celular: menu (☰) no cabeçalho e a navegação numa gaveta ---------- */
@@ -102,12 +206,16 @@
   flex-direction: column;
 }
 
+.drawerHeader {
+  padding: 0 12px 0 10px;
+}
+
 .drawerBody {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  padding: 0 10px 12px;
+  padding: 0 12px 6px 10px;
 }
 
 .drawerNavigation {
@@ -124,34 +232,36 @@
   min-height: 0;
 }
 
+/* ---------- Cabeçalho: breadcrumb e selo do estado ---------- */
+
 .header {
   display: flex;
   flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  height: 52px;
+  height: 62px;
   padding: 0 16px;
-  border-bottom: 1px solid var(--mantine-color-gray-2);
+  border-bottom: 1px solid var(--nexo-color-border);
   font-size: 13px;
 
   @media (min-width: $mantine-breakpoint-sm) {
-    padding: 0 24px;
+    padding: 0 34px 0 32px;
   }
 }
 
 .breadcrumb {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
-  color: var(--mantine-color-gray-6);
+  color: var(--nexo-color-text-secondary);
 }
 
 .breadcrumbRoot {
   display: none;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 
   @media (min-width: $mantine-breakpoint-sm) {
     display: inline-flex;
@@ -159,8 +269,30 @@
 }
 
 .breadcrumbCurrent {
-  color: #1e2430;
+  color: var(--nexo-color-text);
   font-weight: 500;
+}
+
+.statusBadge {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--nexo-radius-pill);
+  background: var(--status-bg);
+  color: var(--status-text);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-dot);
 }
 
 /* ---------- Mensagens ---------- */
@@ -171,29 +303,33 @@
   overflow-y: auto;
 }
 
+/* Coluna de 812 px; as mensagens assentam no fim, junto do campo, como no print. */
 .column {
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
   gap: 18px;
-  max-width: 760px;
+  min-height: 100%;
+  max-width: 860px;
   margin: 0 auto;
-  padding: 28px 24px;
+  padding: 24px 24px 16px;
 }
 
 .userBubble {
   align-self: flex-end;
-  max-width: 78%;
-  padding: 9px 14px;
-  border-radius: 8px;
-  background: #1e2430;
-  color: #f4f6fa;
+  max-width: min(520px, 88%);
+  padding: 12px 16px;
+  border-radius: var(--nexo-radius-bubble) var(--nexo-radius-bubble) var(--nexo-radius-bubble-tail)
+    var(--nexo-radius-bubble);
+  background: var(--nexo-color-bubble-user);
+  color: var(--nexo-color-bubble-user-text);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.55;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-/* Resposta do agent ou do analista: balões de texto até 82%, cards na largura toda. */
+/* Resposta do agent ou do analista: balões de texto de 600 px, cards na largura toda. */
 .reply {
   display: flex;
   flex-direction: column;
@@ -203,19 +339,22 @@
 }
 
 .replyCard {
-  max-width: 82%;
-  padding: 10px 14px;
-  border: 1px solid var(--mantine-color-gray-3);
-  border-radius: 8px;
-  background: var(--mantine-color-white);
+  width: 100%;
+  max-width: 600px;
+  padding: 12px 16px;
+  border: 1px solid var(--nexo-color-border);
+  border-radius: var(--nexo-radius-bubble-tail) var(--nexo-radius-bubble) var(--nexo-radius-bubble)
+    var(--nexo-radius-bubble);
+  background: var(--nexo-color-bubble-agent);
+  color: var(--nexo-color-text);
   font-size: 14px;
   line-height: 1.55;
 }
 
 /* Analista em verde, como no console (protótipo 06), distinto do agent. */
 .analystCard {
-  border-color: var(--mantine-color-green-2);
-  background: var(--mantine-color-green-0);
+  border-color: var(--nexo-color-bubble-analyst);
+  background: var(--nexo-color-bubble-analyst);
 }
 
 .text {
@@ -224,13 +363,19 @@
   overflow-wrap: anywhere;
 }
 
+/* A pergunta que as opções rápidas respondem ("Quem está sendo afetado?"). */
+.question {
+  margin: 10px 0 0;
+  font-weight: 600;
+}
+
 .caret {
   display: inline-block;
   width: 7px;
   height: 14px;
   margin-left: 2px;
   vertical-align: -2px;
-  background: var(--mantine-color-gray-5);
+  background: var(--nexo-color-text-tertiary);
   animation: blink 1s steps(2) infinite;
 }
 
@@ -244,7 +389,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--mantine-color-gray-5);
+  background: var(--nexo-color-text-tertiary);
   animation: bounce 1.2s infinite ease-in-out;
 }
 
@@ -261,25 +406,69 @@
 .composerArea {
   flex-shrink: 0;
   width: 100%;
-  max-width: 760px;
+  max-width: 860px;
   margin: 0 auto;
-  padding: 0 24px 14px;
+  padding: 0 24px 6px;
+}
+
+.composerBox {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  min-height: 48px;
+  padding: 5px 5px 5px 16px;
+  border: 1px solid var(--nexo-color-border);
+  border-radius: var(--nexo-radius-card);
+  background: var(--nexo-color-surface);
+
+  &:focus-within {
+    border-color: var(--nexo-color-primary-border);
+  }
+}
+
+.composerInput {
+  flex: 1;
+  min-width: 0;
+  align-self: center;
+}
+
+.composerTextarea {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--nexo-color-text);
+}
+
+.sendButton {
+  flex-shrink: 0;
+  padding-inline: 12px;
 }
 
 .counter {
-  margin-top: 6px;
+  margin-top: 4px;
   font-size: 12px;
+  line-height: 1.4;
   text-align: right;
-  color: var(--mantine-color-gray-6);
+  color: var(--nexo-color-text-secondary);
 
   &[data-tone="warning"] {
-    color: var(--mantine-color-orange-7);
+    color: var(--nexo-color-status-warning-text);
   }
 
   &[data-tone="limit"] {
-    color: var(--mantine-color-red-7);
+    color: var(--nexo-color-status-danger-text);
     font-weight: 500;
   }
+}
+
+.notice {
+  margin-bottom: 8px;
+  padding: 10px 12px 10px 16px;
+  border-radius: var(--nexo-radius-control);
+  background: var(--nexo-color-surface-subtle);
 }
 
 @keyframes blink {

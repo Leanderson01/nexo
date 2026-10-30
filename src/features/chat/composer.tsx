@@ -1,15 +1,15 @@
 "use client";
 
-import { Button, Group, Loader, Paper, Text, Textarea } from "@mantine/core";
+import { Button, Group, Loader, Text, Textarea } from "@mantine/core";
 import { useState, type KeyboardEvent } from "react";
 
 import { appendTranscript, isBusy } from "@/features/voice/recorder-state";
 import { useVoiceRecorder } from "@/features/voice/use-voice-recorder";
 import { VoiceButton, VoiceNotice } from "@/features/voice/voice-controls";
+import { ICON_SIZE, SendIcon } from "@/shared/icons";
 import classes from "./chat.module.css";
 import { DAILY_LIMIT_TEXT } from "./chat-texts";
 import { canType, getCounterTone, type ComposerState } from "./composer-state";
-import { ArrowUpIcon } from "./icons";
 
 interface ComposerProps {
   state: ComposerState;
@@ -34,7 +34,8 @@ export function Composer(props: ComposerProps) {
     disabled: !enabled,
     onTranscribed: (spoken) => setText((current) => appendTranscript(current, spoken)),
   });
-  const canSend = enabled && !isBusy(voice.state) && text.trim() !== "";
+  const canUseButton = enabled && !isBusy(voice.state);
+  const canSend = canUseButton && text.trim() !== "";
 
   async function submit() {
     if (!canSend) return;
@@ -54,35 +55,34 @@ export function Composer(props: ComposerProps) {
     <div className={classes.composerArea}>
       <ComposerNotice {...props} />
       <VoiceNotice voice={voice} />
-      <Paper withBorder radius="md" p={6}>
-        <Group gap={6} align="flex-end" wrap="nowrap">
-          <Textarea
-            aria-label="Mensagem"
-            placeholder={
-              state === "analyst" ? "Escreva para o analista..." : "Escreva para o Nexo..."
-            }
-            variant="unstyled"
-            autosize
-            minRows={1}
-            maxRows={6}
-            px={8}
-            style={{ flex: 1 }}
-            value={text}
-            disabled={!canType(state)}
-            onChange={(event) => setText(event.currentTarget.value)}
-            onKeyDown={handleKeyDown}
-          />
-          <VoiceButton voice={voice} disabled={!enabled} />
-          <Button
-            leftSection={<ArrowUpIcon size={14} />}
-            loading={isSending}
-            disabled={!canSend}
-            onClick={() => void submit()}
-          >
-            Enviar
-          </Button>
-        </Group>
-      </Paper>
+      <div className={classes.composerBox}>
+        <Textarea
+          aria-label="Mensagem"
+          placeholder={
+            state === "analyst" ? "Escreva para o analista..." : "Escreva para o Nexo..."
+          }
+          variant="unstyled"
+          autosize
+          minRows={1}
+          maxRows={6}
+          classNames={{ root: classes.composerInput, input: classes.composerTextarea }}
+          value={text}
+          disabled={!canType(state)}
+          onChange={(event) => setText(event.currentTarget.value)}
+          onKeyDown={handleKeyDown}
+        />
+        <VoiceButton voice={voice} disabled={!enabled} />
+        {/* Como no print, o botão fica azul com o campo vazio; sem texto, o clique não faz nada. */}
+        <Button
+          className={classes.sendButton}
+          leftSection={<SendIcon size={ICON_SIZE.sm} />}
+          loading={isSending}
+          disabled={!canUseButton}
+          onClick={() => void submit()}
+        >
+          Enviar
+        </Button>
+      </div>
       <div
         className={classes.counter}
         data-tone={getCounterTone(props.employeeMessageCount, props.messageLimit)}
@@ -158,11 +158,9 @@ function ComposerNotice(props: ComposerProps) {
 
 function BlockedNotice({ message, children }: { message: string; children: React.ReactNode }) {
   return (
-    <Paper bg="gray.0" radius="md" p="sm" mb={8}>
-      <Group justify="space-between" gap={8}>
-        <Text size="sm">{message}</Text>
-        <Group gap={6}>{children}</Group>
-      </Group>
-    </Paper>
+    <Group className={classes.notice} justify="space-between" gap={8}>
+      <Text size="sm">{message}</Text>
+      <Group gap={6}>{children}</Group>
+    </Group>
   );
 }
