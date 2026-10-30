@@ -17,6 +17,10 @@ const CLEAR_ANSWER_CONFIDENCE = 0.9;
 
 const ASKED_IF_IT_WORKED = /isso resolveu\?/i;
 const SAID_NO = /^nao\b(?! sei)/;
+/** "Sim", "resolveu", "deu certo, obrigado": a orientação resolveu (sem "mas" nem pergunta). */
+const SAID_YES = /^(sim|s|resolveu|funcionou|deu certo|consegui|isso)\b/;
+const BUT = /\b(mas|porem|so que|entretanto|contudo|ainda)\b|\?/;
+const MAX_YES_WORDS = 6;
 
 export interface PickedReply {
   label: string;
@@ -46,6 +50,7 @@ export function applyShortAnswerRules(
   messages: HistoryMessage[],
   userText: string,
 ): Understanding {
+  if (saidYesToArticle(messages, userText)) return articleResolvedUnderstanding(understanding);
   const previous = previousAssistantMessage(messages);
   if (previous && saidNoToArticle(textOf(previous), userText)) {
     return {
@@ -71,6 +76,30 @@ export function applyShortAnswerRules(
     };
   }
   return understanding;
+}
+
+/**
+ * "Sim" a "Isso resolveu?" (F1): o artigo resolveu e o assunto se encerra, sem rascunho e sem
+ * reabrir chamado. Decidido em código: lido pelo modelo, o "Sim" virava proposta de reabertura
+ * quando havia um chamado parecido (QA R1).
+ */
+export function saidYesToArticle(messages: HistoryMessage[], userText: string): boolean {
+  const previous = previousAssistantMessage(messages);
+  if (!previous || !ASKED_IF_IT_WORKED.test(textOf(previous))) return false;
+  const typed = normalizeText(userText).trim();
+  const words = typed.split(/\s+/).filter((word) => word !== "");
+  return SAID_YES.test(typed) && !BUT.test(typed) && words.length <= MAX_YES_WORDS;
+}
+
+/** O ENTENDER do "Sim": uma resposta clara, não um pedido de rascunho. */
+export function articleResolvedUnderstanding(understanding: Understanding): Understanding {
+  return {
+    ...understanding,
+    intent: "question",
+    confidence: Math.max(understanding.confidence, CLEAR_ANSWER_CONFIDENCE),
+    confidenceReason:
+      'Respondeu "Sim" a "Isso resolveu?": a orientação resolveu e o assunto se encerra (F1).',
+  };
 }
 
 function saidNoToArticle(previousText: string, userText: string): boolean {

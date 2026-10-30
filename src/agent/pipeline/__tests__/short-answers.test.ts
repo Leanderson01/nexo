@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { makeUnderstanding } from "@/agent/policies/__tests__/fixtures";
 import type { MessagePart } from "@/domain/message-parts";
 
-import { applyShortAnswerRules, describePickedReply, findPickedReply } from "../short-answers";
+import {
+  applyShortAnswerRules,
+  describePickedReply,
+  findPickedReply,
+  saidYesToArticle,
+} from "../short-answers";
 import { assistantMessage, userMessage } from "./fakes";
 
 function options(...labels: string[]): MessagePart {
@@ -86,5 +91,39 @@ describe("applyShortAnswerRules", () => {
   it("não baixa a confiança que já era alta", () => {
     const understood = makeUnderstanding({ intent: "question", confidence: 0.95 });
     expect(applyShortAnswerRules(understood, ASKED_WINDOWS, "Windows 11")).toBe(understood);
+  });
+});
+
+describe("saidYesToArticle (F1: Sim encerra o assunto)", () => {
+  const askedSap = (answer: string) => [
+    userMessage("Não consigo entrar no SAP, aparece usuário bloqueado"),
+    assistantMessage([
+      { type: "text", text: "O desbloqueio é automático em 30 minutos. Isso resolveu?" },
+      options("Sim", "Não"),
+    ]),
+    userMessage(answer),
+  ];
+
+  it.each([
+    ["Sim", true],
+    ["sim, resolveu", true],
+    ["Deu certo, obrigado!", true],
+    ["Não", false],
+    ["Sim, mas agora o Excel trava", false],
+    ["sim?", false],
+    ["Sim, resolveu o bloqueio do usuário e a senha nova funcionou no portal", false],
+  ] as const)("%j → %s", (answer, expected) => {
+    expect(saidYesToArticle(askedSap(answer), answer)).toBe(expected);
+  });
+
+  it('só vale como resposta a "Isso resolveu?"', () => {
+    expect(saidYesToArticle(ASKED_WINDOWS, "Sim")).toBe(false);
+  });
+
+  it("o ENTENDER do Sim deixa de ser confirmar rascunho", () => {
+    const understood = makeUnderstanding({ intent: "confirm_or_edit_draft", confidence: 0.95 });
+    const result = applyShortAnswerRules(understood, askedSap("Sim"), "Sim");
+    expect(result.intent).toBe("question");
+    expect(result.confidenceReason).toContain("encerra");
   });
 });

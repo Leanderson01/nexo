@@ -14,9 +14,15 @@ import type { Understanding } from "@/domain/understanding";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import { act } from "./act";
-import { applyShortAnswerRules, describePickedReply, findPickedReply } from "./short-answers";
+import {
+  applyShortAnswerRules,
+  describePickedReply,
+  findPickedReply,
+  saidYesToArticle,
+} from "./short-answers";
 import type { TurnStatePatch } from "./agent-store";
 import {
+  ARTICLE_RESOLVED_REPLY,
   buildHandoffSummary,
   LEGACY_UNAVAILABLE_REPLY,
   MODEL_FAILURE_REPLY,
@@ -282,6 +288,11 @@ async function runPipeline(
     await answerInCode(turn, understanding, decision);
     return;
   }
+  // "Sim" a "Isso resolveu?" (F1): o assunto se encerra em código, sem o modelo principal.
+  if (saidYesToArticle(context.snapshot.recentMessages, input.userText)) {
+    await answerArticleResolved(turn, understanding, decision);
+    return;
+  }
   if (focus.ticketsUnavailable && needsTicketsToAnswer(understanding)) {
     await finishWithError(
       turn,
@@ -343,6 +354,29 @@ async function answerInCode(
     shortCircuit: true,
     errorStage: null,
     parts: codeReply.parts,
+    usedReturnNote: false,
+  });
+}
+
+/** O artigo resolveu: encerra o assunto, sem rascunho, sem reabrir e sem opções. */
+async function answerArticleResolved(
+  turn: Turn,
+  understanding: Understanding,
+  decision: TurnDecision,
+): Promise<void> {
+  await write(turn, ARTICLE_RESOLVED_REPLY.text);
+  turn.corrections.push(
+    correction(
+      "article_resolved",
+      'O funcionário respondeu "Sim" a "Isso resolveu?": o assunto foi encerrado em código, sem rascunho nem reabertura (F1).',
+    ),
+  );
+  await complete(turn, {
+    understanding,
+    decision,
+    shortCircuit: true,
+    errorStage: null,
+    parts: ARTICLE_RESOLVED_REPLY.parts,
     usedReturnNote: false,
   });
 }

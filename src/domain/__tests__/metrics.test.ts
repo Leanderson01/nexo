@@ -224,6 +224,8 @@ describe("computeMetrics", () => {
       closed_question_options: 0,
       markdown_removed: 0,
       return_note: 0,
+      article_resolved: 0,
+      article_steps: 0,
     });
   });
 });

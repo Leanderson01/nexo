@@ -23,6 +23,12 @@ const AREA_NAMES: Record<OutOfScopeArea, string> = {
 
 const SEE_MY_TICKETS = "Ver meus chamados";
 
+/** "Sim" a "Isso resolveu?" (F1): o assunto se encerra, sem rascunho e sem reabrir chamado. */
+export const ARTICLE_RESOLVED_REPLY: CodeReply = {
+  text: "Que bom que resolveu! Se precisar de mais alguma coisa, é só me chamar.",
+  parts: [],
+};
+
 export function shortCircuitReply(
   action: DecisiveAction,
   context: { ticketCode: TicketCode | null },

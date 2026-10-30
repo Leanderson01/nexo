@@ -136,7 +136,10 @@ export type TurnStage = (typeof TURN_STAGES)[number];
  * - `one_question`: mais de uma pergunta no turno (ou repetida no seletor) reduzida a uma;
  * - `closed_question_options`: pergunta fechada sem opções ganhou Sim/Não;
  * - `markdown_removed`: markdown cru (`>`, `**`, `#`) removido do texto;
- * - `return_note`: a nota do analista não tinha sido usada na resposta.
+ * - `return_note`: a nota do analista não tinha sido usada na resposta;
+ * - `article_resolved`: "Sim" a "Isso resolveu?" encerra o assunto em código (F1), sem rascunho;
+ * - `article_steps`: a orientação do artigo saiu do corpo dele, montada em código (os passos do
+ *   modelo iam além do artigo).
  */
 export const REPLY_CORRECTION_RULES = [
   "foreign_ticket_code",
@@ -155,6 +158,8 @@ export const REPLY_CORRECTION_RULES = [
   "closed_question_options",
   "markdown_removed",
   "return_note",
+  "article_resolved",
+  "article_steps",
 ] as const;
 export type ReplyCorrectionRule = (typeof REPLY_CORRECTION_RULES)[number];
 

@@ -26,6 +26,8 @@ import {
 import { runTurn, type RunTurnInput } from "../run-turn";
 import type { TurnDependencies } from "../turn-dependencies";
 import {
+  assistantMessage,
+  detailOf,
   FakeTicketGateway,
   fakeKnowledge,
   InMemoryAgentStore,
@@ -799,6 +801,101 @@ describe("runTurn: abertura conduzida em código (QA C1)", () => {
     ]);
     // O AGIR parou depois da recusa: ENTENDER e um passo do AGIR.
     expect(turn.groq.requests).toHaveLength(2);
+  });
+
+  it("atualização com sinal não confirmado que muda a prioridade: pergunta em código, citando o chamado", async () => {
+    const printer = detailOf(
+      {
+        ...NOTEBOOK,
+        code: "INC-20395",
+        status: "open",
+        title: "Impressora do 2º andar não imprime",
+      },
+      { prioritySignals: { impact: "team", blocked: false, deadlineToday: false } },
+    );
+    const turn = setup({
+      userText: "A impressora do 2º andar continua sem imprimir",
+      gateway: new FakeTicketGateway({ tickets: [printer], similar: [printer] }),
+    });
+    turn.understands({
+      intent: "update_ticket",
+      summary: "Impressora do 2º andar continua sem imprimir.",
+      ticketSignals: {
+        kind: "INC",
+        category: "hardware",
+        impact: null,
+        blocked: true,
+        deadlineToday: null,
+      },
+    });
+    turn.groq.reply(
+      streamToolCall(
+        MAIN,
+        {
+          id: "call_1",
+          name: "proposeTicketUpdate",
+          arguments: {
+            code: "INC-20395",
+            text: "A impressora continua sem imprimir.",
+            evidence: "continua sem imprimir",
+          },
+        },
+        USAGE,
+      ),
+    );
+
+    await turn.run();
+
+    expect(turn.store.drafts).toEqual([]);
+    expect(turn.sink.text).toBe(
+      "Para atualizar o INC-20395, preciso confirmar uma coisa. Consegue trabalhar de outro jeito por enquanto?",
+    );
+    expect(turn.sink.finalParts).toContainEqual({
+      type: "quickReplies",
+      options: ["Sim, dá para seguir", "Não, sem alternativa"].map((label) => ({
+        label,
+        value: label,
+      })),
+    });
+    expect(turn.store.decisions[0].corrections?.map((item) => item.rule)).toContain(
+      "intake_question",
+    );
+  });
+});
+
+describe('runTurn: "Sim" a "Isso resolveu?" (F1)', () => {
+  it("encerra o assunto em código, sem rascunho nem o modelo principal, mesmo com chamado parecido", async () => {
+    const turn = setup({
+      userText: "Sim",
+      gateway: new FakeTicketGateway({ tickets: [NOTEBOOK], similar: [NOTEBOOK] }),
+      snapshot: {
+        recentMessages: [
+          userMessage("Não consigo entrar no SAP, aparece usuário bloqueado"),
+          assistantMessage([
+            { type: "text", text: "O desbloqueio é automático em 30 minutos. Isso resolveu?" },
+            {
+              type: "quickReplies",
+              options: [
+                { label: "Sim", value: "Sim" },
+                { label: "Não", value: "Não" },
+              ],
+            },
+          ]),
+          userMessage("Sim"),
+        ],
+      },
+    });
+    turn.understands({ intent: "confirm_or_edit_draft", summary: "Sim.", confidence: 0.95 });
+
+    await turn.run();
+
+    expect(turn.groq.requests).toHaveLength(1); // só o ENTENDER
+    expect(turn.sink.text).toMatch(/Que bom que resolveu/);
+    expect(turn.store.drafts).toEqual([]);
+    const [record] = turn.store.decisions;
+    expect(record).toMatchObject({ outcome: "answered", actions: [] });
+    expect(record.understanding?.intent).toBe("question");
+    expect(record.corrections?.map((item) => item.rule)).toEqual(["article_resolved"]);
   });
 });
 
