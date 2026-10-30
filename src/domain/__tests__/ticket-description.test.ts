@@ -10,7 +10,9 @@ import {
   buildTicketDescription,
   groundedSentence,
   impactSentence,
+  problemStatement,
   saidOperatingSystem,
+  titleCitingProblem,
   TRIED_CUE,
   type DescriptionInput,
 } from "../ticket-description";
@@ -64,7 +66,8 @@ describe("buildTicketDescription", () => {
     signals: { impact: "individual", blocked: true, deadlineToday: null },
     operatingSystem: null,
     employeeTexts: ["Minha VPN está dando erro 809 ao conectar.", "Windows 10", "Não"],
-    fallbackSymptom: "Minha VPN está dando erro 809 ao conectar",
+    quickAnswers: ["Windows 10", "Não"],
+    problemText: "Minha VPN está dando erro 809 ao conectar.",
   };
 
   it("monta sintoma, artigo tentado, impacto e ambiente, sem fatos inventados", () => {
@@ -87,6 +90,65 @@ describe("buildTicketDescription", () => {
     });
     // A fala dele entra impessoal (QA R1): "Minha VPN" vira "A VPN".
     expect(built.description.startsWith("A VPN está dando erro 809 ao conectar.")).toBe(true);
+  });
+});
+
+describe("o sintoma vem da mensagem em que o problema foi contado (R3, F1 Windows 11)", () => {
+  const WIN11_TEXTS = [
+    "Minha VPN dá erro 809",
+    "Windows 11",
+    "Só eu",
+    "Sim, dá para seguir",
+    "Sim, tenho compromisso hoje",
+  ];
+  const WIN11_ANSWERS = WIN11_TEXTS.slice(1);
+  const win11: DescriptionInput = {
+    symptom: { text: "Tem compromisso hoje.", evidence: "tenho compromisso hoje" },
+    since: { text: "Desde hoje.", evidence: "Sim, tenho compromisso hoje" },
+    tried: null,
+    articlesTried: [],
+    signals: { impact: "individual", blocked: false, deadlineToday: true },
+    operatingSystem: "Windows 11",
+    employeeTexts: WIN11_TEXTS,
+    quickAnswers: WIN11_ANSWERS,
+    problemText: problemStatement(WIN11_TEXTS, "", WIN11_ANSWERS),
+  };
+
+  it("a mensagem do problema é a digitada, mesmo curta, e nunca uma opção escolhida", () => {
+    expect(problemStatement(WIN11_TEXTS, "resumo", WIN11_ANSWERS)).toBe("Minha VPN dá erro 809");
+    expect(problemStatement(["Bom dia, preciso de ajuda", "Minha VPN dá erro 809"], "")).toBe(
+      "Minha VPN dá erro 809",
+    );
+    expect(problemStatement(["Sim, tenho compromisso hoje"], "resumo", WIN11_ANSWERS)).toBe(
+      "resumo",
+    );
+  });
+
+  it("sintoma tirado de uma opção escolhida vira a mensagem do problema", () => {
+    const built = buildTicketDescription(win11);
+    expect(built.description).toBe(
+      "A VPN dá erro 809. Afeta apenas o solicitante; há alternativa para seguir trabalhando por enquanto. Há compromisso hoje que depende disso. Sistema operacional: Windows 11.",
+    );
+    expect(built.corrected).toEqual(["sintoma", "desde quando"]);
+  });
+
+  it("sintoma do modelo fica quando cita a mensagem do problema", () => {
+    const built = buildTicketDescription({
+      ...win11,
+      symptom: { text: "A VPN dá erro 809.", evidence: "VPN dá erro 809" },
+      since: null,
+    });
+    expect(built.description.startsWith("A VPN dá erro 809.")).toBe(true);
+    expect(built.corrected).toEqual([]);
+  });
+
+  it("o título sempre cita o problema", () => {
+    expect(titleCitingProblem("Erro 809 na VPN no Windows 11", "Minha VPN dá erro 809")).toBe(
+      "Erro 809 na VPN no Windows 11",
+    );
+    expect(titleCitingProblem("Compromisso hoje em risco", "Minha VPN dá erro 809")).toBe(
+      "Minha VPN dá erro 809",
+    );
   });
 });
 

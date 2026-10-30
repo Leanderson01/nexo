@@ -36,6 +36,7 @@ function setup(
     understanding?: Partial<Understanding>;
     gateway?: FakeTicketGateway;
     employeeTexts?: string[];
+    quickReplyAnswers?: string[];
     unconfirmedSignals?: ToolSession["facts"]["unconfirmedSignals"];
   } = {},
 ) {
@@ -48,6 +49,7 @@ function setup(
     understanding: makeUnderstanding({ ticketSignals: SAID_SIGNALS, ...options.understanding }),
     facts: {
       employeeTexts: options.employeeTexts ?? [VPN_TEXT],
+      quickReplyAnswers: options.quickReplyAnswers ?? [],
       articlesTried: [],
       unconfirmedSignals: options.unconfirmedSignals ?? {},
     },

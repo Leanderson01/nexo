@@ -13,5 +13,10 @@ export function groundedDraftText(text: string, evidence: string, session: ToolS
   const result = groundedSentence({ text, evidence }, employeeTexts);
   if (result.replaced) session.workspace.correctedDescriptionFields.push("texto do rascunho");
   if (result.sentence) return impersonal(result.sentence);
-  return impersonal(problemStatement(employeeTexts, session.understanding.summary).trim());
+  const problem = problemStatement(
+    employeeTexts,
+    session.understanding.summary,
+    session.facts.quickReplyAnswers,
+  );
+  return impersonal(problem.trim());
 }

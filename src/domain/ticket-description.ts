@@ -150,8 +150,13 @@ export interface DescriptionInput {
   operatingSystem: string | null;
   /** O que o funcionário escreveu (as mensagens dele na conversa). */
   employeeTexts: string[];
-  /** Usado quando nem o sintoma nem o trecho dele se sustentam. */
-  fallbackSymptom: string;
+  /**
+   * As mensagens que são opções rápidas escolhidas ("Sim, tenho compromisso hoje"): respostas,
+   * nunca sintoma, desde quando ou tentativa (R3: a descrição começava pela última opção).
+   */
+  quickAnswers: string[];
+  /** A mensagem em que o funcionário contou o problema (`problemStatement`). */
+  problemText: string;
 }
 
 export interface BuiltDescription {
@@ -162,17 +167,19 @@ export interface BuiltDescription {
 
 export function buildTicketDescription(input: DescriptionInput): BuiltDescription {
   const corrected: string[] = [];
+  const typed = typedTexts(input.employeeTexts, input.quickAnswers);
   const pick = (name: string, statement: Statement | null, cue?: RegExp): string | null => {
-    const result = groundedSentence(statement, input.employeeTexts, cue);
+    const result = groundedSentence(statement, typed, cue);
     if (result.replaced) corrected.push(name);
     return result.sentence;
   };
 
-  const symptom = pick("sintoma", input.symptom) ?? asSentence(input.fallbackSymptom);
+  const symptom = symptomSentence(input.symptom, typed, input.problemText);
+  if (symptom.replaced) corrected.push("sintoma");
   const since = pick("desde quando", input.since, SINCE_CUE);
   const tried = pick("o que já foi tentado", input.tried, TRIED_CUE);
   const lines = [
-    symptom,
+    symptom.sentence,
     since,
     tried,
     ...input.articlesTried.map(
@@ -230,9 +237,95 @@ function osWords(text: string): string[] {
 }
 
 /**
- * A mensagem do funcionário que conta o problema: a primeira com conteúdo na janela (as
- * respostas às perguntas vêm depois e são curtas). Sem nenhuma, o resumo do ENTENDER.
+ * A frase do sintoma: a do modelo (ou o trecho citado) só se o trecho estiver na mensagem em que
+ * o problema foi contado e a frase citar o problema; senão, essa própria mensagem.
  */
-export function problemStatement(employeeTexts: string[], summary: string): string {
-  return employeeTexts.find((text) => contentWords(text).length >= 3) ?? summary;
+function symptomSentence(
+  statement: Statement,
+  typed: string[],
+  problemText: string,
+): { sentence: string; replaced: boolean } {
+  const problem = asSentence(problemText);
+  if (problem === "") {
+    const result = groundedSentence(statement, typed);
+    return { sentence: result.sentence ?? "", replaced: result.replaced };
+  }
+  if (!quoteAppears(statement.evidence, [problemText]))
+    return { sentence: problem, replaced: true };
+  const result = groundedSentence(statement, typed);
+  if (result.sentence === null || !mentionsProblem(result.sentence, problemText)) {
+    return { sentence: problem, replaced: true };
+  }
+  return { sentence: result.sentence, replaced: result.replaced };
+}
+
+/** As mensagens digitadas pelo funcionário, sem as opções rápidas que ele escolheu. */
+export function typedTexts(employeeTexts: string[], quickAnswers: string[]): string[] {
+  const answers = new Set(quickAnswers.map(comparable));
+  return employeeTexts.filter((text) => !answers.has(comparable(text)));
+}
+
+/** Palavras que identificam o problema: siglas curtas ("VPN") e números ("809") contam. */
+function problemWords(text: string): string[] {
+  return splitWords(text).filter(
+    (word) => /^\d+$/.test(word) || (word.length >= 3 && !STOPWORDS.has(word)),
+  );
+}
+
+/** O texto cita o problema: usa ao menos uma palavra dele ("VPN", "809", "Excel"). */
+export function mentionsProblem(text: string, problemText: string): boolean {
+  const problem = new Set(problemWords(problemText).map(stem));
+  return problemWords(text).some((word) => problem.has(stem(word)));
+}
+
+/**
+ * O título do chamado sempre cita o problema: o do modelo, se usa uma palavra da mensagem em que
+ * o problema foi contado; senão, essa mensagem encurtada.
+ */
+export function titleCitingProblem(title: string, problemText: string): string {
+  if (problemText.trim() === "" || mentionsProblem(title, problemText)) return title;
+  return shortTitle(problemText);
+}
+
+const MAX_TITLE_LENGTH = 60;
+
+function shortTitle(text: string): string {
+  const sentence = asSentence(text).replace(/[.!?]$/, "");
+  if (sentence.length <= MAX_TITLE_LENGTH) return sentence;
+  const cut = sentence.slice(0, MAX_TITLE_LENGTH + 1);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${cut.slice(0, lastSpace > 0 ? lastSpace : MAX_TITLE_LENGTH).replace(/[,;:]$/, "")}…`;
+}
+
+/** Mensagem que conta um problema: ao menos três palavras que o identificam. */
+const MIN_PROBLEM_WORDS = 3;
+
+/**
+ * Palavras de conteúdo mais as siglas ("VPN", "SAP"): "Minha VPN dá erro 809" tem três;
+ * "Bom dia, preciso de ajuda" tem duas.
+ */
+function problemWordCount(text: string): number {
+  const acronyms = text.match(/\b[A-Z]{2,4}\b/g) ?? [];
+  const short = acronyms.filter((acronym) => contentWords(acronym).length === 0);
+  return contentWords(text).length + short.length;
+}
+
+/**
+ * A mensagem do funcionário que conta o problema: a primeira digitada com conteúdo (as opções
+ * rápidas escolhidas nunca contam); sem nenhuma assim, a digitada mais longa; sem nenhuma
+ * digitada, o resumo do ENTENDER. "Minha VPN dá erro 809" conta (VPN, erro, 809).
+ */
+export function problemStatement(
+  employeeTexts: string[],
+  summary: string,
+  quickAnswers: string[] = [],
+): string {
+  const typed = typedTexts(employeeTexts, quickAnswers);
+  const told = typed.find((text) => problemWordCount(text) >= MIN_PROBLEM_WORDS);
+  if (told) return told;
+  const longest = typed.reduce<string | null>(
+    (best, text) => (best === null || text.trim().length > best.trim().length ? text : best),
+    null,
+  );
+  return longest !== null && longest.trim() !== "" ? longest : summary;
 }

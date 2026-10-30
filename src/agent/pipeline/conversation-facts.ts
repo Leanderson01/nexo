@@ -16,6 +16,11 @@ import type { HistoryMessage } from "./agent-store";
 export interface ConversationFacts {
   /** As mensagens do funcionário na janela do turno, em ordem, terminando na atual. */
   employeeTexts: string[];
+  /**
+   * As mensagens que são opções rápidas escolhidas (o rótulo de uma opção da resposta anterior
+   * do assistente): respostas, nunca o problema contado.
+   */
+  quickReplyAnswers: string[];
   /** Sinais respondidos nas perguntas de abertura; a resposta mais recente vale. */
   answeredSignals: Partial<SaidSignals>;
   /** Títulos dos artigos mostrados com "Isso resolveu?" e respondidos com "Não" (F1 passo 5). */
@@ -47,6 +52,7 @@ export function readConversationFacts(
 
   const answeredSignals: Partial<SaidSignals> = {};
   const articlesTried: string[] = [];
+  const quickReplyAnswers: string[] = [];
   let lastAssistant: HistoryMessage | null = null;
   for (const message of messages) {
     if (message.role === "assistant") {
@@ -55,6 +61,7 @@ export function readConversationFacts(
     }
     if (message.role !== "user" || !lastAssistant) continue;
     const answer = textOf(message);
+    if (offersOption(lastAssistant, answer)) quickReplyAnswers.push(answer);
     const asked = textOf(lastAssistant);
     const question = intakeQuestionIn(asked);
     if (question) {
@@ -86,10 +93,18 @@ export function readConversationFacts(
     ),
   );
 
+  // A mensagem atual ainda fora da janela: é opção se a última resposta do assistente a ofereceu.
+  const current = userText.trim();
+  const lastMessage = messages.at(-1);
+  if (current !== "" && lastMessage?.role === "assistant" && offersOption(lastMessage, current)) {
+    quickReplyAnswers.push(current);
+  }
+
   const previous = previousAssistantText(messages);
   const previousQuestion = previous === null ? null : intakeQuestionIn(previous);
   return {
     employeeTexts,
+    quickReplyAnswers,
     answeredSignals,
     articlesTried,
     previousAskedIntake: previousQuestion !== null,
@@ -119,6 +134,14 @@ function previousAssistantText(messages: HistoryMessage[]): string | null {
   const before = lastUser === -1 ? messages : messages.slice(0, lastUser);
   const previous = before.findLast((message) => message.role === "assistant");
   return previous ? textOf(previous) : null;
+}
+
+/** A resposta do assistente ofereceu esta opção rápida. */
+function offersOption(assistant: HistoryMessage, label: string): boolean {
+  return assistant.parts.some(
+    (part) =>
+      part.type === "quickReplies" && part.options.some((option) => option.label === label.trim()),
+  );
 }
 
 function textOf(message: HistoryMessage): string {

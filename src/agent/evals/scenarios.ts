@@ -44,6 +44,9 @@ const ANY_TICKET_CODE: TextRule = {
   pattern: /\b(INC|REQ)-\d{5}\b/,
 };
 
+const CITES_VPN: TextRule = { description: "citar a VPN", pattern: /VPN/ };
+const CITES_ERROR_809: TextRule = { description: "citar o erro 809", pattern: /809/ };
+
 // ---------- Os 13 cenários da §13.2 ----------
 
 const vpnWindows11: Scenario = {
@@ -86,6 +89,7 @@ const vpnWindows11: Scenario = {
       category: "network_vpn",
       priority: "HIGH",
       reopenedFrom: null,
+      descriptionMustMatch: [CITES_VPN, CITES_ERROR_809],
     },
     ticketsCreated: [],
   },
@@ -777,6 +781,62 @@ const intakeByOptions: Scenario = {
   },
 };
 
+const vpnWindows11ByOptions: Scenario = {
+  id: "extra-vpn-windows-11-por-opcoes",
+  title: "VPN erro 809 no Windows 11 com as perguntas por opção: a descrição cita o problema",
+  source: "extra",
+  reference: "F1; §11.2 descrição passada a limpo; regressão R3 (descrição começava pela opção)",
+  employeeEmail: JULIANA,
+  tickets: { ofEmployee: [], ofOthers: [] },
+  steps: [
+    say("Minha VPN dá erro 809", {
+      outcome: "asked_clarification",
+      parts: { mustInclude: [{ type: "quickReplies", includesLabel: "Windows 11" }] },
+    }),
+    pick("Windows 11", {
+      parts: { mustInclude: [{ type: "quickReplies", includesLabel: "Só eu" }] },
+    }),
+    pick("Só eu", {
+      parts: { mustInclude: [{ type: "quickReplies", includesLabel: "Sim, dá para seguir" }] },
+    }),
+    pick("Sim, dá para seguir", {
+      parts: {
+        mustInclude: [{ type: "quickReplies", includesLabel: "Sim, tenho compromisso hoje" }],
+      },
+    }),
+    pick("Sim, tenho compromisso hoje", {
+      outcome: "draft_proposed",
+      toolsCalled: [{ tool: "findSimilarTickets" }, { tool: "proposeTicketDraft" }],
+      priority: "HIGH",
+      parts: { mustInclude: [{ type: "draft" }] },
+    }),
+  ],
+  final: {
+    conversationStatus: "agent",
+    handoffReason: null,
+    proposedAction: {
+      kind: "create_ticket",
+      status: "pending",
+      ticketKind: "INC",
+      category: "network_vpn",
+      priority: "HIGH",
+      reopenedFrom: null,
+      descriptionMustMatch: [
+        CITES_VPN,
+        CITES_ERROR_809,
+        { description: "registrar o sistema operacional", pattern: /Windows 11/ },
+      ],
+      descriptionMustNotMatch: [
+        {
+          description: "começar por uma opção escolhida em vez do problema",
+          pattern: /^(Sim|Não|Só eu|Windows)\b/,
+        },
+      ],
+    },
+    ticketsCreated: [],
+  },
+};
+
 const noDeadlineToday: Scenario = {
   id: "extra-sem-compromisso-hoje",
   title: '"Sem compromisso hoje" não vira "compromisso hoje em risco"',
@@ -1037,6 +1097,7 @@ export const EXTRA_SCENARIOS: Scenario[] = [
   criticalDraftCancelled,
   wifiShortSentence,
   intakeByOptions,
+  vpnWindows11ByOptions,
   noDeadlineToday,
   keyboardWithoutOs,
   returnWithNote,

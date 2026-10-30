@@ -59,6 +59,22 @@ describe("readConversationFacts", () => {
       "Não, sem alternativa",
     ]);
   });
+
+  it("separa as opções rápidas escolhidas, inclusive a mensagem atual, das mensagens digitadas", () => {
+    const history = [
+      userMessage("Minha VPN dá erro 809"),
+      assistantMessage([text("Qual é o seu Windows?"), options("Windows 10", "Windows 11")]),
+      userMessage("Windows 11"),
+      assistantMessage([text(intakeText(IMPACT_QUESTION, false)), options("Só eu")]),
+      userMessage("Só eu, mas acho que outros também"),
+      assistantMessage([
+        text("Há algum compromisso hoje?"),
+        options("Sim, tenho compromisso hoje", "Não, pode esperar"),
+      ]),
+    ];
+    const facts = readConversationFacts(history, "Sim, tenho compromisso hoje");
+    expect(facts.quickReplyAnswers).toEqual(["Windows 11", "Sim, tenho compromisso hoje"]);
+  });
 });
 
 describe("verifyUnderstanding e continueIntake", () => {

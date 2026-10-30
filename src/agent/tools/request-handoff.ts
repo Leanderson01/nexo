@@ -68,7 +68,11 @@ export function requestHandoffTool(session: ToolSession): AgentTool<Input, Outpu
 
 /** O resumo do modelo mais a fala do funcionário sobre o problema, que não depende dele. */
 function withReportedProblem(summary: string, session: ToolSession): string {
-  const problem = problemStatement(session.facts.employeeTexts, "").trim();
+  const problem = problemStatement(
+    session.facts.employeeTexts,
+    "",
+    session.facts.quickReplyAnswers,
+  ).trim();
   const tried = session.facts.articlesTried.map(
     (title) => `Artigo "${title}" tentado, sem resolver.`,
   );

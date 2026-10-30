@@ -1264,6 +1264,7 @@ function toolSession(turn: Turn, understanding: Understanding): ToolSession {
     understanding,
     facts: {
       employeeTexts: turn.facts.employeeTexts,
+      quickReplyAnswers: turn.facts.quickReplyAnswers,
       articlesTried: turn.facts.articlesTried,
       unconfirmedSignals: turn.unconfirmedSignals,
     },
@@ -1325,7 +1326,7 @@ function pickedReplyProblem(turn: Turn): string | null {
 
 /** A fala em que o funcionário contou o problema (a mais longa da janela), se houver. */
 function reportedProblem(facts: ConversationFacts): string | null {
-  const problem = problemStatement(facts.employeeTexts, "");
+  const problem = problemStatement(facts.employeeTexts, "", facts.quickReplyAnswers);
   return problem.trim() === "" ? null : problem;
 }
 

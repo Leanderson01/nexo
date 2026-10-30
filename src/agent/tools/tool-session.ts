@@ -36,6 +36,8 @@ export interface ToolSession {
   facts: {
     /** As mensagens do funcionário na janela do turno, terminando na atual. */
     employeeTexts: string[];
+    /** As opções rápidas que ele escolheu (respostas, nunca o problema contado). */
+    quickReplyAnswers: string[];
     /** Artigos que o funcionário disse que não resolveram. */
     articlesTried: string[];
     /** Sinais que o ENTENDER trouxe e a fala não confirmou: antes de usá-los, o agent pergunta. */

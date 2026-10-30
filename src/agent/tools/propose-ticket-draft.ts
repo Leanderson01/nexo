@@ -11,7 +11,11 @@ import {
   kindFromSpeech,
   titleConsistentWithSignals,
 } from "@/domain/ticket-classification";
-import { buildTicketDescription, problemStatement } from "@/domain/ticket-description";
+import {
+  buildTicketDescription,
+  problemStatement,
+  titleCitingProblem,
+} from "@/domain/ticket-description";
 
 import type { AgentTool, ToolFailure, ToolSession } from "./tool-session";
 
@@ -86,11 +90,14 @@ export function proposeTicketDraftTool(session: ToolSession): AgentTool<Input, O
       const { employeeTexts } = session.facts;
       const kind = kindFromSpeech(employeeTexts) ?? fields.kind;
       const derived = derivePriority({ kind, ...signals.value });
-      const built = describeTicket(fields, signals.value, session);
+      const problem = reportedProblem(session);
+      const built = describeTicket(fields, signals.value, session, problem);
+      const category = categoryFromSpeech(fields.category, employeeTexts);
       const ticket: NewTicket = {
         kind,
-        category: categoryFromSpeech(fields.category, employeeTexts),
-        title: titleConsistentWithSignals(fields.title, signals.value),
+        category,
+        // O título sempre cita o problema contado (R3: podia sair de uma opção escolhida).
+        title: titleConsistentWithSignals(titleCitingProblem(fields.title, problem), signals.value),
         description: built.description,
         affected: defaultAffected(signals.value.impact, session),
         prioritySignals: signals.value,
@@ -130,8 +137,13 @@ export function proposeTicketDraftTool(session: ToolSession): AgentTool<Input, O
  * Descrição passada a limpo (§11.2) montada em código: cada campo do modelo precisa citar a
  * fala do funcionário; impacto e sistema operacional saem do que já foi conferido.
  */
-function describeTicket(fields: Input, signals: PrioritySignals, session: ToolSession) {
-  const { employeeTexts, articlesTried } = session.facts;
+function describeTicket(
+  fields: Input,
+  signals: PrioritySignals,
+  session: ToolSession,
+  problemText: string,
+) {
+  const { employeeTexts, quickReplyAnswers, articlesTried } = session.facts;
   const statement = (text: string | null, evidence: string | null) =>
     text && evidence ? { text, evidence } : null;
   return buildTicketDescription({
@@ -142,8 +154,15 @@ function describeTicket(fields: Input, signals: PrioritySignals, session: ToolSe
     signals,
     operatingSystem: session.understanding.entities.os,
     employeeTexts,
-    fallbackSymptom: problemStatement(employeeTexts, session.understanding.summary),
+    quickAnswers: quickReplyAnswers,
+    problemText,
   });
+}
+
+/** A mensagem em que o funcionário contou o problema (opções escolhidas nunca contam). */
+function reportedProblem(session: ToolSession): string {
+  const { employeeTexts, quickReplyAnswers } = session.facts;
+  return problemStatement(employeeTexts, session.understanding.summary, quickReplyAnswers);
 }
 
 function draftInstruction(transfersOnConfirm: boolean, referenceCode: string | null): string {
