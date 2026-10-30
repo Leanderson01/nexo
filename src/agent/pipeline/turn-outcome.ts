@@ -8,7 +8,7 @@ export interface OutcomeInput {
   handedOff: boolean;
   decisiveAction: DecisiveAction | null;
   draftProposed: boolean;
-  /** A LowConfidencePolicy mandou esclarecer. */
+  /** A LowConfidencePolicy mandou esclarecer, ou o turno perguntou a condição de um artigo. */
   clarificationRequested: boolean;
   intent: Intent | null;
   /** A resposta mostrou artigo, chamado ou seletor: é resposta, mesmo terminando em pergunta. */
@@ -32,5 +32,6 @@ export function decideOutcome(input: OutcomeInput): DecisionOutcome {
 }
 
 function endsWithQuestion(text: string): boolean {
-  return text.trim().endsWith("?");
+  // Tolera o que vem depois do "?" sem ser palavra (espaços, emoji, aspas).
+  return /\?[^\p{L}\p{N}]*$/u.test(text);
 }

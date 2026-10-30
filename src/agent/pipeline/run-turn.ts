@@ -22,6 +22,7 @@ import {
   shortCircuitReply,
   type CodeReply,
 } from "./code-replies";
+import { consultKnowledge, shouldConsultKnowledge } from "./consult-knowledge";
 import { buildReturnContext, loadContext, type LoadedContext } from "./context-loader";
 import { ACCEPT_HANDOFF_OFFER, decide, DECLINE_HANDOFF_OFFER, type TurnDecision } from "./decide";
 import { resolveFocus, type FocusResult } from "./focus";
@@ -269,6 +270,9 @@ async function answerWithModel(
   workspace.criticalCase = hasOffer(decision.guidingActions, "critical");
   if (overdueOffer) workspace.showTicket(overdueOffer.code);
 
+  const articles = shouldConsultKnowledge(understanding)
+    ? await consultKnowledge(session, traceEnvironment)
+    : null;
   const selectedTicket =
     workspace.employeeTickets?.find(
       (ticket) => ticket.code === context.snapshot.conversation.selectedTicketCode,
@@ -290,6 +294,7 @@ async function answerWithModel(
     employeeTickets: workspace.employeeTickets,
     guidingActions: decision.guidingActions,
     overdueExplanation: overdueExplanation(decision),
+    articles,
     sensitiveNoticeWritten: turn.replyText !== "",
   });
 
@@ -358,7 +363,8 @@ async function complete(turn: Turn, completion: Completion): Promise<void> {
     decisiveAction: decision?.decisiveAction ?? null,
     draftProposed: workspace.draft !== null,
     clarificationRequested:
-      decision?.guidingActions.some((action) => action.kind === "ask_clarification") ?? false,
+      (decision?.guidingActions.some((action) => action.kind === "ask_clarification") ?? false) ||
+      (workspace.askedArticleCondition && !shownContent),
     intent: completion.understanding?.intent ?? null,
     showedContent: shownContent,
     replyText: turn.replyText,

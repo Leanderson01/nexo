@@ -1,4 +1,5 @@
 import type { GuidingAction } from "@/agent/policies/run-policies";
+import type { ArticleForModel } from "@/agent/tools/search-knowledge-base";
 import type { PendingAction } from "@/domain/pending-action";
 import type { TicketSummary } from "@/domain/ticket";
 import type { Understanding } from "@/domain/understanding";
@@ -25,6 +26,8 @@ export interface TurnBriefingInput {
   guidingActions: GuidingAction[];
   /** Explicação da OverdueTicketPolicy, quando ela mandou oferecer analista. */
   overdueExplanation: string | null;
+  /** Artigos da central já consultados pelo pipeline; `null` = não consultou. */
+  articles: ArticleForModel[] | null;
   /** O aviso de dado sensível já foi escrito no começo da resposta. */
   sensitiveNoticeWritten: boolean;
 }
@@ -40,6 +43,9 @@ export function buildTurnBriefing(input: TurnBriefingInput): string {
       : null,
     input.returnContext ? section("Retomada", [input.returnContext]) : null,
     input.pendingDraft ? section("Rascunho pendente", [describeDraft(input.pendingDraft)]) : null,
+    input.articles
+      ? section("Central de ajuda (já consultada; siga o whatToDo)", articleLines(input.articles))
+      : null,
     section("Chamados", ticketLines(input)),
     section("Decisões já tomadas em código (siga)", decisionLines(input)),
   ];
@@ -90,6 +96,15 @@ function describeDraft(draft: { draftNumber: number; action: PendingAction }): s
   }
 }
 
+function articleLines(articles: ArticleForModel[]): string[] {
+  if (articles.length === 0)
+    return ["Nenhum artigo encontrado: siga para o chamado se for um problema."];
+  return articles.map(
+    (article, index) =>
+      `${index + 1}. "${article.title}" (${article.applicability}). whatToDo: ${article.whatToDo}\n   Conteúdo: ${article.body}`,
+  );
+}
+
 function ticketLines(input: TurnBriefingInput): string[] {
   if (input.employeeTickets === null) {
     return ["Ainda não consultados neste turno (use listMyTickets se precisar)."];
@@ -116,15 +131,26 @@ function ticketLines(input: TurnBriefingInput): string[] {
 
 function decisionLines(input: TurnBriefingInput): string[] {
   const lines = input.guidingActions.map((action) => guidingLine(action, input));
+  const known = knownSignalsLine(input.understanding);
+  if (known) lines.push(known);
   if (input.sensitiveNoticeWritten) {
     lines.push("O aviso sobre a senha removida já foi escrito no começo da resposta; não repita.");
   }
   return lines.length > 0 ? lines : ["Nenhuma política disparou: atenda normalmente."];
 }
 
+/** Impacto e bloqueio já ditos: perguntar de novo é falha de condução (§8 F4). */
+function knownSignalsLine(understanding: Understanding): string | null {
+  const { impact, blocked, deadlineToday } = understanding.ticketSignals;
+  if (impact === null || blocked === null) return null;
+  const urgency =
+    deadlineToday === null ? "" : `, compromisso hoje: ${deadlineToday ? "sim" : "não"}`;
+  return `Impacto (${impact}), bloqueio (${blocked ? "sim" : "não"})${urgency} já informados: NÃO pergunte isso de novo. Se for abrir chamado, siga direto para findSimilarTickets e a proposta neste turno.`;
+}
+
 function guidingLine(action: GuidingAction, input: TurnBriefingInput): string {
   if (action.kind === "ask_clarification") {
-    return "Confiança baixa ou média: faça UMA pergunta curta de esclarecimento, com opções rápidas se couber. Não proponha rascunho neste turno.";
+    return 'Confiança baixa ou média: faça UMA pergunta curta de esclarecimento e chame offerQuickReplies com respostas possíveis (ex.: "Com o que é o problema?" e as opções "Computador", "Internet ou VPN", "Acesso ou senha", "E-mail"). Não proponha rascunho neste turno.';
   }
   if (action.reason === "critical") {
     return "CASO CRÍTICO (CriticalPolicy): proponha o rascunho já neste turno (findSimilarTickets e depois proposeTicketDraft), sem perguntar urgência. Diga que, ao confirmar, um analista é chamado na hora.";

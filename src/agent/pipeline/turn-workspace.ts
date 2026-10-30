@@ -27,6 +27,9 @@ export class TurnWorkspace {
   /** Artigo que vale para o caso; vira card se a resposta se basear nele. */
   applicableArticle: ArticlePart | null = null;
 
+  /** O artigo mais relevante tem condição ainda não confirmada: o turno pergunta antes (F1). */
+  askedArticleCondition = false;
+
   /** A CriticalPolicy mandou: o rascunho transfere ao confirmar ou cancelar. */
   criticalCase = false;
   draft: { pendingActionId: string; kind: PendingActionKind } | null = null;

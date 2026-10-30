@@ -10,7 +10,7 @@ const input = z.object({
 });
 type Input = z.infer<typeof input>;
 
-interface ArticleForModel {
+export interface ArticleForModel {
   slug: string;
   title: string;
   body: string;
@@ -92,11 +92,14 @@ function guideArticle(article: ArticleMatch, rank: number, session: ToolSession)
         ...base,
         applicability: "applies",
         whatToDo:
-          'Se for o problema do funcionário, resuma os passos e termine com "Isso resolveu?". O card do artigo e as opções Sim/Não entram sozinhos.',
+          'Se for o problema do funcionário e ele ainda não tentou estes passos, resuma os passos e termine com "Isso resolveu?" (o card do artigo e as opções Sim/Não entram sozinhos). Se ele já tentou, não repita: siga para o chamado.',
       };
     case "needs_confirmation": {
       const ask = conditionQuestion(applicability.field, applicability.appliesTo);
-      if (rank === 0) session.workspace.offerQuickReplies(ask.options);
+      if (rank === 0) {
+        session.workspace.offerQuickReplies(ask.options);
+        session.workspace.askedArticleCondition = true;
+      }
       return {
         ...base,
         applicability: "needs_confirmation",

@@ -243,7 +243,9 @@ describe("runTurn: AGIR com tools", () => {
       shortCircuit: false,
       derived: { priority: { value: "CRITICAL" } },
     });
+    // A central é consultada em código antes do AGIR (F1); depois, as tools do modelo.
     expect(record.actions.map((action) => action.tool)).toEqual([
+      "searchKnowledgeBase",
       "findSimilarTickets",
       "proposeTicketDraft",
     ]);
