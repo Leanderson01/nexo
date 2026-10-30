@@ -106,6 +106,23 @@ describe("retry.start", () => {
     expect(second).toEqual({ ok: false, error: "busy" });
   });
 
+  test("turno do pipeline que falhou termina complete com a parte de erro e também é repetível", async () => {
+    const { t, failedMessageId, startArgs } = await setupFailedTurn();
+    // O pipeline (T10) fecha o turno com erro via `finalize`: status complete + parte error.
+    await t.run((ctx) =>
+      ctx.db.patch(failedMessageId, {
+        status: "complete",
+        parts: [
+          { type: "error", message: "O sistema de chamados está instável.", retryable: true },
+        ],
+      }),
+    );
+
+    const result = await t.mutation(api.retry.start, startArgs);
+
+    expect(result).toMatchObject({ ok: true, value: { kind: "turn" } });
+  });
+
   test("sem erro repetível no fim, não há o que tentar", async () => {
     const { t, failedMessageId, startArgs } = await setupFailedTurn();
     await t.run((ctx) => ctx.db.patch(failedMessageId, { status: "complete", parts: [] }));

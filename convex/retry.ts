@@ -95,11 +95,13 @@ async function lastMessageFrom(
     .first();
 }
 
+/**
+ * Falha repetível = mensagem com parte `error` e `retryable`, qualquer que seja o status: o
+ * turno do pipeline que falha termina `complete` (com a parte de erro e o `decisionId`), e o
+ * `fail` e o timeout terminam `error`.
+ */
 function isRetryableFailure(message: Doc<"messages">): boolean {
-  return (
-    message.status === "error" &&
-    message.parts.some((part) => part.type === "error" && part.retryable)
-  );
+  return message.parts.some((part) => part.type === "error" && part.retryable);
 }
 
 function withoutRetry(part: MessagePart): MessagePart {
