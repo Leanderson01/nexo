@@ -55,7 +55,14 @@ export function openDuplicates(
   understanding: Understanding,
   employeeTexts: string[],
 ): SimilarTicket[] {
-  const subject = subjectWords(understanding);
+  // Sem sistema nem aparelho no ENTENDER, valem as palavras do que ele escreveu agora.
+  const named = subjectWords(understanding);
+  const subject =
+    named.length > 0
+      ? named
+      : splitWords(employeeTexts.at(-1) ?? "").filter(
+          (word) => word.length >= 4 && !STOPWORDS.has(word),
+        );
   return similar.filter((ticket) => {
     if (ticket.suggestedAction !== "update") return false;
     const title = new Set(splitWords(ticket.title));

@@ -35,6 +35,16 @@ describe("duplicidade aberta de um problema novo (QA R1, Outlook do Rafael)", ()
     );
   });
 
+  it("sem sistema no ENTENDER, compara com as palavras da mensagem", () => {
+    const printer = similar("INC-20395", "Impressora do 2º andar não imprime", "update");
+    const other = similar("INC-20420", "Sistema de estoque fora do ar para a equipe", "update");
+    expect(
+      openDuplicates([printer, other], makeUnderstanding({ intent: "update_ticket" }), [
+        "A impressora do 2º andar continua sem imprimir.",
+      ]),
+    ).toEqual([printer]);
+  });
+
   it("fica o aberto do mesmo sistema, sem conflito de aparelho", () => {
     const tickets = [INC_20402, similar("INC-20077", "Wi-Fi da sala 3 caiu", "new_with_reference")];
     expect(

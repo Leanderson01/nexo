@@ -524,9 +524,12 @@ async function answerWithModel(
         pendingDraftExists: context.snapshot.pendingDraft !== null,
         otherCardShown: otherCardShown(workspace),
         criticalCase: workspace.criticalCase,
-        openDuplicateCodes: [...(workspace.similarTickets?.entries() ?? [])]
-          .filter(([, action]) => action === "update")
-          .map(([code]) => code),
+        // Só os abertos do mesmo assunto: o Pedro tem três abertos de hardware.
+        openDuplicateCodes: openDuplicates(
+          similarTickets ?? [],
+          understanding,
+          turn.facts.employeeTexts,
+        ).map((ticket) => ticket.code),
         recurringProblem:
           understanding.intent === "update_ticket" && isRecurringProblem(turn.input.userText),
       });
