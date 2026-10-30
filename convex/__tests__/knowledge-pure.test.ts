@@ -8,6 +8,7 @@ import {
   scoreArticle,
 } from "../knowledge/ranking";
 import { buildArticleSearchText, stem, toSearchTerms } from "../knowledge/searchTerms";
+import { SEED_ARTICLES } from "../seedData";
 
 describe("toSearchTerms", () => {
   test("tira acento, caixa, hífen e palavras vazias", () => {
@@ -75,6 +76,25 @@ describe("rankArticles", () => {
 
   test("descarta o que não tem termo em comum", () => {
     expect(rankArticles([hours, equipment], toSearchTerms("teclado"))).toEqual([]);
+  });
+
+  test("artigo do celular só entra quando a consulta fala de celular (QA R1, Outlook)", () => {
+    const mobileMail = SEED_ARTICLES.find(
+      (article) => article.slug === "email-corporativo-no-celular",
+    );
+    if (!mobileMail) throw new Error("artigo do seed sumiu");
+    expect(
+      rankArticles([mobileMail], toSearchTerms("O Outlook do meu computador não abre")),
+    ).toEqual([]);
+    expect(rankArticles([mobileMail], toSearchTerms("Outlook não sincroniza os e-mails"))).toEqual(
+      [],
+    );
+    expect(rankArticles([mobileMail], toSearchTerms("Outlook não sincroniza no celular"))).toEqual([
+      mobileMail,
+    ]);
+    expect(rankArticles([mobileMail], toSearchTerms("configurar e-mail no iPhone"))).toEqual([
+      mobileMail,
+    ]);
   });
 });
 

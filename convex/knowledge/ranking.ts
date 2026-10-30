@@ -13,6 +13,7 @@ interface RankableArticle {
   title: string;
   body: string;
   tags: string[];
+  conditions?: { field: string; appliesTo: string[] }[];
 }
 
 /** Os termos do assunto do artigo (título e tags), que pesam mais que os do corpo. */
@@ -47,12 +48,27 @@ export function matchesArticleSubject(article: RankableArticle, queryTerms: stri
 }
 
 /**
+ * Artigo de um dispositivo (condição `device`, ex.: só celular) só entra quando a consulta fala
+ * de um deles: "o Outlook do computador não abre" trazia "Configurar o e-mail corporativo no
+ * celular" pela tag "outlook" (QA R1).
+ */
+export function matchesArticleDevice(article: RankableArticle, queryTerms: string[]): boolean {
+  const devices = (article.conditions ?? []).filter((condition) => condition.field === "device");
+  if (devices.length === 0) return true;
+  const deviceTerms = new Set(
+    toSearchTerms(devices.flatMap((condition) => condition.appliesTo).join(" ")),
+  );
+  return queryTerms.some((term) => deviceTerms.has(term));
+}
+
+/**
  * Os artigos que passam no corte de relevância, do mais pontuado ao menos; empate mantém a
  * ordem de chegada.
  */
 export function rankArticles<T extends RankableArticle>(articles: T[], queryTerms: string[]): T[] {
   return articles
     .filter((article) => matchesArticleSubject(article, queryTerms))
+    .filter((article) => matchesArticleDevice(article, queryTerms))
     .map((article) => ({ article, score: scoreArticle(article, queryTerms) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_ARTICLE_RESULTS)

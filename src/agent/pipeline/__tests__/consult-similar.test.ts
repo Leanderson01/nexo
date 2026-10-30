@@ -2,7 +2,53 @@ import { describe, expect, it } from "vitest";
 
 import { makeUnderstanding } from "@/agent/policies/__tests__/fixtures";
 
-import { isRecurringProblem, shouldConsultSimilar } from "../consult-similar";
+import type { SimilarTicket } from "@/agent/tools/find-similar-tickets";
+
+import {
+  isRecurringProblem,
+  openDuplicates,
+  shouldConsultSimilar,
+  shouldLookForOpenDuplicate,
+} from "../consult-similar";
+
+describe("duplicidade aberta de um problema novo (QA R1, Outlook do Rafael)", () => {
+  const outlook = (summary: string, device: string | null = null) =>
+    makeUnderstanding({
+      intent: "open_ticket",
+      summary,
+      entities: { system: "Outlook", errorCode: null, os: null, device, ticketRef: null },
+    });
+  const similar = (
+    code: string,
+    title: string,
+    suggestedAction: SimilarTicket["suggestedAction"],
+  ) => ({ code, title, suggestedAction }) as SimilarTicket;
+  const INC_20402 = similar("INC-20402", "Outlook não sincroniza no celular", "update");
+
+  it("procura quando o problema cita um sistema; não num problema que voltou nem sem sistema", () => {
+    expect(
+      shouldLookForOpenDuplicate(outlook("Outlook não sincroniza"), "O Outlook não sincroniza"),
+    ).toBe(true);
+    expect(shouldLookForOpenDuplicate(outlook("Outlook"), "O Outlook caiu de novo")).toBe(false);
+    expect(shouldLookForOpenDuplicate(makeUnderstanding({ intent: "open_ticket" }), "Travou")).toBe(
+      false,
+    );
+  });
+
+  it("fica o aberto do mesmo sistema, sem conflito de aparelho", () => {
+    const tickets = [INC_20402, similar("INC-20077", "Wi-Fi da sala 3 caiu", "new_with_reference")];
+    expect(
+      openDuplicates(tickets, outlook("Outlook não sincroniza"), [
+        "O Outlook não sincroniza os e-mails",
+      ]),
+    ).toEqual([INC_20402]);
+    expect(
+      openDuplicates(tickets, outlook("Outlook não abre"), [
+        "O Outlook do meu computador não abre",
+      ]),
+    ).toEqual([]);
+  });
+});
 
 describe("isRecurringProblem", () => {
   it.each([

@@ -429,6 +429,9 @@ export interface SeedArticle {
   conditions?: ArticleCondition[];
 }
 
+/** Dispositivos móveis: o artigo do e-mail no celular vale só para eles. */
+const MOBILE_DEVICES = ["celular", "smartphone", "iPhone", "Android", "tablet", "iPad"];
+
 export const SEED_ARTICLES: SeedArticle[] = [
   {
     slug: "vpn-erro-809",
@@ -474,6 +477,8 @@ export const SEED_ARTICLES: SeedArticle[] = [
     title: "Configurar o e-mail corporativo no celular",
     body: "Instale o app oficial de e-mail, entre com o e-mail corporativo e a senha de rede e aceite o perfil de segurança. O celular precisa estar registrado no MDM.",
     tags: ["e-mail", "celular", "outlook", "mdm", "sincronização", "smartphone", "configurar"],
+    // Só vale no celular (QA R1: o Outlook do computador recebia este artigo).
+    conditions: [{ field: "device", appliesTo: MOBILE_DEVICES }],
   },
   {
     slug: "wifi-corporativo",

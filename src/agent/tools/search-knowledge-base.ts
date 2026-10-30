@@ -35,6 +35,12 @@ export function conditionQuestion(field: string, appliesTo: string[]): Condition
       options: ["Windows 10", "Windows 11", UNKNOWN_OPTION],
     };
   }
+  if (field === "device") {
+    return {
+      question: "Isso acontece no celular ou no computador?",
+      options: ["No celular", "No computador", UNKNOWN_OPTION],
+    };
+  }
   return {
     question: `Antes de seguir, preciso confirmar: ${field}.`,
     options: [...appliesTo, "Outro", UNKNOWN_OPTION],
@@ -74,6 +80,15 @@ export function searchKnowledgeBaseTool(session: ToolSession): AgentTool<Input, 
   };
 }
 
+/** Para quem vale, como o funcionário lê: o dispositivo pelo nome comum ("celular"). */
+function shownAppliesTo(
+  applicability: Exclude<ArticleApplicability, { status: "applies" }>,
+): string[] {
+  return applicability.field === "device"
+    ? applicability.appliesTo.slice(0, 1)
+    : applicability.appliesTo;
+}
+
 /** `rank` 0 é o mais relevante: só ele pode anexar as opções da condição. */
 function guideArticle(article: ArticleMatch, rank: number, session: ToolSession): ArticleForModel {
   const applicability = checkArticleConditions(article, session.understanding.entities);
@@ -82,8 +97,11 @@ function guideArticle(article: ArticleMatch, rank: number, session: ToolSession)
     session.workspace.topArticle = {
       part: { type: "article", slug: article.slug, title: article.title, excerpt: article.excerpt },
       status: applicability.status,
-      appliesTo: applicability.status === "applies" ? [] : applicability.appliesTo,
-      knownValue: applicability.status === "does_not_apply" ? applicability.knownValue : null,
+      appliesTo: applicability.status === "applies" ? [] : shownAppliesTo(applicability),
+      knownValue:
+        applicability.status === "does_not_apply"
+          ? applicability.knownValue.replace(/^(no|na|em) /i, "")
+          : null,
     };
   }
 

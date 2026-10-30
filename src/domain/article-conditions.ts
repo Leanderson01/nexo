@@ -30,7 +30,9 @@ export function checkArticleConditions(
       firstUnknown ??= { status: "needs_confirmation", field, appliesTo };
       continue;
     }
-    if (!matchesAny(knownValue, appliesTo)) {
+    const matches =
+      field === "device" ? deviceMatches(knownValue, appliesTo) : matchesAny(knownValue, appliesTo);
+    if (!matches) {
       return { status: "does_not_apply", field, knownValue, appliesTo };
     }
   }
@@ -62,6 +64,16 @@ function isEntityField(field: string): field is keyof Entities {
 function matchesAny(value: string, appliesTo: string[]): boolean {
   const normalized = normalizeConditionValue(value);
   return appliesTo.some((expected) => normalizeConditionValue(expected) === normalized);
+}
+
+/**
+ * O dispositivo vem em frase ("o meu celular Android", "No computador"): vale se alguma
+ * palavra dele é um dos dispositivos da condição.
+ */
+function deviceMatches(value: string, appliesTo: string[]): boolean {
+  const words = value.split(/[^\p{L}\p{N}]+/u).map(normalizeConditionValue);
+  const expected = new Set(appliesTo.map(normalizeConditionValue));
+  return words.some((word) => expected.has(word));
 }
 
 /**

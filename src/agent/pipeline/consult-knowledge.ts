@@ -15,9 +15,9 @@ export function shouldConsultKnowledge(understanding: Understanding): boolean {
   return INTENTS_THAT_SEARCH.includes(understanding.intent);
 }
 
-/** Termos da busca: o resumo do ENTENDER e o código de erro, se houver. */
+/** Termos da busca: o resumo do ENTENDER, o código de erro e o dispositivo, se houver. */
 export function knowledgeQuery(understanding: Understanding): string {
-  return [understanding.summary, understanding.entities.errorCode]
+  return [understanding.summary, understanding.entities.errorCode, understanding.entities.device]
     .filter((term) => term !== null && term !== "")
     .join(" ");
 }

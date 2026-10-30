@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { devicesConflict } from "@/domain/devices";
 import { PRIORITY_LABELS } from "@/domain/labels";
 import { derivePriority } from "@/domain/priority";
 import type { TicketDetail, TicketFieldChanges } from "@/domain/ticket";
@@ -60,6 +61,14 @@ export function proposeTicketUpdateTool(session: ToolSession): AgentTool<Input, 
         return {
           ok: false,
           error: `${ticket.code} está encerrado e não recebe atualização: use proposeReopen (até 7 dias) ou proposeTicketDraft com referenceCode.`,
+        };
+      }
+
+      // Mesmo sistema em outro aparelho (Outlook do celular × do computador): não é duplicidade.
+      if (devicesConflict(`${ticket.title} ${ticket.description}`, session.facts.employeeTexts)) {
+        return {
+          ok: false,
+          error: `O ${ticket.code} é sobre outro aparelho ("${ticket.title}"): não é o mesmo problema. Não atualize esse chamado; siga a abertura de um chamado novo (proposeTicketDraft).`,
         };
       }
 

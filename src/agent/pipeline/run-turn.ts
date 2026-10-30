@@ -32,7 +32,12 @@ import {
   type CodeReply,
 } from "./code-replies";
 import { consultKnowledge, shouldConsultKnowledge } from "./consult-knowledge";
-import { consultSimilar, shouldConsultSimilar } from "./consult-similar";
+import {
+  consultSimilar,
+  openDuplicates,
+  shouldConsultSimilar,
+  shouldLookForOpenDuplicate,
+} from "./consult-similar";
 import { buildReturnContext, loadContext, type LoadedContext } from "./context-loader";
 import { ACCEPT_HANDOFF_OFFER, decide, DECLINE_HANDOFF_OFFER, type TurnDecision } from "./decide";
 import { resolveFocus, type FocusResult } from "./focus";
@@ -400,9 +405,13 @@ async function answerWithModel(
 
   // Problema que voltou com um chamado parecido: o caminho é o chamado anterior (F4), então a
   // central não entra no contexto (o modelo seguia o artigo em vez do parecido).
+  // Problema novo que cita um sistema com chamado ABERTO dele (duplicidade, §3.2): o parecido
+  // entra no contexto e a central fica de fora, como no problema que voltou.
   const similarTickets = shouldConsultSimilar(understanding, turn.input.userText)
     ? await consultSimilar(session, traceEnvironment)
-    : null;
+    : shouldLookForOpenDuplicate(understanding, turn.input.userText)
+      ? await openDuplicatesFor(session, traceEnvironment, understanding, turn.facts.employeeTexts)
+      : null;
   // Respondendo às perguntas da abertura, o artigo já ficou para trás: a central não entra.
   const articles =
     shouldConsultKnowledge(understanding) &&
@@ -877,6 +886,18 @@ function isIntakeTurn(turn: Turn, understanding: Understanding): boolean {
   const isProblem =
     understanding.intent === "open_ticket" || understanding.ticketSignals.kind === "INC";
   return isProblem && asked.includes("os");
+}
+
+/** Os chamados abertos do mesmo assunto, ou `null` quando não há nenhum (o turno segue normal). */
+async function openDuplicatesFor(
+  session: ToolSession,
+  traceEnvironment: TraceEnvironment,
+  understanding: Understanding,
+  employeeTexts: string[],
+) {
+  const similar = await consultSimilar(session, traceEnvironment);
+  const open = similar ? openDuplicates(similar, understanding, employeeTexts) : [];
+  return open.length > 0 ? open : null;
 }
 
 /** Tira do texto as perguntas indicadas (as demais frases ficam). */
