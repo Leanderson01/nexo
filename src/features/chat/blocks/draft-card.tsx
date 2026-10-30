@@ -40,8 +40,14 @@ export interface DraftCardData {
 export interface DraftCallbacks {
   onConfirm: (pendingActionId: string) => void | Promise<void>;
   onCancel: (pendingActionId: string) => void | Promise<void>;
-  /** Recebe a ação já editada; a rota recalcula a prioridade se os sinais mudaram. */
-  onSaveEdit: (pendingActionId: string, edited: PendingAction) => void | Promise<void>;
+  /**
+   * Recebe a ação já editada; a rota recalcula a prioridade se os sinais mudaram. Devolve
+   * false se não gravou: o formulário fica aberto, com o que foi digitado, e o aviso aparece.
+   */
+  onSaveEdit: (
+    pendingActionId: string,
+    edited: PendingAction,
+  ) => boolean | void | Promise<boolean | void>;
 }
 
 type Busy = "confirm" | "cancel" | "save" | null;
@@ -99,8 +105,8 @@ export function DraftCard({
             onCancel={() => setIsEditing(false)}
             onSave={(edited) =>
               run("save", async () => {
-                await callbacks.onSaveEdit(draft.id, edited);
-                setIsEditing(false);
+                const saved = await callbacks.onSaveEdit(draft.id, edited);
+                if (saved !== false) setIsEditing(false);
               })
             }
           />

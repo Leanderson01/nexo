@@ -14,6 +14,7 @@ import classes from "./chat.module.css";
 import { ChatHeader } from "./chat-header";
 import { Composer } from "./composer";
 import { canType, getComposerState } from "./composer-state";
+import { DailyLimitNotice } from "./daily-limit-notice";
 import { EmptyState } from "./empty-state";
 import { MessageItem, type ChatMessage } from "./message-item";
 import { useNewConversation } from "./use-new-conversation";
@@ -107,8 +108,9 @@ export function ChatConversation({ conversationId }: { conversationId: string | 
 
       {failure && (
         <Group className={classes.composerArea} pb={0}>
+          {/* Limite (ex.: conversas novas do dia) é âmbar e sem "Tentar de novo": não adiantaria. */}
           <Alert
-            color="red"
+            color={failure.retryable ? NOTICE_COLORS.error : NOTICE_COLORS.warning}
             variant="light"
             w="100%"
             withCloseButton
@@ -117,14 +119,16 @@ export function ChatConversation({ conversationId }: { conversationId: string | 
           >
             <Group justify="space-between" gap={8}>
               <Text size="sm">{failure.message}</Text>
-              <Button
-                size="xs"
-                variant="white"
-                color="red"
-                onClick={() => sendFromButton(failure.text)}
-              >
-                Tentar de novo
-              </Button>
+              {failure.retryable && (
+                <Button
+                  size="xs"
+                  variant="white"
+                  color="red"
+                  onClick={() => sendFromButton(failure.text)}
+                >
+                  Tentar de novo
+                </Button>
+              )}
             </Group>
           </Alert>
         </Group>
@@ -132,13 +136,13 @@ export function ChatConversation({ conversationId }: { conversationId: string | 
       {blockActions.notice && (
         <Group className={classes.composerArea} pb={0}>
           <Alert
-            color="blue"
+            color={NOTICE_COLORS[blockActions.notice.tone]}
             variant="light"
             w="100%"
             withCloseButton
             onClose={blockActions.dismissNotice}
           >
-            <Text size="sm">{blockActions.notice}</Text>
+            <Text size="sm">{blockActions.notice.message}</Text>
           </Alert>
         </Group>
       )}
@@ -170,10 +174,14 @@ export function ChatConversation({ conversationId }: { conversationId: string | 
         }
       />
 
+      <DailyLimitNotice {...newConversation.dailyLimitNotice} />
       <DecisionPanelDrawer decisionId={decisionPanel.decisionId} onClose={decisionPanel.close} />
     </>
   );
 }
+
+/** Erro em vermelho; limite ou recusa sem falha (nada quebrou) em âmbar, como o contador. */
+const NOTICE_COLORS = { error: "red", warning: "orange" } as const;
 
 /**
  * Mantém a rolagem no fim enquanto chegam mensagens e pedaços de texto, a menos que a

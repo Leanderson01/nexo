@@ -94,6 +94,18 @@ export const messageLimit = query({
   },
 });
 
+/**
+ * Teto diário de custo atingido (§12.3), antes de existir conversa: o "Nova conversa" avisa
+ * em vez de criar uma conversa que já nasceria bloqueada.
+ */
+export const dailyLimitReached = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireEmployee(ctx);
+    return await isDailyCostLimitReached(ctx, Date.now());
+  },
+});
+
 // ---------- Escritas do funcionário ----------
 
 export type CreateConversationError = "not_found" | "conversation_limit_reached";

@@ -4,12 +4,15 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 import { ok, type Result } from "@/domain/result";
-import { createConversation, sendMessage } from "./chat-api";
+import { isRetryableChatError } from "./api-errors";
+import { createConversation, sendMessage, type ChatApiFailure } from "./chat-api";
 
 export interface SendFailure {
   message: string;
   /** O texto que não foi, para o "Tentar de novo". */
   text: string;
+  /** false nos limites (ex.: conversas novas do dia): o aviso fica sem "Tentar de novo". */
+  retryable: boolean;
 }
 
 /**
@@ -23,7 +26,7 @@ export function useSendMessage(conversationId: string | null) {
   const [isSending, setIsSending] = useState(false);
   const [failure, setFailure] = useState<SendFailure | null>(null);
 
-  async function ensureConversation(): Promise<Result<string, string>> {
+  async function ensureConversation(): Promise<Result<string, ChatApiFailure>> {
     const existing = conversationId ?? createdConversationId.current;
     if (existing) return ok(existing);
 
@@ -39,7 +42,11 @@ export function useSendMessage(conversationId: string | null) {
       const target = await ensureConversation();
       const result = target.ok ? await sendMessage(target.value, text) : target;
       if (!result.ok) {
-        setFailure({ message: result.error, text });
+        setFailure({
+          message: result.error.message,
+          text,
+          retryable: isRetryableChatError(result.error.code),
+        });
         return false;
       }
       if (!conversationId && target.ok) router.replace(`/chat/${target.value}`);

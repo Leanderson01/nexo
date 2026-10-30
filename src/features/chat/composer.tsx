@@ -7,6 +7,7 @@ import { appendTranscript, isBusy } from "@/features/voice/recorder-state";
 import { useVoiceRecorder } from "@/features/voice/use-voice-recorder";
 import { VoiceButton, VoiceNotice } from "@/features/voice/voice-controls";
 import classes from "./chat.module.css";
+import { DAILY_LIMIT_TEXT } from "./chat-texts";
 import { canType, getCounterTone, type ComposerState } from "./composer-state";
 import { ArrowUpIcon } from "./icons";
 
@@ -132,7 +133,7 @@ function ComposerNotice(props: ComposerProps) {
       );
     case "daily_limit":
       return (
-        <BlockedNotice message="O Nexo Assist atingiu o limite de uso de hoje. Você pode falar com um analista ou tentar amanhã.">
+        <BlockedNotice message={DAILY_LIMIT_TEXT}>
           {props.onRequestAnalyst && (
             <Button size="xs" onClick={props.onRequestAnalyst}>
               Falar com um analista

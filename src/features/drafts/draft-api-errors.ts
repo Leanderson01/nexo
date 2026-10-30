@@ -54,6 +54,25 @@ export const ERRORS_SHOWN_IN_CONVERSATION: readonly DraftApiErrorCode[] = [
   "ticketing_rejected",
 ];
 
+export type DraftNoticeTone = "error" | "warning";
+
+/**
+ * Recusas por limite ou pelo estado do rascunho e da conversa: nada quebrou, o aviso é âmbar.
+ * Os demais (servidor fora, rascunho inválido, não encontrado) são erro, em vermelho.
+ */
+const WARNING_CODES: readonly DraftApiErrorCode[] = [
+  "not_pending",
+  "closed",
+  "busy",
+  "not_agent",
+  "nothing_to_retry",
+  "daily_limit_reached",
+];
+
+export function draftNoticeTone(code: DraftApiErrorCode): DraftNoticeTone {
+  return WARNING_CODES.includes(code) ? "warning" : "error";
+}
+
 export function draftApiError(code: DraftApiErrorCode): Response {
   const { status, message } = DRAFT_API_ERRORS[code];
   const body: DraftApiErrorBody = { error: { code, message } };

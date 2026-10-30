@@ -1,13 +1,18 @@
 import { err, ok, type Result } from "@/domain/result";
 import { loginPathFor } from "@/features/auth/route-access";
-import { CHAT_API_ERRORS, type ChatApiErrorBody } from "./api-errors";
+import { CHAT_API_ERRORS, type ChatApiErrorBody, type ChatApiErrorCode } from "./api-errors";
 
-// Chamadas do navegador às rotas do chat. Devolvem `Result` com a mensagem pronta para
-// a tela; falha de rede vira a mesma mensagem de "servidor indisponível".
+// Chamadas do navegador às rotas do chat. Devolvem `Result` com o código do erro e a
+// mensagem pronta para a tela; falha de rede vira o mesmo "servidor indisponível".
+
+export interface ChatApiFailure {
+  code: ChatApiErrorCode;
+  message: string;
+}
 
 export async function createConversation(options: {
   inheritSummaryFrom?: string;
-}): Promise<Result<string, string>> {
+}): Promise<Result<string, ChatApiFailure>> {
   const result = await postJson<{ conversationId: string }>("/api/conversations", options);
   return result.ok ? ok(result.value.conversationId) : result;
 }
@@ -19,7 +24,12 @@ export async function sendMessage(conversationId: string, text: string) {
   );
 }
 
-async function postJson<T>(url: string, body: unknown): Promise<Result<T, string>> {
+const UNAVAILABLE: ChatApiFailure = {
+  code: "unavailable",
+  message: CHAT_API_ERRORS.unavailable.message,
+};
+
+async function postJson<T>(url: string, body: unknown): Promise<Result<T, ChatApiFailure>> {
   try {
     const response = await fetch(url, {
       method: "POST",
@@ -30,9 +40,9 @@ async function postJson<T>(url: string, body: unknown): Promise<Result<T, string
     if (response.status === 401) redirectToLogin();
 
     const failure = (await response.json().catch(() => null)) as ChatApiErrorBody | null;
-    return err(failure?.error.message ?? CHAT_API_ERRORS.unavailable.message);
+    return err(failure?.error ?? UNAVAILABLE);
   } catch {
-    return err(CHAT_API_ERRORS.unavailable.message);
+    return err(UNAVAILABLE);
   }
 }
 

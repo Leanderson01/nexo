@@ -159,6 +159,19 @@ describe("teto diário de custo (MAX_DAILY_LLM_COST_USD)", () => {
     ]);
   });
 
+  test("dailyLimitReached avisa antes de existir conversa (o 'Nova conversa' não cria)", async () => {
+    vi.stubEnv("MAX_DAILY_LLM_COST_USD", "0.01");
+    const { t, mariana } = await setup();
+    expect(await mariana.query(api.conversations.dailyLimitReached, {})).toBe(false);
+
+    const conversationId = await createConversation(mariana);
+    await runTurnWithCost(t, mariana, conversationId, 0.01);
+    expect(await mariana.query(api.conversations.dailyLimitReached, {})).toBe(true);
+    await expect(t.query(api.conversations.dailyLimitReached, {})).rejects.toThrow(
+      "Sessão expirada",
+    );
+  });
+
   test("abaixo do teto o turno dispara; no dia seguinte o agent volta a responder", async () => {
     vi.stubEnv("MAX_DAILY_LLM_COST_USD", "0.01");
     const { t, mariana } = await setup();

@@ -33,6 +33,21 @@ export const CHAT_API_ERRORS: Record<ChatApiErrorCode, { status: number; message
   },
 };
 
+/**
+ * Recusas por limite ou pelo estado da conversa: nada quebrou, tentar de novo agora não muda
+ * nada. O aviso fica âmbar e sem "Tentar de novo"; os demais erros ficam vermelhos, com ele.
+ */
+const NOT_RETRYABLE: readonly ChatApiErrorCode[] = [
+  "conversation_limit_reached",
+  "limit_reached",
+  "closed",
+  "busy",
+];
+
+export function isRetryableChatError(code: ChatApiErrorCode): boolean {
+  return !NOT_RETRYABLE.includes(code);
+}
+
 export function chatApiError(code: ChatApiErrorCode): Response {
   const { status, message } = CHAT_API_ERRORS[code];
   const body: ChatApiErrorBody = { error: { code, message } };

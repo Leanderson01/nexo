@@ -12,6 +12,7 @@ import { api } from "../../../convex/_generated/api";
 import classes from "./chat.module.css";
 import { activeNavItem, CHAT_PATH, PROFILE_PATH } from "./chat-navigation";
 import { formatConversationDate } from "./chat-texts";
+import { DailyLimitNotice } from "./daily-limit-notice";
 import { ChatBubbleIcon, PlusIcon, UserIcon } from "./icons";
 import { useNewConversation } from "./use-new-conversation";
 
@@ -69,7 +70,7 @@ export function ChatNavigation() {
 function ConversationHistory() {
   const conversations = useSignedInQuery(api.conversations.listMine, {});
   const params = useParams<{ conversationId?: string }>();
-  const { startNewConversation, isCreating, error } = useNewConversation();
+  const { startNewConversation, isCreating, error, dailyLimitNotice } = useNewConversation();
 
   return (
     <>
@@ -90,6 +91,7 @@ function ConversationHistory() {
           {error}
         </Text>
       )}
+      <DailyLimitNotice {...dailyLimitNotice} />
 
       <div className={classes.history}>
         {conversations === undefined ? (

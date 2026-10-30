@@ -10,6 +10,10 @@ import { nextBusinessDayText } from "./blocks/block-texts";
 
 // Textos do chat que dependem de dados (estado, eventos, banner). Puros, para testar.
 
+/** Teto diário de custo atingido (§12.3): no campo bloqueado e no aviso do "Nova conversa". */
+export const DAILY_LIMIT_TEXT =
+  "O Nexo Assist atingiu o limite de uso de hoje. Você pode falar com um analista ou tentar amanhã.";
+
 export interface AnalystInfo {
   name: string;
   level: AnalystLevel | null;
