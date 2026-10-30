@@ -3,6 +3,7 @@
 import { useQuery } from "convex/react";
 import { createContext, useContext } from "react";
 
+import { useSignedInQuery } from "@/features/auth/use-signed-in-query";
 import { api } from "../../../../convex/_generated/api";
 
 // De onde os blocos leem os dados (card de chamado, seletor, rascunho e chips).
@@ -40,7 +41,7 @@ function useScope() {
 /** O chamado do card; undefined carregando, null se não existe ou não pode ser lido. */
 export function useBlockTicket(code: string) {
   const { isEmployee, conversationId } = useScope();
-  const mine = useQuery(api.ticketing.queries.getMine, isEmployee ? { code } : "skip");
+  const mine = useSignedInQuery(api.ticketing.queries.getMine, isEmployee ? { code } : "skip");
   const scoped = useQuery(
     api.conversationBlocks.ticket,
     conversationId ? { conversationId, code } : "skip",
@@ -51,7 +52,7 @@ export function useBlockTicket(code: string) {
 /** Os chamados do seletor; undefined carregando. */
 export function useBlockTickets() {
   const { isEmployee, conversationId } = useScope();
-  const mine = useQuery(api.ticketing.queries.listMine, isEmployee ? {} : "skip");
+  const mine = useSignedInQuery(api.ticketing.queries.listMine, isEmployee ? {} : "skip");
   const scoped = useQuery(
     api.conversationBlocks.tickets,
     conversationId ? { conversationId } : "skip",
@@ -63,7 +64,7 @@ export function useBlockTickets() {
 /** O rascunho do card; undefined carregando, null se não existe ou não pode ser lido. */
 export function useBlockPendingAction(pendingActionId: string) {
   const { isEmployee } = useScope();
-  const mine = useQuery(api.pendingActions.get, isEmployee ? { pendingActionId } : "skip");
+  const mine = useSignedInQuery(api.pendingActions.get, isEmployee ? { pendingActionId } : "skip");
   const scoped = useQuery(
     api.conversationBlocks.pendingAction,
     isEmployee ? "skip" : { pendingActionId },
@@ -74,7 +75,7 @@ export function useBlockPendingAction(pendingActionId: string) {
 /** Rótulos dos chips de uma resposta do agent. */
 export function useBlockActionLabels(messageId: string) {
   const { isEmployee } = useScope();
-  const mine = useQuery(api.decisions.getActionLabels, isEmployee ? { messageId } : "skip");
+  const mine = useSignedInQuery(api.decisions.getActionLabels, isEmployee ? { messageId } : "skip");
   const scoped = useQuery(api.conversationBlocks.actionLabels, isEmployee ? "skip" : { messageId });
   return isEmployee ? mine : scoped;
 }

@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 
+import { useSignedInQuery } from "@/features/auth/use-signed-in-query";
 import { NexoMark } from "@/features/auth/login/icons";
 import { SignOutButton } from "@/features/auth/sign-out-button";
 import { api } from "../../../convex/_generated/api";
@@ -49,7 +50,7 @@ export function ChatSidebar() {
 }
 
 function ConversationHistory() {
-  const conversations = useQuery(api.conversations.listMine);
+  const conversations = useSignedInQuery(api.conversations.listMine, {});
   const params = useParams<{ conversationId?: string }>();
   const { startNewConversation, isCreating, error } = useNewConversation();
 

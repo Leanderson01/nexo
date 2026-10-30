@@ -1,9 +1,9 @@
 "use client";
 
-import { useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import { useSignedInQuery } from "@/features/auth/use-signed-in-query";
 import { api } from "../../../convex/_generated/api";
 import { ChatConversation, ChatLoading } from "./chat-conversation";
 
@@ -13,7 +13,7 @@ import { ChatConversation, ChatLoading } from "./chat-conversation";
  */
 export function OpenLatestConversation() {
   const router = useRouter();
-  const conversations = useQuery(api.conversations.listMine);
+  const conversations = useSignedInQuery(api.conversations.listMine, {});
   const latestOpenId = conversations?.find((c) => c.status !== "closed")?._id;
 
   useEffect(() => {

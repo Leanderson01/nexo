@@ -1,10 +1,10 @@
 "use client";
 
 import { Button, Drawer, Skeleton, Stack, Text } from "@mantine/core";
-import { useQuery } from "convex/react";
 import { catchError, type ErrorInfo } from "next/error";
 import { useCallback, useState } from "react";
 
+import { useSignedInQuery } from "@/features/auth/use-signed-in-query";
 import { api } from "../../../convex/_generated/api";
 import { DecisionPanel } from "./decision-panel";
 
@@ -73,7 +73,7 @@ export function DecisionPanelDrawerFrame({
 
 /** Busca o registro com uma query reativa; `undefined` enquanto carrega, `null` sem acesso. */
 function LoadedDecisionPanel({ decisionId }: { decisionId: DecisionId }) {
-  const record = useQuery(api.decisionPanel.get, { decisionId });
+  const record = useSignedInQuery(api.decisionPanel.get, { decisionId });
 
   if (record === undefined) return <DecisionPanelSkeleton />;
   if (record === null) {

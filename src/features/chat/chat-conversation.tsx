@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useEffect, useRef, type RefObject } from "react";
 
+import { useSignedInQuery } from "@/features/auth/use-signed-in-query";
 import { api } from "../../../convex/_generated/api";
 import { DecisionPanelDrawer, useDecisionPanel } from "../decision-panel/decision-panel-drawer";
 import { findChosenText } from "./blocks/reply-segments";
@@ -25,9 +26,9 @@ import { useSendMessage } from "./use-send-message";
  */
 export function ChatConversation({ conversationId }: { conversationId: string | null }) {
   const args = conversationId ? { conversationId } : "skip";
-  const conversation = useQuery(api.conversations.get, args);
-  const messages = useQuery(api.messages.list, args);
-  const newConversationLimit = useQuery(
+  const conversation = useSignedInQuery(api.conversations.get, args);
+  const messages = useSignedInQuery(api.messages.list, args);
+  const newConversationLimit = useSignedInQuery(
     api.conversations.messageLimit,
     conversationId ? "skip" : {},
   );
