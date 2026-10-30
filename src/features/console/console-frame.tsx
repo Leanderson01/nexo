@@ -43,6 +43,10 @@ export function ConsoleFrame({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={classes.shell}>
+      {/* Diz ao CSS do celular qual coluna mostrar (fila ou conversa); lê a rota, por isso o Suspense. */}
+      <Suspense fallback={null}>
+        <MobileViewMarker />
+      </Suspense>
       <nav className={classes.rail} aria-label="Navegação do console">
         <span className={classes.railBrand}>
           <NexoMark size={22} />
@@ -62,6 +66,21 @@ export function ConsoleFrame({ children }: { children: React.ReactNode }) {
       <main className={classes.main}>{children}</main>
     </div>
   );
+}
+
+/**
+ * No celular cabe uma coluna só: a fila em `/console` e a conversa em `/console/[id]`. O
+ * marcador (escondido, fora do grid) diz qual; o `.shell` do CSS esconde a outra. Não dá para
+ * olhar o conteúdo da área principal: o Next mantém a tela anterior montada, só escondida.
+ */
+function MobileViewMarker() {
+  const pathname = usePathname();
+  const view = isMetricsPath(pathname)
+    ? "metrics"
+    : pathname?.startsWith(`${CONSOLE_PATH}/`)
+      ? "conversation"
+      : "queue";
+  return <span hidden data-console-view={view} />;
 }
 
 function QueueColumn(props: React.ComponentProps<typeof ConversationQueue>) {

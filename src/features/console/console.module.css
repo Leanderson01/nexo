@@ -1203,8 +1203,8 @@
 /* ---------- Celular: uma coluna por vez ---------- */
 
 /*
- * No celular a fila e a conversa não cabem lado a lado: sem conversa aberta aparece a fila;
- * com uma aberta, a conversa, com a seta de voltar no cabeçalho. O painel do funcionário já
+ * No celular a fila e a conversa não cabem lado a lado: em /console aparece a fila; numa
+ * conversa, a conversa, com a seta de voltar no cabeçalho (o marcador vem do console-frame). O painel do funcionário já
  * vira gaveta abaixo de 1100 px.
  */
 @media (max-width: 768px) {
@@ -1212,8 +1212,8 @@
     grid-template-columns: 48px minmax(0, 1fr);
   }
 
-  .shell:has(> .main [data-no-selection]) > .main,
-  .shell:not(:has(> .main [data-no-selection])) > .queue {
+  .shell:has(> [data-console-view="queue"]) > .main,
+  .shell:has(> [data-console-view="conversation"]) > .queue {
     display: none;
   }
 
