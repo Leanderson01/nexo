@@ -23,7 +23,7 @@ import {
   type ChatMessage,
 } from "./message-item";
 import { countInFlight, isWaitingForAgent } from "./pending-messages";
-import { useEmployeeReceiptAcks } from "./use-employee-receipt-acks";
+import { useEmployeeDeliveryAcks, useEmployeeReceiptAcks } from "./use-employee-receipt-acks";
 import { useRequestAnalyst } from "./use-chat-mutations";
 import { useNewConversation } from "./use-new-conversation";
 import { useSendMessage } from "./use-send-message";
@@ -45,6 +45,8 @@ export function ChatConversation({ conversationId }: { conversationId: string | 
 
   const sender = useSendMessage(conversationId, messages ?? []);
   useEmployeeReceiptAcks(conversationId, messages);
+  // As respostas das outras conversas também chegaram: o chat está aberto (✓✓ cinza).
+  useEmployeeDeliveryAcks();
   const newConversation = useNewConversation();
   const requestAnalyst = useRequestAnalyst();
   // Confirmar, cancelar e editar o rascunho e o "Tentar de novo" do erro (§6.5).

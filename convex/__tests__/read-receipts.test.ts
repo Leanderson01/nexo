@@ -264,6 +264,28 @@ describe("respostas para o funcionário", () => {
     expect(await replyReceipt()).toBe("read");
   });
 
+  test("o chat aberto em outra conversa confirma o chegou; o leu continua da conversa aberta", async () => {
+    const { t, mariana, conversationId, replyReceipt } = await setupWithReply();
+    vi.advanceTimersByTime(10);
+    expect(await replyReceipt()).toBe("sent");
+
+    // A lista do chat (qualquer conversa aberta) aponta a resposta que falta confirmar.
+    const pending = await mariana.query(api.messages.listUndelivered, {});
+    const entry = pending.find((item) => item.conversationId === conversationId);
+    if (!entry) throw new Error("a resposta não apareceu para confirmar");
+    await mariana.mutation(api.messages.markDelivered, entry);
+    expect(await replyReceipt()).toBe("delivered");
+    expect(
+      (await mariana.query(api.messages.listUndelivered, {})).some(
+        (item) => item.conversationId === conversationId,
+      ),
+    ).toBe(false);
+
+    // Outro funcionário não vê as conversas da Mariana.
+    const rafael = await loginAs(t, RAFAEL);
+    expect(await rafael.query(api.messages.listUndelivered, {})).toEqual([]);
+  });
+
   test("streaming não leva ✓", async () => {
     const { t, send, conversationId } = await setup();
     await send("A VPN caiu");

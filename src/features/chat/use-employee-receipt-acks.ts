@@ -1,8 +1,9 @@
 "use client";
 
 import { useMutation } from "convex/react";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 
+import { useSignedInQuery } from "@/features/auth/use-signed-in-query";
 import { api } from "../../../convex/_generated/api";
 import { ackToSend, latestIncoming, type AckMessage } from "./receipt-acks";
 
@@ -29,7 +30,29 @@ export function useEmployeeReceiptAcks(
   }, [ack, conversationId, markDelivered, markRead, upTo]);
 }
 
-function usePageVisible(): boolean {
+/**
+ * "Chegou" de todas as conversas do funcionário (decisão 32): com o chat aberto em qualquer
+ * conversa, as respostas das outras também chegaram a ele. O servidor lista o que falta
+ * confirmar; cada confirmação sai uma vez só e repetir não escreve.
+ */
+export function useEmployeeDeliveryAcks() {
+  const undelivered = useSignedInQuery(api.messages.listUndelivered, {});
+  const markDelivered = useMutation(api.messages.markDelivered);
+  const sent = useRef(new Set<string>());
+
+  useEffect(() => {
+    for (const { conversationId, upTo } of undelivered ?? []) {
+      const key = `${conversationId}:${upTo}`;
+      if (sent.current.has(key)) continue;
+      sent.current.add(key);
+      // Só um aviso: se falhar, a próxima atualização da lista tenta de novo.
+      markDelivered({ conversationId, upTo }).catch(() => sent.current.delete(key));
+    }
+  }, [markDelivered, undelivered]);
+}
+
+/** A aba está visível: o "leu" do chat e do console só vale assim (decisão 32). */
+export function usePageVisible(): boolean {
   return useSyncExternalStore(
     subscribeToVisibility,
     () => document.visibilityState === "visible",

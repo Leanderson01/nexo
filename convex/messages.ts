@@ -166,6 +166,47 @@ async function startAgentTurn(
 // O chat confirma as respostas do agent e do analista até `upTo` (o instante da última que
 // ele recebeu). Só o dono da conversa confirma; repetir não escreve nada.
 
+/** Conversas recentes do funcionário em que o chat confere se há resposta a confirmar. */
+const UNDELIVERED_CONVERSATIONS_LIMIT = 20;
+
+/**
+ * Respostas do agent e do analista que ainda não chegaram ao funcionário, em todas as
+ * conversas recentes dele (não só a aberta): o chat, aberto em qualquer conversa, recebe e
+ * confirma o "chegou" (decisão 32). O "leu" continua sendo só da conversa aberta na tela.
+ */
+export const listUndelivered = query({
+  args: {},
+  handler: async (ctx): Promise<{ conversationId: Id<"conversations">; upTo: number }[]> => {
+    const employee = await requireEmployee(ctx);
+    const conversations = await ctx.db
+      .query("conversations")
+      .withIndex("by_employee_lastMessage", (q) => q.eq("employeeId", employee._id))
+      .order("desc")
+      .take(UNDELIVERED_CONVERSATIONS_LIMIT);
+
+    const found = await Promise.all(
+      conversations.map(async (conversation) => {
+        const confirmedUpTo = Math.max(
+          conversation.employeeDeliveredAt ?? 0,
+          conversation.employeeReadAt ?? 0,
+        );
+        const newer = await ctx.db
+          .query("messages")
+          .withIndex("by_conversation_createdAt", (q) =>
+            q.eq("conversationId", conversation._id).gt("createdAt", confirmedUpTo),
+          )
+          .order("desc")
+          .collect();
+        const latest = newer.find(
+          (message) => messageReceipt(message, conversation) !== null && message.role !== "user",
+        );
+        return latest ? { conversationId: conversation._id, upTo: latest.createdAt } : null;
+      }),
+    );
+    return found.filter((entry) => entry !== null);
+  },
+});
+
 /** "Chegou": o chat do funcionário recebeu as mensagens até `upTo`. */
 export const markDelivered = mutation({
   args: { conversationId: v.string(), upTo: v.number() },

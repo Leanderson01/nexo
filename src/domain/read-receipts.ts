@@ -12,9 +12,10 @@ import type { MessageReceiver, MessageRole, MessageStatus } from "./enums";
 //   - agent: chegou quando o turno carrega o contexto com a mensagem; leu quando o ENTENDER
 //     termina (convex/agent.ts, marcado pelo pipeline com o segredo do servidor);
 //   - analista: chegou quando a fila de um console que pode atendê-la recebe a mensagem; leu
-//     quando quem pode atender abre a conversa (`analystReadAt`, o mesmo das não lidas, T12);
-//   - funcionário: chegou quando o chat dele recebe a mensagem com a conversa aberta; leu
-//     quando a conversa está aberta e a aba visível.
+//     quando quem pode atender abre a conversa com a aba visível (`analystReadAt`, o mesmo das
+//     não lidas, T12);
+//   - funcionário: chegou quando o chat dele recebe a mensagem, aberto em qualquer conversa
+//     (decisão 32); leu quando a conversa está aberta e a aba visível.
 
 export type ReceiptStatus = "sending" | "sent" | "delivered" | "read";
 
