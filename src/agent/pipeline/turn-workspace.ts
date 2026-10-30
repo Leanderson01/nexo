@@ -55,6 +55,20 @@ export class TurnWorkspace {
     return this.quickReplies !== null;
   }
 
+  /** As opções rápidas atuais, para a conferência depois do AGIR. */
+  quickReplyLabels(): string[] | null {
+    return this.quickReplies ? [...this.quickReplies] : null;
+  }
+
+  clearQuickReplies(): void {
+    this.quickReplies = null;
+  }
+
+  /** O seletor de chamados está na resposta. */
+  hasTicketSelector(): boolean {
+    return this.selector !== null;
+  }
+
   showTicketSelector(codes: TicketCode[], prompt: string): void {
     this.selector = { codes, prompt };
   }

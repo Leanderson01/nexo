@@ -6,6 +6,7 @@ import { createTools } from "@/agent/tools/create-tools";
 import { listMyTicketsTool } from "@/agent/tools/list-my-tickets";
 import type { ToolSession } from "@/agent/tools/tool-session";
 import { withTrace, type TraceEnvironment } from "@/agent/tools/with-trace";
+import type { ReplyCorrection } from "@/domain/decision-record";
 import type { TurnStage } from "@/domain/enums";
 import type { MessagePart } from "@/domain/message-parts";
 import { computeDueAt } from "@/domain/sla";
@@ -28,6 +29,16 @@ import { ACCEPT_HANDOFF_OFFER, decide, DECLINE_HANDOFF_OFFER, type TurnDecision 
 import { resolveFocus, type FocusResult } from "./focus";
 import { handOffToAnalyst } from "./hand-off";
 import { buildDecisionRecord } from "./record";
+import {
+  checkTicketCodes,
+  draftRetryInstruction,
+  extractTicketCodes,
+  isNoTicketFound,
+  needsDraftRetry,
+  offerToOpenTicket,
+  resolveDraftRetry,
+  saysNotFound,
+} from "./reply-checks";
 import { summarizeConversation } from "./rolling-summary";
 import {
   createConvexMessageSink,
@@ -109,6 +120,12 @@ interface Turn {
   gateways: EmployeeGateways;
   usage: UsageTotals;
   replyText: string;
+  /** Onde começa o texto do modelo em `replyText` (antes dele, só o aviso de dado sensível). */
+  modelTextStart: number;
+  /** Texto final quando uma conferência trocou o que já foi transmitido (decisão 25). */
+  replacementText: string | null;
+  /** Correções feitas em código depois do AGIR, para o `DecisionRecord`. */
+  corrections: ReplyCorrection[];
 }
 
 async function runPipeline(
@@ -141,6 +158,9 @@ async function runPipeline(
       ? addModelUsage(emptyUsage(), deps.llm.fastModel, context.summaryUsage)
       : emptyUsage(),
     replyText: "",
+    modelTextStart: 0,
+    replacementText: null,
+    corrections: [],
   };
 
   const notice = sensitiveDataNotice(input.userText);
@@ -299,34 +319,51 @@ async function answerWithModel(
     sensitiveNoticeWritten: turn.replyText !== "",
   });
 
-  const acted = await act({
-    model: turn.deps.llm.models.main,
-    briefing,
-    history: context.history,
-    tools: createTools(session, traceEnvironment),
-    onText: (piece) => write(turn, piece),
-    shouldStop: () => workspace.legacyUnavailable,
-  });
-  if (acted.usage) addUsages(turn, turn.deps.llm.mainModel, [acted.usage]);
+  const runAct = (extraInstruction: string | null, onText: (piece: string) => Promise<void>) =>
+    act({
+      model: turn.deps.llm.models.main,
+      briefing: extraInstruction ? `${briefing}\n\n${extraInstruction}` : briefing,
+      history: context.history,
+      tools: createTools(session, traceEnvironment),
+      onText,
+      shouldStop: () => workspace.legacyUnavailable,
+    });
 
-  if (workspace.legacyUnavailable) {
-    await finishWithError(
-      turn,
-      { understanding, decision, stage: "act" },
-      LEGACY_UNAVAILABLE_REPLY,
-    );
-    return;
-  }
-  if (!acted.ok) {
-    console.error("[runTurn] AGIR falhou", acted.error);
-    await finishWithError(turn, { understanding, decision, stage: "act" }, MODEL_FAILURE_REPLY);
-    return;
+  turn.modelTextStart = turn.replyText.length;
+  const acted = await runAct(null, (piece) => write(turn, piece));
+  if (acted.usage) addUsages(turn, turn.deps.llm.mainModel, [acted.usage]);
+  if (!(await actSucceeded(turn, acted, { understanding, decision }))) return;
+
+  // Conferências em código depois do AGIR (decisão 25).
+  if (
+    needsDraftRetry({
+      text: modelText(turn),
+      draftProposed: workspace.draft !== null,
+      pendingDraftExists: context.snapshot.pendingDraft !== null,
+    })
+  ) {
+    let retryText = "";
+    const retried = await runAct(draftRetryInstruction(modelText(turn)), async (piece) => {
+      retryText += piece;
+    });
+    if (retried.usage) addUsages(turn, turn.deps.llm.mainModel, [retried.usage]);
+    if (workspace.legacyUnavailable) replaceModelText(turn, "");
+    if (!(await actSucceeded(turn, retried, { understanding, decision }, false))) return;
+    const resolved = resolveDraftRetry({
+      retryText: retried.ok ? retryText : null,
+      draftProposed: workspace.draft !== null,
+    });
+    replaceModelText(turn, resolved.text);
+    turn.corrections.push(resolved.correction);
   }
 
   // As opções da oferta de analista são fixas em código (decisão 22 lê a resposta).
   if (overdueOffer) workspace.offerQuickReplies([ACCEPT_HANDOFF_OFFER, DECLINE_HANDOFF_OFFER]);
   const basedOnArticle = workspace.applicableArticle !== null && /resolveu/i.test(turn.replyText);
   if (basedOnArticle && !workspace.hasQuickReplies()) workspace.offerQuickReplies(["Sim", "Não"]);
+
+  await checkCitedTicketCodes(turn, session, traceEnvironment);
+  await offerToOpenWhenNoTicket(turn, understanding, focus);
 
   await complete(turn, {
     understanding,
@@ -337,6 +374,110 @@ async function answerWithModel(
     usedReturnNote: context.snapshot.conversation.returnNote !== null,
     overdueOfferCode: overdueOffer?.code ?? null,
   });
+}
+
+/**
+ * Falha do AGIR (legado fora do ar ou modelo): termina com o erro honesto e devolve `false`.
+ * Na nova tentativa, a falha do modelo não encerra o turno: a conferência responde honesto.
+ */
+async function actSucceeded(
+  turn: Turn,
+  acted: Awaited<ReturnType<typeof act>>,
+  state: { understanding: Understanding; decision: TurnDecision },
+  modelFailureEndsTurn = true,
+): Promise<boolean> {
+  if (turn.workspace.legacyUnavailable) {
+    await finishWithError(turn, { ...state, stage: "act" }, LEGACY_UNAVAILABLE_REPLY);
+    return false;
+  }
+  if (!acted.ok && modelFailureEndsTurn) {
+    console.error("[runTurn] AGIR falhou", acted.error);
+    await finishWithError(turn, { ...state, stage: "act" }, MODEL_FAILURE_REPLY);
+    return false;
+  }
+  if (!acted.ok) console.warn("[runTurn] nova tentativa do AGIR falhou", acted.error);
+  return true;
+}
+
+/** Regra 1 (decisão 25): todo código citado no texto ou nas opções é do funcionário. */
+async function checkCitedTicketCodes(
+  turn: Turn,
+  session: ToolSession,
+  traceEnvironment: TraceEnvironment,
+): Promise<void> {
+  const { workspace } = turn;
+  const text = modelText(turn);
+  const quickReplies = workspace.quickReplyLabels();
+  const cited = extractTicketCodes([text, ...(quickReplies ?? [])].join("\n"));
+  if (cited.length === 0) return;
+
+  // Os códigos só são conferidos contra o serviço de chamados (a lista do próprio funcionário).
+  if (!workspace.employeeTickets) {
+    await withTrace(listMyTicketsTool(session), traceEnvironment)({ onlyOpen: null });
+  }
+  const checked = checkTicketCodes({ text, quickReplies, ownCodes: ownTicketCodes(workspace) });
+  if (!checked) return;
+  if (checked.text !== text) replaceModelText(turn, checked.text);
+  if (checked.quickReplies) workspace.offerQuickReplies(checked.quickReplies);
+  else workspace.clearQuickReplies();
+  turn.corrections.push(checked.correction);
+}
+
+/** Regra 3 (decisão 25, F2): nenhum chamado encontrado informa e oferece abrir um. */
+async function offerToOpenWhenNoTicket(
+  turn: Turn,
+  understanding: Understanding,
+  focus: FocusResult,
+): Promise<void> {
+  const { workspace } = turn;
+  const text = modelText(turn);
+  const ownCodes = ownTicketCodes(workspace);
+  const noTicketFound = isNoTicketFound({
+    intent: understanding.intent,
+    ticketReference:
+      understanding.entities.ticketRef ??
+      understanding.entities.device ??
+      understanding.entities.system,
+    ticketsConsulted: workspace.employeeTickets !== null,
+    focusedOrAmbiguous:
+      focus.resolution.focusedTicket !== null || focus.resolution.ambiguousCandidates.length > 1,
+    showedOwnTicket:
+      workspace.shownTickets().length > 0 ||
+      workspace.hasTicketSelector() ||
+      workspace.draft !== null ||
+      extractTicketCodes(text).some((code) => ownCodes.has(code)),
+    saysNotFound: saysNotFound(text),
+  });
+  if (!noTicketFound) return;
+
+  const offer = offerToOpenTicket(text);
+  workspace.offerQuickReplies(offer.quickReplies);
+  if (offer.correction) turn.corrections.push(offer.correction);
+  if (offer.text === text) return;
+  // A oferta acrescentada continua o streaming; a troca do texto entra no fim.
+  if (offer.text.startsWith(text) && turn.replacementText === null) {
+    await write(turn, offer.text.slice(text.length));
+  } else {
+    replaceModelText(turn, offer.text);
+  }
+}
+
+function ownTicketCodes(workspace: TurnWorkspace): Set<string> {
+  return new Set([
+    ...(workspace.employeeTickets ?? []).map((ticket) => ticket.code),
+    ...(workspace.similarTickets?.keys() ?? []),
+  ]);
+}
+
+/** O que o modelo escreveu neste turno (sem o aviso de dado sensível do começo). */
+function modelText(turn: Turn): string {
+  return turn.replyText.slice(turn.modelTextStart);
+}
+
+/** Troca o texto do modelo; o aviso do começo fica e a troca vai junto com a conclusão. */
+function replaceModelText(turn: Turn, text: string): void {
+  turn.replyText = turn.replyText.slice(0, turn.modelTextStart) + text;
+  turn.replacementText = turn.replyText;
 }
 
 // ---------- REGISTRAR ----------
@@ -387,12 +528,13 @@ async function complete(turn: Turn, completion: Completion): Promise<void> {
     draftKind: workspace.draft?.kind ?? null,
     errorStage: completion.errorStage,
     usage: turn.usage,
+    corrections: turn.corrections,
   });
   const decisionId = await turn.deps.store.recordDecision(record).catch((error: unknown) => {
     console.error("[runTurn] não consegui gravar o DecisionRecord", error);
     return undefined;
   });
-  await turn.reply.finish(completion.parts, decisionId);
+  await turn.reply.finish(completion.parts, decisionId, turn.replacementText ?? undefined);
 }
 
 /** Erro honesto (§10): texto em código, parte `error` com "Tentar de novo", `outcome: error`. */
@@ -446,6 +588,8 @@ function statePatch(turn: Turn, completion: Completion): TurnStatePatch {
 
 async function write(turn: Turn, text: string): Promise<void> {
   turn.replyText += text;
+  // Depois de uma troca, o que vier entra também no texto que substitui o transmitido.
+  if (turn.replacementText !== null) turn.replacementText = turn.replyText;
   await turn.reply.write(text);
 }
 

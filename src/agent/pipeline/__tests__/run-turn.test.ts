@@ -16,6 +16,7 @@ import type { Understanding } from "@/domain/understanding";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import type { TurnSnapshot } from "../agent-store";
 import { ACCEPT_HANDOFF_OFFER, DECLINE_HANDOFF_OFFER } from "../decide";
+import { DRAFT_CLAIM_FALLBACK_TEXT, OPEN_TICKET_OPTION } from "../reply-checks";
 import { runTurn, type RunTurnInput } from "../run-turn";
 import type { TurnDependencies } from "../turn-dependencies";
 import {
@@ -254,6 +255,171 @@ describe("runTurn: AGIR com tools", () => {
     expect(turn.sink.text).toBe("É um caso crítico. Confira e confirme o rascunho.");
     // As tools não recebem nem expõem ids do funcionário.
     expect(JSON.stringify(turn.groq.requests[1].tools)).not.toContain("people_mariana");
+  });
+});
+
+describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
+  const PRINTER_SIGNALS = {
+    kind: "INC",
+    category: "hardware",
+    impact: "individual",
+    blocked: false,
+    deadlineToday: false,
+  } as const;
+  const CLAIM = "Preparei uma atualização para ele. Confira e confirme no card.";
+
+  it("texto que promete o card sem a tool ganha nova tentativa, que propõe o rascunho", async () => {
+    const turn = setup({ userText: "A impressora continua sem imprimir." });
+    turn.understands({
+      intent: "open_ticket",
+      summary: "Impressora sem imprimir.",
+      ticketSignals: PRINTER_SIGNALS,
+    });
+    turn.groq.reply(streamText(MAIN, [CLAIM], USAGE));
+    turn.groq.reply(
+      streamToolCall(
+        MAIN,
+        {
+          id: "call_1",
+          name: "findSimilarTickets",
+          arguments: { description: "impressora sem imprimir", category: "hardware" },
+        },
+        USAGE,
+      ),
+    );
+    turn.groq.reply(
+      streamToolCall(
+        MAIN,
+        {
+          id: "call_2",
+          name: "proposeTicketDraft",
+          arguments: {
+            kind: "INC",
+            category: "hardware",
+            title: "Impressora sem imprimir",
+            description: "A impressora não imprime.",
+            affected: null,
+            impact: "individual",
+            blocked: false,
+            deadlineToday: false,
+            referenceCode: null,
+          },
+        },
+        USAGE,
+      ),
+    );
+    turn.groq.reply(streamText(MAIN, ["Preparei o rascunho. Confira no card."], USAGE));
+
+    await turn.run();
+
+    expect(turn.store.drafts).toHaveLength(1);
+    expect(turn.sink.text).toBe("Preparei o rascunho. Confira no card.");
+    expect(turn.sink.finalParts).toEqual([{ type: "draft", pendingActionId: "draft_1" }]);
+    const [record] = turn.store.decisions;
+    expect(record.outcome).toBe("draft_proposed");
+    expect(record.corrections).toEqual([
+      expect.objectContaining({ rule: "draft_claim_without_draft" }),
+    ]);
+    expect(record.rationale).toContain("Corrigido em código");
+    // A nova tentativa recebe a instrução da correção no contexto do turno.
+    expect(JSON.stringify(turn.groq.requests[2].messages)).toContain(
+      "Correção (decidida em código)",
+    );
+  });
+
+  it("se a nova tentativa também só promete, a resposta vira o aviso honesto", async () => {
+    const turn = setup({ userText: "A impressora continua sem imprimir." });
+    turn.understands({
+      intent: "open_ticket",
+      summary: "Impressora sem imprimir.",
+      ticketSignals: PRINTER_SIGNALS,
+    });
+    turn.groq.reply(streamText(MAIN, [CLAIM], USAGE));
+    turn.groq.reply(streamText(MAIN, [CLAIM], USAGE));
+
+    await turn.run();
+
+    expect(turn.store.drafts).toHaveLength(0);
+    expect(turn.sink.text).toBe(DRAFT_CLAIM_FALLBACK_TEXT);
+    expect(turn.store.decisions[0].corrections?.[0].rule).toBe("draft_claim_without_draft");
+  });
+
+  it("nenhum chamado encontrado: tira códigos inventados e oferece abrir um, com opções fixas", async () => {
+    const turn = setup({ userText: "Como está o chamado da impressora do 2º andar?" });
+    turn.understands({
+      intent: "ticket_status",
+      summary: "Quer saber do chamado da impressora.",
+      entities: {
+        system: null,
+        errorCode: null,
+        os: null,
+        device: null,
+        ticketRef: "impressora do 2º andar",
+      },
+    });
+    turn.groq.reply(
+      streamToolCall(
+        MAIN,
+        {
+          id: "call_1",
+          name: "offerQuickReplies",
+          arguments: { options: ["REQ-10520", "INC-20455", "Não sei"] },
+        },
+        USAGE,
+      ),
+    );
+    turn.groq.reply(streamText(MAIN, ["Qual é o código do chamado?"], USAGE));
+
+    await turn.run();
+
+    expect(turn.sink.text).toBe(
+      "Não encontrei esse chamado entre os seus. Se for um problema novo, posso abrir um chamado para você.",
+    );
+    expect(turn.sink.finalParts).toEqual([
+      {
+        type: "quickReplies",
+        options: [
+          { label: OPEN_TICKET_OPTION, value: OPEN_TICKET_OPTION },
+          { label: "Não precisa", value: "Não precisa" },
+        ],
+      },
+    ]);
+    expect(JSON.stringify(turn.sink.finalParts)).not.toMatch(/REQ-10520|INC-20455/);
+    expect(turn.store.decisions[0].corrections?.map((item) => item.rule)).toEqual([
+      "foreign_ticket_code",
+      "no_ticket_found_offer",
+    ]);
+  });
+
+  it("código alheio no texto vira a resposta da privacidade", async () => {
+    const turn = setup({ userText: "Qual é o status do INC-20388?" });
+    turn.understands({
+      intent: "ticket_status",
+      summary: "Quer o status do INC-20388.",
+      entities: { system: null, errorCode: null, os: null, device: null, ticketRef: "INC-20388" },
+    });
+    turn.groq.reply(streamText(MAIN, ["O INC-20388 está em andamento."], USAGE));
+
+    await turn.run();
+
+    expect(turn.sink.text).not.toContain("INC-20388");
+    expect(turn.sink.text).toMatch(/^Não encontrei esse chamado entre os seus\. .*abrir/);
+  });
+
+  it("só acrescenta a oferta quando o texto já diz que não encontrou", async () => {
+    const turn = setup({ userText: "Como está o chamado da impressora?" });
+    turn.understands({
+      intent: "ticket_status",
+      summary: "Quer saber do chamado da impressora.",
+      entities: { system: null, errorCode: null, os: null, device: null, ticketRef: "impressora" },
+    });
+    turn.groq.reply(streamText(MAIN, ["Não encontrei esse chamado entre os seus."], USAGE));
+
+    await turn.run();
+
+    expect(turn.sink.text).toBe(
+      "Não encontrei esse chamado entre os seus. Se for um problema novo, posso abrir um chamado para você.",
+    );
   });
 });
 
