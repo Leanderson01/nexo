@@ -6,7 +6,7 @@ import type { Policy, PolicyResult, TurnContext } from "./policy";
 // Limites da §6.2.
 export const HIGH_CONFIDENCE_MIN = 0.75;
 export const MEDIUM_CONFIDENCE_MIN = 0.5;
-/** Esclarecimentos já feitos a partir dos quais a confiança baixa vira transferência. */
+/** Esclarecimentos já feitos a partir dos quais a falta de segurança vira transferência. */
 export const MAX_CLARIFICATION_ATTEMPTS = 2;
 
 /** Alta (≥ 0,75), média (0,5 a 0,75) ou baixa (< 0,5). Também serve ao `DecisionRecord`. */
@@ -19,8 +19,10 @@ export function confidenceLevel(confidence: number): ConfidenceLevel {
 /**
  * §6.3, item 5: aplica os níveis de confiança da §6.2.
  * - alta: segue normalmente;
- * - média: `ask_clarification`;
- * - baixa: `ask_clarification`, ou `handoff` (`low_confidence`) se já houve 2 esclarecimentos.
+ * - média ou baixa: `ask_clarification`, ou `handoff` (`low_confidence`) se já houve
+ *   2 esclarecimentos. A §6.2 só cita a transferência na baixa, mas a §8 ("depois de 2
+ *   esclarecimentos sem sucesso, transfere") vale para qualquer nível sem segurança; sem isso a
+ *   confiança média perguntaria para sempre (TASKS.md, decisão 19).
  *
  * `ask_clarification` significa também "incremente `clarificationAttempts`": o pipeline soma 1
  * sempre que o turno seguir esta ação. A política só lê o contador (é pura).
@@ -36,7 +38,7 @@ export const lowConfidencePolicy: Policy = {
     if (level === "high") {
       return { outcome: "not_applicable", note: `${label}.` };
     }
-    if (level === "low" && attempts >= MAX_CLARIFICATION_ATTEMPTS) {
+    if (attempts >= MAX_CLARIFICATION_ATTEMPTS) {
       return {
         outcome: "triggered",
         action: { kind: "handoff", reason: "low_confidence" },

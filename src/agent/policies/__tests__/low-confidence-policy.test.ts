@@ -30,9 +30,12 @@ describe("lowConfidencePolicy", () => {
     expect(evaluate(0.9)).toEqual({ outcome: "not_applicable", note: "Confiança alta (0,90)." });
   });
 
-  it("confiança média pede esclarecimento, mesmo depois de 2 tentativas", () => {
+  it("confiança média pede esclarecimento e transfere depois de 2 tentativas", () => {
     expect(evaluate(0.6)).toMatchObject({ action: { kind: "ask_clarification" } });
-    expect(evaluate(0.6, 2)).toMatchObject({ action: { kind: "ask_clarification" } });
+    expect(evaluate(0.6, 1)).toMatchObject({ action: { kind: "ask_clarification" } });
+    expect(evaluate(0.6, 2)).toMatchObject({
+      action: { kind: "handoff", reason: "low_confidence" },
+    });
   });
 
   it("explica o motivo e a tentativa", () => {
