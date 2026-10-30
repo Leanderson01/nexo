@@ -26,15 +26,21 @@ const DAY_MS = 24 * HOUR_MS;
 /**
  * Tons de status da fundação visual (`--nexo-color-status-<tom>-dot/-text/-bg`): âmbar para o
  * que espera, azul para o que está em andamento, verde para o que vai bem, vermelho para a
- * transferência e cinza para o que acabou.
+ * transferência e cinza para o que acabou. `violet` e `orange` existem só para os motivos de
+ * transferência (definidos no `.shell` do console, a partir dos avatares da fundação).
  */
-export type StatusTone = "warning" | "progress" | "success" | "danger" | "neutral";
+export type StatusTone =
+  "warning" | "progress" | "success" | "danger" | "neutral" | "violet" | "orange";
 
-/** Tom de cada motivo de transferência. No protótipo, a conversa transferida aparece em vermelho. */
+/**
+ * Uma cor por motivo de transferência (§7.4), a mesma na fila, no card de resumo e nas
+ * métricas: crítico em vermelho, pedido do funcionário em violeta, chamado vencido em laranja
+ * e baixa confiança no âmbar do "Agent pediu ajuda" do protótipo.
+ */
 export const HANDOFF_REASON_TONES: Record<HandoffReason, StatusTone> = {
   critical: "danger",
-  requested: "danger",
-  overdue: "warning",
+  requested: "violet",
+  overdue: "orange",
   low_confidence: "warning",
 };
 
@@ -89,6 +95,21 @@ function yesterday(now: number): string {
   return localDay(now - DAY_MS);
 }
 
+/**
+ * Canto direito do item da fila (§7.4): enquanto a conversa espera um analista, o tempo de
+ * espera ("espera 12 min"); fora isso, o horário da última mensagem, como no protótipo.
+ */
+export function queueCornerText(
+  item: { status: ConversationStatus; waitingSince: number | null; lastMessageAt: number },
+  now: number,
+): string {
+  if (item.status === "waiting_analyst" && item.waitingSince !== null) {
+    const waited = elapsedText(item.waitingSince, now);
+    return waited === "agora" ? "agora" : `espera ${waited}`;
+  }
+  return queueTimeText(item.lastMessageAt, now);
+}
+
 /** Horário do item da fila, como no protótipo: "agora", "10:05", "ontem" ou "16 out". */
 export function queueTimeText(timestamp: number, now: number): string {
   if (now - timestamp < MINUTE_MS) return "agora";
@@ -108,6 +129,8 @@ export interface QueueStatusInput {
   status: ConversationStatus;
   reason: HandoffReason | null;
   ticketCode: string | null;
+  /** Confiança do último turno do agent (0 a 1), mostrada quando o motivo é baixa confiança. */
+  agentConfidence?: number | null;
   assignedAnalystName: string | null;
   isMine: boolean;
 }
@@ -124,9 +147,15 @@ export function queueStatusLine(item: QueueStatusInput): StatusLine {
   switch (item.status) {
     case "waiting_analyst": {
       const reason = item.reason ?? "requested";
-      const label = HANDOFF_REASON_LABELS[reason];
+      const confidence =
+        reason === "low_confidence" && item.agentConfidence != null
+          ? `confiança ${Math.round(item.agentConfidence * 100)}%`
+          : null;
+      const text = [HANDOFF_REASON_LABELS[reason], confidence, item.ticketCode]
+        .filter(Boolean)
+        .join(" · ");
       return {
-        text: item.ticketCode ? `${label} · ${item.ticketCode}` : label,
+        text,
         tone: HANDOFF_REASON_TONES[reason],
         colorText: true,
       };
@@ -276,4 +305,13 @@ const UPDATE_AUTHOR_LABELS: Record<TicketUpdateAuthor, string> = {
 export function updateAuthorText(authorType: TicketUpdateAuthor, authorName?: string): string {
   const role = UPDATE_AUTHOR_LABELS[authorType];
   return authorName ? `${authorName} · ${role}` : role;
+}
+
+/**
+ * Texto de uma atualização no histórico do chamado. As transferências gravadas antes da
+ * correção levavam o id interno da conversa ("… pelo Nexo Assist (conversa k170…)."), que
+ * não diz nada ao analista: sai da tela.
+ */
+export function ticketUpdateText(text: string): string {
+  return text.replace(/\s*\(conversa [a-z0-9]{16,}\)/g, "");
 }

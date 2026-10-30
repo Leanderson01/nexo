@@ -245,7 +245,7 @@ export const markHandoff = internalMutation({
     await ctx.db.insert("ticketUpdates", {
       ticketId: ticket._id,
       authorType: "agent",
-      text: `Conversa transferida para um analista pelo Nexo Assist (conversa ${args.conversationId}).`,
+      text: "Conversa transferida para um analista pelo Nexo Assist.",
       ...(movesToAnalyst && { fieldChanges: { status: "awaiting_analyst" as const } }),
       createdAt: Date.now(),
     });

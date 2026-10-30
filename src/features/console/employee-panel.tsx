@@ -27,6 +27,7 @@ import {
   overdueFirst,
   ticketCountsText,
   ticketStatusText,
+  ticketUpdateText,
   updateAuthorText,
   type StatusTone,
 } from "./console-texts";
@@ -65,17 +66,24 @@ export function EmployeePanel({
   employee,
   conversation,
   onClose,
+  inDrawer = false,
 }: {
   employee: PanelEmployee;
   conversation: PanelConversation;
   onClose: () => void;
+  /** Em telas estreitas o painel abre numa gaveta, por cima da conversa, e ocupa a gaveta toda. */
+  inDrawer?: boolean;
 }) {
   const tickets = useQuery(api.ticketing.queries.employeeTickets, { employeeId: employee._id });
   const [openCode, setOpenCode] = useState<string | null>(null);
   const now = useNow();
 
   return (
-    <aside className={classes.panel} aria-label={`Chamados de ${employee.name}`}>
+    <aside
+      className={classes.panel}
+      data-in-drawer={inDrawer || undefined}
+      aria-label={`Chamados de ${employee.name}`}
+    >
       <div className={classes.panelHeader}>
         <div>
           <div className={classes.panelTitle}>Chamados de {firstName(employee.name)}</div>
@@ -302,7 +310,7 @@ function TicketDetailView({
                     {updateAuthorText(update.authorType, update.authorName)} ·{" "}
                     {formatDateTime(update.createdAt)}
                   </div>
-                  <div>{update.text}</div>
+                  <div>{ticketUpdateText(update.text)}</div>
                   {update.fieldChanges?.status && (
                     <div className={classes.timelineMeta}>
                       Status: {TICKET_STATUS_LABELS[update.fieldChanges.status]}

@@ -47,6 +47,11 @@ export interface QueueItem {
   assignedAnalystName: string | null;
   isMine: boolean;
   unread: number;
+  /**
+   * Confiança do último turno do agent que a mediu (0 a 1), para "Agent pediu ajuda ·
+   * confiança 41%". Só nas transferências por baixa confiança; null nas outras.
+   */
+  agentConfidence: number | null;
 }
 
 /**
@@ -171,7 +176,24 @@ async function toQueueItem(
     assignedAnalystName: isWithAnalyst ? (assignedAnalyst?.name ?? null) : null,
     isMine: conversation.status === "with_analyst" && conversation.assignedAnalystId === analystId,
     unread: await countUnread(ctx, conversation),
+    agentConfidence:
+      isWithAnalyst && conversation.handoff?.reason === "low_confidence"
+        ? await findLastConfidence(ctx, conversation._id)
+        : null,
   };
+}
+
+/** A confiança do turno mais recente que a mediu (os que falharam antes de entender não têm). */
+async function findLastConfidence(
+  ctx: QueryCtx,
+  conversationId: Id<"conversations">,
+): Promise<number | null> {
+  const recent = await ctx.db
+    .query("decisions")
+    .withIndex("by_conversation", (q) => q.eq("conversationId", conversationId))
+    .order("desc")
+    .take(10);
+  return recent.find((decision) => decision.confidence !== null)?.confidence?.value ?? null;
 }
 
 function toQueueEntry(item: QueueItem): QueueEntry {

@@ -8,16 +8,19 @@ import type { StatusTone } from "./console-texts";
 export function StatusLabel({
   tone,
   colorText = true,
+  truncate = false,
   children,
 }: {
   tone: StatusTone;
   colorText?: boolean;
+  /** Corta o texto com reticências quando não cabe (linha da fila). */
+  truncate?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <span className={classes.statusLabel} data-tone={tone} data-color-text={colorText || undefined}>
       <span className={classes.statusDot} aria-hidden />
-      {children}
+      {truncate ? <span className={classes.statusText}>{children}</span> : children}
     </span>
   );
 }

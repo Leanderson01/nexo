@@ -18,8 +18,8 @@ import classes from "./console.module.css";
 import {
   HANDOFF_REASON_TONES,
   lastMessagePreview,
+  queueCornerText,
   queueStatusLine,
-  queueTimeText,
 } from "./console-texts";
 import { InitialsAvatar } from "./initials-avatar";
 import { StatusLabel } from "./status-label";
@@ -241,8 +241,10 @@ function QueueRow({
     ticketCode: item.ticket?.code ?? null,
     assignedAnalystName: item.assignedAnalystName,
     isMine: item.isMine,
+    agentConfidence: item.agentConfidence,
   });
-  const time = queueTimeText(item.lastMessageAt, now);
+  // Esperando analista, o canto mostra há quanto tempo (§7.4); senão, a hora da última mensagem.
+  const corner = queueCornerText(item, now);
   // O prazo do chamado só entra na linha quando pede atenção (vencido ou vencendo).
   const slaState = item.ticket ? getSlaState(item.ticket, now) : null;
   const showSla = slaState === "overdue" || slaState === "due_soon";
@@ -261,18 +263,19 @@ function QueueRow({
       </span>
       <span className={classes.queueName}>{item.employeeName}</span>
       <span className={classes.queueTime} data-unread={item.unread > 0 || undefined}>
-        {time}
+        {corner}
       </span>
-      <span className={classes.queuePreview}>{lastMessagePreview(item.lastMessage)}</span>
-      {item.unread > 0 ? (
+      {/* Sem não lidas, a prévia ocupa também a coluna do contador (a do tempo de espera). */}
+      <span className={classes.queuePreview} data-wide={item.unread === 0 || undefined}>
+        {lastMessagePreview(item.lastMessage)}
+      </span>
+      {item.unread > 0 && (
         <span className={classes.unread} aria-label={`${item.unread} não lidas`}>
           {item.unread}
         </span>
-      ) : (
-        <span />
       )}
       <span className={classes.queueMeta}>
-        <StatusLabel tone={statusLine.tone} colorText={statusLine.colorText}>
+        <StatusLabel tone={statusLine.tone} colorText={statusLine.colorText} truncate>
           {statusLine.text}
           {item.ticket && showSla && ` · ${formatSlaBadge(item.ticket, now)}`}
         </StatusLabel>

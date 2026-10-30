@@ -4,6 +4,7 @@ import {
   ActionIcon,
   Alert,
   Button,
+  Drawer,
   Group,
   Menu,
   Modal,
@@ -11,7 +12,9 @@ import {
   Stack,
   Text,
   Textarea,
+  Tooltip,
 } from "@mantine/core";
+import { useElementSize, useMediaQuery } from "@mantine/hooks";
 import { useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import Link from "next/link";
@@ -21,6 +24,7 @@ import { CONFIDENCE_LEVEL_LABELS, HANDOFF_REASON_LABELS } from "@/domain/labels"
 import { localDay } from "@/domain/local-day";
 import { ConversationBlockReads } from "@/features/chat/blocks/block-reads";
 import { findChosenText } from "@/features/chat/blocks/reply-segments";
+import { usePageVisible } from "@/features/chat/use-employee-receipt-acks";
 import { useNow } from "@/features/chat/blocks/use-now";
 import {
   DecisionPanelDrawer,
@@ -28,6 +32,7 @@ import {
 } from "@/features/decision-panel/decision-panel-drawer";
 import {
   AgentIcon,
+  ChevronLeftIcon,
   EndIcon,
   HandIcon,
   HeadsetIcon,
@@ -56,6 +61,61 @@ import { useHydrated } from "./use-hydrated";
 /** Botões de ação do atendimento: no print, mais justos que o `sm` padrão do tema (18 px). */
 const ACTION_BUTTON_PADDING = 14;
 
+/**
+ * Abaixo destas larguras (do cabeçalho e do rodapé da conversa), os botões de ação viram só
+ * ícone, com o texto no tooltip: o nome do funcionário e o "espera um atendente" precisam de
+ * espaço (a 1280 px, com a fila e o painel abertos, a conversa tem ~500 px).
+ */
+const HEADER_COMPACT_BELOW = 660;
+
+/** Abaixo desta largura de tela, o painel do funcionário vira gaveta (ver `.panel` no CSS). */
+const PANEL_AS_DRAWER_QUERY = "(max-width: 1100px)";
+const FOOTER_COMPACT_BELOW = 720;
+
+/** Botão com ícone e texto ou, em `compact`, só o ícone, com o texto no tooltip e no aria-label. */
+function ActionButton({
+  compact,
+  icon,
+  label,
+  variant,
+  color,
+  onClick,
+}: {
+  compact: boolean;
+  icon: React.ReactNode;
+  label: string;
+  variant: "default" | "light" | "filled";
+  color?: string;
+  onClick: () => void;
+}) {
+  if (compact) {
+    return (
+      <Tooltip label={label} withArrow>
+        <ActionIcon size={36} variant={variant} color={color} aria-label={label} onClick={onClick}>
+          {icon}
+        </ActionIcon>
+      </Tooltip>
+    );
+  }
+  return (
+    <Button
+      px={ACTION_BUTTON_PADDING}
+      variant={variant}
+      color={color}
+      leftSection={icon}
+      onClick={onClick}
+    >
+      {label}
+    </Button>
+  );
+}
+
+/** Mede a largura do elemento e diz se está abaixo do limite (antes de medir, não compacta). */
+function useCompactBelow<T extends HTMLElement>(limit: number) {
+  const { ref, width } = useElementSize<T>();
+  return { ref, compact: width > 0 && width < limit };
+}
+
 type ConsoleConversationData = NonNullable<FunctionReturnType<typeof api.console.getConversation>>;
 
 /**
@@ -69,6 +129,9 @@ export function ConsoleConversation({ conversationId }: { conversationId: string
   const conversation = useQuery(api.console.getConversation, args);
   const messages = useQuery(api.console.listMessages, args);
   const [panelOpen, setPanelOpen] = useState(true);
+  // Abaixo de 1100 px o painel do funcionário não cabe ao lado: abre numa gaveta, fechada no início.
+  const narrow = useMediaQuery(PANEL_AS_DRAWER_QUERY, false) ?? false;
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const decisionPanel = useDecisionPanel();
   const now = useNow();
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -78,6 +141,14 @@ export function ConsoleConversation({ conversationId }: { conversationId: string
   if (conversation === null || messages === null) return <ConversationNotFound />;
   if (conversation === undefined || messages === undefined) return <ConversationLoading />;
 
+  const panelConversation = {
+    status: conversation.status,
+    relatedTicketCode: conversation.relatedTicketCode,
+    handoffAt: conversation.handoff?.at ?? null,
+    assignedAnalystName: conversation.assignedAnalyst?.name ?? null,
+    assignedAt: findAssignedAt(messages),
+  };
+
   return (
     <ConversationBlockReads conversationId={conversationId}>
       <section
@@ -86,8 +157,10 @@ export function ConsoleConversation({ conversationId }: { conversationId: string
       >
         <ConversationHeader
           conversation={conversation}
-          panelOpen={panelOpen}
-          onTogglePanel={() => setPanelOpen((open) => !open)}
+          panelOpen={narrow ? drawerOpen : panelOpen}
+          onTogglePanel={() =>
+            narrow ? setDrawerOpen((open) => !open) : setPanelOpen((open) => !open)
+          }
         />
 
         <div className={classes.scroller} ref={scrollerRef}>
@@ -111,18 +184,31 @@ export function ConsoleConversation({ conversationId }: { conversationId: string
         <ConversationFooter conversation={conversation} />
       </section>
 
-      {panelOpen && (
-        <EmployeePanel
-          employee={conversation.employee}
-          conversation={{
-            status: conversation.status,
-            relatedTicketCode: conversation.relatedTicketCode,
-            handoffAt: conversation.handoff?.at ?? null,
-            assignedAnalystName: conversation.assignedAnalyst?.name ?? null,
-            assignedAt: findAssignedAt(messages),
-          }}
-          onClose={() => setPanelOpen(false)}
-        />
+      {narrow ? (
+        <Drawer
+          opened={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          position="right"
+          size="min(360px, 92vw)"
+          withCloseButton={false}
+          padding={0}
+          aria-label={`Chamados de ${conversation.employee.name}`}
+        >
+          <EmployeePanel
+            employee={conversation.employee}
+            conversation={panelConversation}
+            onClose={() => setDrawerOpen(false)}
+            inDrawer
+          />
+        </Drawer>
+      ) : (
+        panelOpen && (
+          <EmployeePanel
+            employee={conversation.employee}
+            conversation={panelConversation}
+            onClose={() => setPanelOpen(false)}
+          />
+        )
       )}
 
       <DecisionPanelDrawer decisionId={decisionPanel.decisionId} onClose={decisionPanel.close} />
@@ -171,6 +257,7 @@ function ConversationHeader({
   const subtitle = [employee.department, relatedTicketCode].filter(Boolean).join(" · ");
   const actions = useConsoleActions(conversation._id);
   const [dialog, setDialog] = useState<"return" | "close" | null>(null);
+  const { ref, compact } = useCompactBelow<HTMLElement>(HEADER_COMPACT_BELOW);
   const isAttending = status === "with_analyst" && isMine;
   // Com o agent ou aguardando, qualquer analista pode encerrar (pelo menu); atendendo, pelo botão.
   const canCloseFromMenu = status === "agent" || status === "waiting_analyst";
@@ -181,40 +268,52 @@ function ConversationHeader({
   }
 
   return (
-    <header className={classes.header}>
+    <header className={classes.header} ref={ref}>
+      {/* No celular a fila e a conversa não cabem lado a lado: a seta volta para a fila. */}
+      <ActionIcon
+        component={Link}
+        href="/console"
+        variant="subtle"
+        color="gray"
+        size={32}
+        className={classes.backToQueue}
+        aria-label="Voltar para a fila"
+      >
+        <ChevronLeftIcon size={ICON_SIZE.lg} />
+      </ActionIcon>
       <InitialsAvatar name={employee.name} size={40} />
       <div className={classes.headerText}>
-        <div className={classes.headerName} title={employee.email}>
+        <div className={classes.headerName} title={`${employee.name} · ${employee.email}`}>
           {employee.name}
         </div>
-        <div className={classes.headerSub}>{subtitle}</div>
+        <div className={classes.headerSub} title={subtitle}>
+          {subtitle}
+        </div>
       </div>
       <div className={classes.headerActions}>
         {isAttending ? (
           // Devolver e Encerrar, no cabeçalho, enquanto o analista atende (protótipo 06).
           <>
-            <Button
-              px={ACTION_BUTTON_PADDING}
+            <ActionButton
+              compact={compact}
+              icon={<AgentIcon />}
+              label="Devolver ao agent"
               variant="default"
-              leftSection={<AgentIcon />}
               onClick={() => setDialog("return")}
-            >
-              Devolver ao agent
-            </Button>
-            <Button
-              px={ACTION_BUTTON_PADDING}
+            />
+            <ActionButton
+              compact={compact}
+              icon={<EndIcon />}
+              label="Encerrar atendimento"
               variant="light"
               color="red"
-              leftSection={<EndIcon />}
               onClick={() => setDialog("close")}
-            >
-              Encerrar atendimento
-            </Button>
+            />
           </>
         ) : (
-          <span className={classes.stateBadge} data-tone={badge.tone}>
+          <span className={classes.stateBadge} data-tone={badge.tone} title={badge.label}>
             {status === "waiting_analyst" && <AgentIcon size={ICON_SIZE.sm} />}
-            {badge.label}
+            <span className={classes.stateBadgeText}>{badge.label}</span>
           </span>
         )}
         <Menu position="bottom-end" withArrow>
@@ -389,29 +488,32 @@ function WaitingFooter({
   const now = useNow(30_000);
   const name = conversation.employee.name;
   const waitingSince = conversation.handoff?.at ?? null;
+  const { ref, compact } = useCompactBelow<HTMLDivElement>(FOOTER_COMPACT_BELOW);
 
   return (
     <>
-      <div className={classes.waitingBar}>
+      <div className={classes.waitingBar} ref={ref}>
         <span className={classes.waitingIcon}>
           <HandIcon size={ICON_SIZE.md} />
         </span>
         <div className={classes.waitingText}>
-          <div className={classes.waitingTitle}>{firstName(name)} espera um atendente</div>
+          <div className={classes.waitingTitle} title={`${name} espera um atendente`}>
+            {firstName(name)} espera um atendente
+          </div>
           <div className={classes.waitingSub}>
             Agent pausado
             {waitingSince !== null && ` · espera há ${elapsedText(waitingSince, now)}`}
           </div>
         </div>
         <div className={classes.footerActions}>
-          <Button
-            px={ACTION_BUTTON_PADDING}
+          {/* Sem espaço, "Devolver" vira ícone; "Assumir", a ação principal, mantém o texto. */}
+          <ActionButton
+            compact={compact}
+            icon={<AgentIcon />}
+            label="Devolver ao agent"
             variant="default"
-            leftSection={<AgentIcon />}
             onClick={() => setReturning(true)}
-          >
-            Devolver ao agent
-          </Button>
+          />
           <Button
             px={ACTION_BUTTON_PADDING}
             leftSection={<HeadsetIcon />}
@@ -575,8 +677,8 @@ function CloseConversationModal({
     <Modal opened={opened} onClose={onCancel} title="Encerrar atendimento?" centered>
       <Stack gap="sm">
         <Text size="sm">
-          A conversa com {firstName(employeeName)} será encerrada. Ele vê o aviso e pode iniciar uma
-          nova conversa.
+          A conversa com {firstName(employeeName)} será encerrada. O aviso aparece no chat, onde dá
+          para iniciar uma nova conversa.
         </Text>
         {error && (
           <Alert color="red" variant="light">
@@ -608,13 +710,18 @@ function useScrollToBottom(ref: RefObject<HTMLDivElement | null>, content: unkno
   }, [ref, content]);
 }
 
-/** Com a conversa aberta, mensagens novas do funcionário contam como lidas (decisão 12). */
+/**
+ * Com a conversa aberta e a aba visível, mensagens novas do funcionário contam como lidas
+ * (decisões 12 e 32). Com a aba escondida, ficam em "chegou" (a fila já confirmou) até o
+ * analista voltar a ela.
+ */
 function useMarkRead(
   conversationId: string,
   conversation: ConsoleConversationData | null | undefined,
   messages: ConsoleMessage[] | null | undefined,
 ) {
   const markRead = useMarkReadMutation();
+  const pageVisible = usePageVisible();
   const lastEmployeeMessageAt =
     messages?.findLast((message) => message.role === "user")?.createdAt ?? 0;
   const readAt = conversation?.analystReadAt ?? 0;
@@ -623,8 +730,10 @@ function useMarkRead(
     (conversation?.status === "with_analyst" && conversation.isMine);
 
   useEffect(() => {
-    if (canAttend && lastEmployeeMessageAt > readAt) void markRead({ conversationId });
-  }, [canAttend, conversationId, lastEmployeeMessageAt, markRead, readAt]);
+    if (pageVisible && canAttend && lastEmployeeMessageAt > readAt) {
+      void markRead({ conversationId });
+    }
+  }, [canAttend, conversationId, lastEmployeeMessageAt, markRead, pageVisible, readAt]);
 }
 
 // ---------- Carregando e não encontrada ----------

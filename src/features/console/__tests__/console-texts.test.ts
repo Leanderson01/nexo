@@ -1,7 +1,9 @@
 import { describe, expect, test } from "vitest";
 
+import { HANDOFF_REASONS } from "@/domain/enums";
 import type { SlaTicket } from "@/domain/sla";
 import {
+  HANDOFF_REASON_TONES,
   avatarColorIndex,
   consoleEventText,
   conversationBadge,
@@ -10,10 +12,12 @@ import {
   initials,
   lastMessagePreview,
   overdueFirst,
+  queueCornerText,
   queueStatusLine,
   queueTimeText,
   ticketCountsText,
   ticketStatusText,
+  ticketUpdateText,
 } from "../console-texts";
 
 const MINUTE = 60_000;
@@ -156,5 +160,61 @@ describe("avatarColorIndex", () => {
       expect(avatarColorIndex(name)).toBeGreaterThanOrEqual(0);
       expect(avatarColorIndex(name)).toBeLessThan(7);
     }
+  });
+});
+
+describe("cores dos motivos", () => {
+  test("cada motivo de transferência tem uma cor só dele (§7.4)", () => {
+    const tones = HANDOFF_REASONS.map((reason) => HANDOFF_REASON_TONES[reason]);
+    expect(new Set(tones).size).toBe(HANDOFF_REASONS.length);
+  });
+});
+
+describe("queueCornerText", () => {
+  const now = Date.UTC(2026, 9, 30, 15, 0);
+
+  test("esperando analista: o tempo de espera desde a transferência", () => {
+    expect(
+      queueCornerText(
+        { status: "waiting_analyst", waitingSince: now - 12 * MINUTE, lastMessageAt: now },
+        now,
+      ),
+    ).toBe("espera 12 min");
+    expect(
+      queueCornerText({ status: "waiting_analyst", waitingSince: now, lastMessageAt: now }, now),
+    ).toBe("agora");
+  });
+
+  test("nos outros estados: o horário da última mensagem", () => {
+    const lastMessageAt = now - 5 * MINUTE;
+    expect(
+      queueCornerText({ status: "with_analyst", waitingSince: now - HOUR, lastMessageAt }, now),
+    ).toBe(queueTimeText(lastMessageAt, now));
+  });
+});
+
+describe("queueStatusLine: baixa confiança", () => {
+  test("traz a confiança do último turno", () => {
+    expect(
+      queueStatusLine({
+        status: "waiting_analyst",
+        reason: "low_confidence",
+        ticketCode: null,
+        assignedAnalystName: null,
+        isMine: false,
+        agentConfidence: 0.41,
+      }).text,
+    ).toBe("Agent pediu ajuda · confiança 41%");
+  });
+});
+
+describe("ticketUpdateText", () => {
+  test("tira o id interno da conversa das transferências antigas", () => {
+    expect(
+      ticketUpdateText(
+        "Conversa transferida para um analista pelo Nexo Assist (conversa k170sjp5m2qxqbbvcjxpszhzgd8h90r2).",
+      ),
+    ).toBe("Conversa transferida para um analista pelo Nexo Assist.");
+    expect(ticketUpdateText("Reiniciei o roteador.")).toBe("Reiniciei o roteador.");
   });
 });

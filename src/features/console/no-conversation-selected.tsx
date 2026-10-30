@@ -6,7 +6,8 @@ import classes from "./console.module.css";
 /** Área da conversa vazia: nenhuma conversa aberta ainda. */
 export function NoConversationSelected() {
   return (
-    <div className={classes.emptyMain}>
+    // No celular, sem conversa aberta, quem aparece é a fila (ver `.shell` no CSS).
+    <div className={classes.emptyMain} data-no-selection>
       <Stack align="center" gap={8}>
         <span className={classes.emptyIcon}>
           <ConversationsIcon size={ICON_SIZE.lg} />
