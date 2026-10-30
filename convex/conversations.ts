@@ -1,11 +1,10 @@
 import { v } from "convex/values";
 
-import { addBusinessHours } from "../src/domain/business-hours";
-import { transition, TRANSITION_EVENTS } from "../src/domain/conversation-fsm";
 import { err, ok, type Result } from "../src/domain/result";
 import type { Doc, Id } from "./_generated/dataModel";
-import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import { requireEmployee } from "./lib/guards";
+import { transferToAnalyst, type TransferError } from "./lib/handoff";
 
 // Conversas do funcionário (§5.9, §7.2, §9). Toda leitura passa por `requireEmployee` e
 // pelo dono: conversa alheia, inexistente ou com id malformado dão o mesmo "não encontrada".
@@ -124,7 +123,7 @@ export const create = mutation({
   },
 });
 
-export type RequestAnalystError = "not_found" | "invalid_transition";
+export type RequestAnalystError = "not_found" | TransferError;
 
 const LIMIT_HANDOFF_SUMMARY =
   "O funcionário atingiu o limite de mensagens da conversa e pediu para falar com um analista.";
@@ -140,43 +139,10 @@ export const requestAnalyst = mutation({
     const conversation = await findOwnedConversation(ctx, employee._id, conversationId);
     if (!conversation) return err("not_found");
 
-    const next = transition(conversation.status, "transfer");
-    if (!next.ok) return err("invalid_transition");
-
-    const now = Date.now();
-    await ctx.db.patch(conversation._id, {
-      status: next.value,
-      handoff: {
-        reason: "requested",
-        summary: conversation.rollingSummary ?? LIMIT_HANDOFF_SUMMARY,
-        ticketCode: conversation.selectedTicketCode,
-        at: now,
-      },
-      lastMessageAt: now,
+    return await transferToAnalyst(ctx, conversation, {
+      reason: "requested",
+      summary: conversation.rollingSummary ?? LIMIT_HANDOFF_SUMMARY,
+      ticketCode: conversation.selectedTicketCode,
     });
-    await insertSystemEvent(ctx, conversation._id, now);
-    return ok(null);
   },
 });
-
-async function insertSystemEvent(
-  ctx: MutationCtx,
-  conversationId: Id<"conversations">,
-  now: number,
-) {
-  await ctx.db.insert("messages", {
-    conversationId,
-    role: "system",
-    parts: [
-      { type: "handoff", reason: "requested", outOfHours: isOutOfBusinessHours(now) },
-      { type: "event", kind: TRANSITION_EVENTS.transfer },
-    ],
-    status: "complete",
-    createdAt: now,
-  });
-}
-
-/** Fora do expediente, somar zero horas úteis empurra o instante para o próximo início. */
-function isOutOfBusinessHours(now: number): boolean {
-  return addBusinessHours(now, 0) !== now;
-}
