@@ -195,6 +195,21 @@ describe("draftRetryReason", () => {
     expect(draftRetryReason({ ...base, pendingDraftExists: true, criticalCase: true })).toBeNull();
     expect(draftRetryReason({ ...base, text: "Qual é o seu Windows?" })).toBeNull();
   });
+
+  it("pergunta sobre o chamado aberto parecido em vez de propor pede nova tentativa", () => {
+    const asks = { ...base, text: "É o mesmo problema que já está no INC-20395?" };
+    expect(draftRetryReason({ ...asks, openDuplicateCodes: ["INC-20395"] })).toBe("duplicate");
+    expect(draftRetryReason({ ...asks, openDuplicateCodes: [] })).toBeNull();
+    expect(draftRetryReason({ ...asks, openDuplicateCodes: ["INC-20402"] })).toBeNull();
+    const resolved = resolveDraftRetry({
+      reason: "duplicate",
+      retryText: "Pode ser?",
+      draftProposed: false,
+      otherCardShown: false,
+      firstText: asks.text,
+    });
+    expect(resolved.text).toBe(asks.text);
+  });
 });
 
 describe("draftRetryInstruction", () => {

@@ -108,10 +108,12 @@ export function promisesDraftCard(text: string, otherCardShown: boolean): boolea
 /**
  * Por que o turno precisa de uma nova tentativa do AGIR, ou `null`:
  * - `claim`: o texto promete um card de rascunho, mas nenhuma tool de proposta rodou;
- * - `critical`: a CriticalPolicy mandou propor o rascunho neste turno (§6.3) e ele não saiu.
+ * - `critical`: a CriticalPolicy mandou propor o rascunho neste turno (§6.3) e ele não saiu;
+ * - `duplicate`: há um chamado aberto parecido e o texto pergunta sobre ele em vez de propor a
+ *   atualização (o card do rascunho é a pergunta de confirmação, §3.2).
  * Com rascunho pendente de outro turno, falar dele é legítimo e não há nova tentativa.
  */
-export type DraftRetryReason = "claim" | "critical";
+export type DraftRetryReason = "claim" | "critical" | "duplicate";
 
 export function draftRetryReason(input: {
   text: string;
@@ -120,10 +122,19 @@ export function draftRetryReason(input: {
   /** A resposta mostra card de chamado, de artigo ou seletor. */
   otherCardShown: boolean;
   criticalCase: boolean;
+  /** Chamados abertos parecidos (sugestão "atualizar") consultados neste turno. */
+  openDuplicateCodes?: string[];
 }): DraftRetryReason | null {
   if (input.draftProposed || input.pendingDraftExists) return null;
   if (input.criticalCase) return "critical";
-  return promisesDraftCard(input.text, input.otherCardShown) ? "claim" : null;
+  if (promisesDraftCard(input.text, input.otherCardShown)) return "claim";
+  return asksAboutDuplicate(input.text, input.openDuplicateCodes ?? []) ? "duplicate" : null;
+}
+
+/** "É o mesmo problema que já está no INC-20395?": pergunta citando o parecido aberto. */
+function asksAboutDuplicate(text: string, openCodes: string[]): boolean {
+  if (openCodes.length !== 1 || !/\?\s*$/.test(text.trim())) return false;
+  return extractTicketCodes(text).includes(openCodes[0]);
 }
 
 /** Instrução extra da nova tentativa, no fim do contexto do turno. */
@@ -136,6 +147,10 @@ export function draftRetryInstruction(input: {
     ? "findSimilarTickets já foi chamada neste turno: chame direto a tool de proposta certa (proposeTicketUpdate, proposeReopen ou proposeTicketDraft)"
     : "chame findSimilarTickets e depois a tool de proposta certa (proposeTicketUpdate, proposeReopen ou proposeTicketDraft)";
   const previous = `Na tentativa anterior deste turno você respondeu "${input.previousText.trim()}"`;
+  if (input.reason === "duplicate") {
+    return `## Correção (decidida em código)
+${previous}, perguntando sobre o chamado aberto parecido em vez de propor. O card do rascunho é a pergunta de confirmação: se for o mesmo problema, chame AGORA proposeTicketUpdate com esse chamado e peça para conferir no card; não pergunte em texto.`;
+  }
   if (input.reason === "critical") {
     return `## Correção (decidida em código)
 CASO CRÍTICO: o rascunho precisa sair neste turno, sem perguntas. ${previous}, sem propor o rascunho. Agora ${tools} ANTES de escrever a resposta, com os fatos que o funcionário já deu.`;
@@ -152,13 +167,14 @@ export function retrySucceeded(input: {
   otherCardShown: boolean;
 }): boolean {
   if (input.draftProposed) return true;
-  if (input.reason === "critical" || input.retryText === null) return false;
+  if (input.reason !== "claim" || input.retryText === null) return false;
   return input.retryText.trim() !== "" && !promisesDraftCard(input.retryText, input.otherCardShown);
 }
 
 const RETRY_PROBLEM: Record<DraftRetryReason, string> = {
   claim: "O texto dizia que o rascunho estava pronto sem chamar a tool de proposta",
   critical: "Caso crítico sem o rascunho que a regra de caso crítico exige neste turno",
+  duplicate: "O texto perguntava sobre o chamado aberto parecido em vez de propor a atualização",
 };
 
 /** Resultado das novas tentativas: o texto da última, se resolveu; senão, a resposta honesta. */
@@ -167,6 +183,8 @@ export function resolveDraftRetry(input: {
   retryText: string | null;
   draftProposed: boolean;
   otherCardShown: boolean;
+  /** O texto da primeira resposta: na duplicidade sem proposta, a pergunta dela fica. */
+  firstText?: string;
 }): { text: string; correction: ReplyCorrection } {
   const rule = input.reason === "critical" ? "critical_without_draft" : "draft_claim_without_draft";
   const problem = RETRY_PROBLEM[input.reason];
@@ -178,6 +196,15 @@ export function resolveDraftRetry(input: {
         explanation: input.draftProposed
           ? `${problem}: uma nova tentativa do AGIR propôs o rascunho.`
           : `${problem}: a nova tentativa do AGIR respondeu sem prometer o card.`,
+      },
+    };
+  }
+  if (input.reason === "duplicate") {
+    return {
+      text: input.firstText ?? DRAFT_CLAIM_FALLBACK_TEXT,
+      correction: {
+        rule: "draft_claim_without_draft",
+        explanation: `${problem}; a nova tentativa também não propôs, e a pergunta ficou.`,
       },
     };
   }

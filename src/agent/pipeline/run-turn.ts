@@ -520,8 +520,15 @@ async function answerWithModel(
         pendingDraftExists: context.snapshot.pendingDraft !== null,
         otherCardShown: otherCardShown(workspace),
         criticalCase: workspace.criticalCase,
+        openDuplicateCodes: [...(workspace.similarTickets?.entries() ?? [])]
+          .filter(([, action]) => action === "update")
+          .map(([code]) => code),
       });
   if (retryReason) {
+    const firstText = modelText(turn);
+    const firstQuickReplies = workspace.quickReplyLabels();
+    // Na duplicidade, as opções da pergunta saem: o card do rascunho é a confirmação.
+    if (retryReason === "duplicate") workspace.clearQuickReplies();
     let previousText = modelText(turn);
     let retryText: string | null = null;
     for (let attempt = 1; attempt <= MAX_DRAFT_RETRIES; attempt++) {
@@ -552,7 +559,11 @@ async function answerWithModel(
       retryText,
       draftProposed: workspace.draft !== null,
       otherCardShown: otherCardShown(workspace),
+      firstText,
     });
+    if (retryReason === "duplicate" && workspace.draft === null && firstQuickReplies) {
+      workspace.offerQuickReplies(firstQuickReplies);
+    }
     replaceModelText(turn, resolved.text);
     turn.corrections.push(resolved.correction);
   }
