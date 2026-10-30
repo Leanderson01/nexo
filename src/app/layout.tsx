@@ -30,7 +30,14 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body>
         <MantineProvider theme={theme} defaultColorScheme="light">
-          {/* A sessão é lida na requisição: com Cache Components, isso fica num <Suspense>. */}
+          {/*
+            A sessão é lida na requisição: com Cache Components, isso fica num <Suspense>.
+            Efeito conhecido: todo carregamento completo mostra este loader por ~300 ms (medido
+            no build de produção; o servidor responde em ~20 ms, o resto é o React revelando o
+            conteúdo que chega em streaming). Tirar o Suspense quebra o build (leitura de
+            cookie fora de Suspense) e ler a sessão só no cliente perde o cookie httpOnly do
+            Convex Auth; por isso ficou assim. A navegação dentro do app não passa por aqui.
+          */}
           <Suspense fallback={<FullScreenLoader />}>
             <AuthProviders>{children}</AuthProviders>
           </Suspense>
