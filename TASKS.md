@@ -35,8 +35,9 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 | T20  | Tela "Meu perfil" (só no protótipo) | 1    | T2                 | feito   | `472ca97`..`4529600` |
 | T14b | Runner de evals                     | 3    | T10, T11           | feito   | `f6f6b07`..`0b2bc11` |
 | T16  | Limites e custo                     | 3    | T10                | feito   | `aff9dd0`..`fdef973` |
-| T17  | Faixa 2                             | 3    | T10, T12           | a fazer |                      |
+| T17  | Faixa 2: métricas e notificações    | 3    | T10, T12           | feito   | `1a1617b`..`f58a0d6` |
 | T18  | README e deploy                     | 3    | tudo               | a fazer |                      |
+| T19a | Acabamento (12 pontos)              | 3    | T10b               | feito   | `0e3566b`..`a94f119` |
 | T19  | QA de ponta a ponta                 | 3    | tudo               | a fazer |                      |
 
 ## Decisões em aberto
@@ -72,6 +73,9 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 26. ~~**Ordem do fechamento**~~ → **decidido (30/10):** o deploy (parte da T18) fica para depois. Primeiro termina todo o código (T10b, acabamento e o que entrar da T17); depois o usuário e o Claude revisam **todas as telas juntos**; só então README final e deploy.
 
 27. ~~**Correções em código na resposta do AGIR**~~ → **decidido (T10b):** o `DecisionRecord` ganhou o campo opcional `corrections` (`{ rule, explanation }`, regras em `REPLY_CORRECTION_RULES`) e a `messages.finalize` aceita `text` para trocar o texto transmitido pela versão corrigida. Conferências em `src/agent/pipeline/reply-checks.ts`: código de chamado alheio é removido; "preparei/confira o card" sem card ganha até 2 novas tentativas do AGIR e, falhando, vira aviso honesto. Efeito visível: o texto pode trocar no fim do streaming. Riscos conhecidos: o modelo às vezes parafraseia o artigo sem "Isso resolveu?" e uma vez escreveu `offerQuickReplies({...})` como texto (anotado para o acabamento).
+
+28. ~~**Fidelidade visual aos prints**~~ → **decidido (30/10):** antes da revisão das telas com o usuário, uma validação visual contra `docs/prototipo/`: primeiro a **fundação** (fontes, tamanhos, pesos, cores, raios, sombras, espaçamentos e ícones extraídos dos prints, aplicados no tema e nos estilos compartilhados) e depois **três agents em paralelo** (login + perfil; chat; console), cada um comparando captura × print nas mesmas dimensões e corrigindo até ficar igual. Onde o print diverge de uma decisão já tomada (ex.: presença "online", "há 42 dias"), mantém-se a decisão e iguala-se só o visual.
+29. **Números do login** (aberta, decisão 14): a T17 entrou, mas a proposta é mantê-los estáticos, porque num ambiente de demonstração os números reais seriam pequenos ou zero. Confirmar na revisão das telas.
 
 ## Desvios da spec feitos no T0
 
