@@ -57,6 +57,7 @@ export function TicketUpdateToast() {
                 })}
                 onClose={() => setToast(null)}
                 withBorder
+                radius="lg"
                 closeButtonProps={{ "aria-label": "Fechar aviso" }}
               >
                 {toast.authorName ? `${toast.authorName}: ` : ""}

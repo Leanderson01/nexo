@@ -63,7 +63,11 @@ export function DecisionPanelDrawerFrame({
       onClose={onClose}
       position="right"
       size="md"
-      title={<Text fw={700}>Por que o Nexo fez isso</Text>}
+      title={
+        <Text fz={15} fw={600}>
+          Por que o Nexo fez isso
+        </Text>
+      }
       closeButtonProps={{ "aria-label": "Fechar painel de decisão" }}
     >
       {children}

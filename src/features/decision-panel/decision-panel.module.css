@@ -4,12 +4,12 @@
 .panel {
   display: flex;
   flex-direction: column;
-  color: #1e2430;
+  color: var(--nexo-color-text);
 }
 
 .header {
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--mantine-color-gray-2);
+  border-bottom: 1px solid var(--nexo-color-border);
 }
 
 .section {
@@ -17,15 +17,15 @@
   flex-direction: column;
   gap: 8px;
   padding: 14px 0;
-  border-bottom: 1px solid var(--mantine-color-gray-2);
+  border-bottom: 1px solid var(--nexo-color-border);
 }
 
 .section[data-section="usage"] {
   border-bottom: none;
   margin-top: 4px;
   padding: 12px;
-  border-radius: var(--mantine-radius-md);
-  background: var(--mantine-color-gray-0);
+  border-radius: var(--nexo-radius-card);
+  background: var(--nexo-color-surface-subtle);
 }
 
 .sectionTitle {
@@ -33,11 +33,11 @@
   align-items: center;
   gap: 8px;
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--mantine-color-gray-6);
+  color: var(--nexo-color-text-secondary);
 }
 
 .sectionNumber {
@@ -46,8 +46,8 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--mantine-color-gray-1);
-  color: var(--mantine-color-gray-7);
+  background: var(--nexo-color-surface-sunken);
+  color: var(--nexo-color-text-nav);
   font-size: 10px;
   letter-spacing: 0;
 }
@@ -66,7 +66,7 @@
   font-size: var(--mantine-font-size-sm);
 
   & dt {
-    color: var(--mantine-color-gray-6);
+    color: var(--nexo-color-text-secondary);
   }
 
   & dd {
@@ -92,14 +92,14 @@
 
 .policy {
   padding: 6px 10px;
-  border-left: 3px solid var(--mantine-color-gray-3);
-  border-radius: 0 var(--mantine-radius-sm) var(--mantine-radius-sm) 0;
-  color: var(--mantine-color-gray-7);
+  border-left: 3px solid var(--nexo-color-border-strong);
+  border-radius: 0 var(--nexo-radius-control) var(--nexo-radius-control) 0;
+  color: var(--nexo-color-text-nav);
 
   &[data-outcome="triggered"] {
-    border-left-color: var(--mantine-color-orange-6);
-    background: var(--mantine-color-orange-0);
-    color: #1e2430;
+    border-left-color: var(--nexo-color-status-warning-dot);
+    background: var(--nexo-color-status-warning-bg);
+    color: var(--nexo-color-text);
   }
 }
 
@@ -109,12 +109,12 @@
 
 .policyOutcome {
   .policy[data-outcome="not_applicable"] & {
-    color: var(--mantine-color-gray-6);
+    color: var(--nexo-color-text-secondary);
   }
 
   .policy[data-outcome="triggered"] & {
     font-weight: 700;
-    color: var(--mantine-color-orange-8);
+    color: var(--nexo-color-status-warning-text);
   }
 }
 
@@ -122,12 +122,12 @@
   display: flex;
   gap: 10px;
   padding: 10px;
-  border: 1px solid var(--mantine-color-gray-2);
-  border-radius: var(--mantine-radius-md);
+  border: 1px solid var(--nexo-color-border);
+  border-radius: var(--nexo-radius-card);
 
   &[data-status="error"] {
-    border-color: var(--mantine-color-red-3);
-    background: var(--mantine-color-red-0);
+    border-color: var(--nexo-color-status-danger-dot);
+    background: var(--nexo-color-status-danger-bg);
   }
 }
 
@@ -138,8 +138,8 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: var(--mantine-color-blue-0);
-  color: var(--mantine-color-blue-7);
+  background: var(--nexo-color-primary-subtle);
+  color: var(--nexo-color-primary);
   font-size: 12px;
   font-weight: 600;
 }
@@ -153,7 +153,7 @@
 }
 
 .toolName {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .actionMeta {
@@ -168,7 +168,7 @@
 
 .rawJsonToggle {
   font-size: var(--mantine-font-size-xs);
-  color: var(--mantine-color-blue-7);
+  color: var(--nexo-color-primary);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -177,5 +177,5 @@
   margin-top: 8px;
   max-height: 420px;
   overflow: auto;
-  font-size: 11px;
+  font-size: 12px;
 }
