@@ -1,4 +1,5 @@
-// Ícones de traço simples do chat, no mesmo estilo dos do login (sem biblioteca de ícones).
+// Ícones feitos à mão que o chat já não usa (ele usa @/shared/icons). Ficam só enquanto o
+// console e o perfil ainda importam estes; quando trocarem, o arquivo sai.
 
 export interface IconProps {
   size?: number;
@@ -30,52 +31,10 @@ export function ChatBubbleIcon(props: IconProps) {
   );
 }
 
-export function UserIcon(props: IconProps) {
-  return (
-    <StrokeIcon {...props}>
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 21a8 8 0 0 1 16 0" />
-    </StrokeIcon>
-  );
-}
-
-export function PlusIcon(props: IconProps) {
-  return (
-    <StrokeIcon {...props}>
-      <path d="M12 5v14M5 12h14" />
-    </StrokeIcon>
-  );
-}
-
-export function ArrowUpIcon(props: IconProps) {
-  return (
-    <StrokeIcon {...props}>
-      <path d="M12 19V5M5 12l7-7 7 7" />
-    </StrokeIcon>
-  );
-}
-
 export function ChevronRightIcon(props: IconProps) {
   return (
     <StrokeIcon {...props}>
       <path d="m9 6 6 6-6 6" />
-    </StrokeIcon>
-  );
-}
-
-export function CheckIcon(props: IconProps) {
-  return (
-    <StrokeIcon {...props}>
-      <path d="m5 12 5 5 9-10" />
-    </StrokeIcon>
-  );
-}
-
-export function BookIcon(props: IconProps) {
-  return (
-    <StrokeIcon {...props}>
-      <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5Z" />
-      <path d="M4 19a2 2 0 0 1 2-2h13" />
     </StrokeIcon>
   );
 }

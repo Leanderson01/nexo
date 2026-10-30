@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { SpeakerIcon, StopIcon } from "./icons";
+import { ICON_SIZE, SpeakerIcon, StopIcon } from "@/shared/icons";
 import { pickBrazilianVoice } from "./speech";
 import classes from "./voice.module.css";
 
@@ -48,7 +48,7 @@ export function ListenButton({ text }: { text: string }) {
 
   return (
     <button type="button" className={classes.listen} aria-pressed={speaking} onClick={toggle}>
-      {speaking ? <StopIcon size={12} /> : <SpeakerIcon size={13} />}
+      {speaking ? <StopIcon size={ICON_SIZE.sm} /> : <SpeakerIcon size={ICON_SIZE.sm} />}
       {speaking ? "Parar" : "Ouvir resposta"}
     </button>
   );

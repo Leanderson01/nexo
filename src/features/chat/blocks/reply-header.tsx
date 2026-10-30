@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon } from "../icons";
+import { CheckIcon, ICON_SIZE } from "@/shared/icons";
 import { useBlockActionLabels } from "./block-reads";
 import classes from "./blocks.module.css";
 
@@ -39,7 +39,7 @@ export function ActionChips({
     <>
       {labels.map((label, index) => (
         <span key={index} className={classes.chip}>
-          <CheckIcon size={12} />
+          <CheckIcon size={ICON_SIZE.sm} />
           {label}
         </span>
       ))}

@@ -3,7 +3,7 @@
 import { ActionIcon, CloseButton, Group, Loader, Text, Tooltip } from "@mantine/core";
 
 import { MAX_RECORDING_SECONDS } from "./audio-format";
-import { MicrophoneIcon, CloseIcon, StopIcon } from "./icons";
+import { CloseIcon, ICON_SIZE, MicrophoneIcon, StopIcon } from "@/shared/icons";
 import { formatElapsed } from "./recorder-state";
 import type { VoiceRecorder } from "./use-voice-recorder";
 import classes from "./voice.module.css";
@@ -26,7 +26,7 @@ export function VoiceButton({ voice, disabled }: { voice: VoiceRecorder; disable
             disabled={disabled}
             onClick={voice.start}
           >
-            <MicrophoneIcon size={18} />
+            <MicrophoneIcon size={ICON_SIZE.lg} />
           </ActionIcon>
         </Tooltip>
       );
@@ -56,7 +56,7 @@ export function VoiceButton({ voice, disabled }: { voice: VoiceRecorder; disable
               aria-label="Descartar gravação"
               onClick={voice.cancel}
             >
-              <CloseIcon size={16} />
+              <CloseIcon />
             </ActionIcon>
           </Tooltip>
           <Tooltip label="Parar e transcrever">
@@ -67,7 +67,7 @@ export function VoiceButton({ voice, disabled }: { voice: VoiceRecorder; disable
               aria-label="Parar e transcrever"
               onClick={voice.stop}
             >
-              <StopIcon size={14} />
+              <StopIcon size={ICON_SIZE.sm} />
             </ActionIcon>
           </Tooltip>
         </Group>

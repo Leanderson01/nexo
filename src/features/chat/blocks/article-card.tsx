@@ -1,4 +1,4 @@
-import { BookIcon } from "../icons";
+import { ArticleIcon, ICON_SIZE } from "@/shared/icons";
 import classes from "./blocks.module.css";
 
 /** Artigo da central de ajuda citado pelo agent (§7.2). */
@@ -9,7 +9,7 @@ export function ArticleCard({ title, excerpt }: { title: string; excerpt: string
         <div className={classes.cardKicker}>
           <span className={classes.kickerTrail}>
             <span className={classes.articleIcon}>
-              <BookIcon size={14} />
+              <ArticleIcon size={ICON_SIZE.sm} />
             </span>
             Central de ajuda
           </span>

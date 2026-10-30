@@ -1,32 +1,32 @@
 .recording {
   flex-shrink: 0;
   padding: 0 4px 0 10px;
-  border-radius: var(--mantine-radius-md);
-  background: var(--mantine-color-red-0);
+  border-radius: var(--nexo-radius-control);
+  background: var(--nexo-color-status-danger-bg);
 }
 
 .recordingDot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--mantine-color-red-6);
+  background: var(--nexo-color-status-danger-dot);
   animation: pulse 1.2s ease-in-out infinite;
 }
 
 .elapsed {
   min-width: 72px;
   font-variant-numeric: tabular-nums;
-  color: var(--mantine-color-red-8);
+  color: var(--nexo-color-status-danger-text);
 }
 
 .elapsedLimit {
-  color: var(--mantine-color-gray-6);
+  color: var(--nexo-color-text-tertiary);
 }
 
 .error {
   padding: 4px 4px 4px 10px;
-  border-radius: var(--mantine-radius-md);
-  background: var(--mantine-color-red-0);
+  border-radius: var(--nexo-radius-control);
+  background: var(--nexo-color-status-danger-bg);
 }
 
 .listen {
@@ -37,15 +37,15 @@
   border: 0;
   background: none;
   font: inherit;
-  color: var(--mantine-color-gray-6);
+  color: var(--nexo-color-text-tertiary);
   cursor: pointer;
 
   &:hover {
-    color: var(--mantine-color-blue-7);
+    color: var(--nexo-color-primary);
   }
 
   &[aria-pressed="true"] {
-    color: var(--mantine-color-blue-7);
+    color: var(--nexo-color-primary);
   }
 }
 
