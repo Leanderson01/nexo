@@ -101,4 +101,5 @@ export const REPLY_CORRECTION_RULE_LABELS: Record<ReplyCorrectionRule, string> =
   no_ticket_found_offer: "Oferta de abrir chamado quando não achou",
   tool_call_as_text: "Chamada de tool escrita como texto removida",
   empty_reply: "Resposta vazia",
+  quick_replies_as_text: "Opções rápidas escritas como texto",
 };

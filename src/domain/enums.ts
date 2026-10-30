@@ -118,7 +118,9 @@ export type TurnStage = (typeof TURN_STAGES)[number];
  * - `no_ticket_found_offer`: não achou o chamado e não ofereceu abrir um (F2);
  * - `tool_call_as_text`: escreveu a chamada de uma tool como texto (ex.: `offerQuickReplies({...})`);
  * - `empty_reply`: terminou sem texto e sem partes (o gpt-oss às vezes deixa a resposta só no
- *   raciocínio).
+ *   raciocínio);
+ * - `quick_replies_as_text`: escreveu as opções rápidas como texto (`[options] ...`, JSON,
+ *   "Opções: - Sim - Não") em vez de chamar a tool.
  */
 export const REPLY_CORRECTION_RULES = [
   "foreign_ticket_code",
@@ -127,6 +129,7 @@ export const REPLY_CORRECTION_RULES = [
   "no_ticket_found_offer",
   "tool_call_as_text",
   "empty_reply",
+  "quick_replies_as_text",
 ] as const;
 export type ReplyCorrectionRule = (typeof REPLY_CORRECTION_RULES)[number];
 
