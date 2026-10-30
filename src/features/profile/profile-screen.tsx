@@ -1,12 +1,12 @@
 "use client";
 
 import { Anchor, Button, Skeleton, Stack, Text, Title } from "@mantine/core";
-import { useQuery } from "convex/react";
 import { catchError, type ErrorInfo } from "next/error";
 import Link from "next/link";
 import { useState } from "react";
 
 import { LOGIN_PATH } from "@/features/auth/route-access";
+import { useSignedInQuery } from "@/features/auth/use-signed-in-query";
 import { PageHeader } from "@/features/chat/chat-header";
 import { ICON_SIZE, KeyIcon, LockIcon, MailIcon, ResetPasswordIcon } from "@/shared/icons";
 import { api } from "../../../convex/_generated/api";
@@ -38,7 +38,7 @@ export function ProfileScreen() {
 }
 
 function ProfileDetails() {
-  const person = useQuery(api.auth.currentPerson);
+  const person = useSignedInQuery(api.auth.currentPerson, {});
 
   if (person === undefined) return <ProfileSkeleton />;
   if (person === null) return <PersonNotFound />;

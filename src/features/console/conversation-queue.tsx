@@ -23,7 +23,7 @@ import {
 } from "./console-texts";
 import { InitialsAvatar } from "./initials-avatar";
 import { StatusLabel } from "./status-label";
-import { useHydrated } from "./use-hydrated";
+import { useHydrated } from "@/shared/use-hydrated";
 
 /** As abas do protótipo; "Encerradas" fica no menu de filtros, para caber na largura da fila. */
 const OPEN_TABS: ConsoleTab[] = ["all", "for_you", "with_agent", "mine"];

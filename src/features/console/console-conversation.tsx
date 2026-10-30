@@ -56,7 +56,7 @@ import { EmployeePanel } from "./employee-panel";
 import { InitialsAvatar } from "./initials-avatar";
 import { StatusLabel } from "./status-label";
 import { useConsoleActions, useMarkReadMutation } from "./use-console-actions";
-import { useHydrated } from "./use-hydrated";
+import { useHydrated } from "@/shared/use-hydrated";
 
 /** Botões de ação do atendimento: no print, mais justos que o `sm` padrão do tema (18 px). */
 const ACTION_BUTTON_PADDING = 14;

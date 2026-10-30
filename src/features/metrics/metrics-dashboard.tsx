@@ -17,7 +17,7 @@ import {
 } from "@/domain/labels";
 import type { DashboardMetrics } from "@/domain/metrics";
 import { HANDOFF_REASON_TONES, type StatusTone } from "@/features/console/console-texts";
-import { useHydrated } from "@/features/console/use-hydrated";
+import { useHydrated } from "@/shared/use-hydrated";
 import { api } from "../../../convex/_generated/api";
 import classes from "./metrics.module.css";
 import {

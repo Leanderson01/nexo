@@ -1,7 +1,6 @@
 "use client";
 
 import { Alert, Button, Group, Skeleton, Stack, Text } from "@mantine/core";
-import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useEffect, useRef, type RefObject } from "react";
 
@@ -41,7 +40,7 @@ export function ChatConversation({ conversationId }: { conversationId: string | 
     api.conversations.messageLimit,
     conversationId ? "skip" : {},
   );
-  const person = useQuery(api.auth.currentPerson);
+  const person = useSignedInQuery(api.auth.currentPerson, {});
 
   const sender = useSendMessage(conversationId, messages ?? []);
   useEmployeeReceiptAcks(conversationId, messages);

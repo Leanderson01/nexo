@@ -1,7 +1,6 @@
 "use client";
 
 import { Avatar, NavLink, Skeleton, Stack, Text } from "@mantine/core";
-import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 
@@ -146,7 +145,7 @@ function ConversationHistory() {
 }
 
 function CurrentPerson() {
-  const person = useQuery(api.auth.currentPerson);
+  const person = useSignedInQuery(api.auth.currentPerson, {});
 
   return (
     <div className={classes.sidebarFooter}>

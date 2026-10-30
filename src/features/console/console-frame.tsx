@@ -15,7 +15,7 @@ import { ConversationQueue, QueueSkeleton } from "./conversation-queue";
 import { InitialsAvatar } from "./initials-avatar";
 import { useDeliveryAcks } from "./use-delivery-acks";
 import { useFreshConversations } from "./use-fresh-conversations";
-import { useHydrated } from "./use-hydrated";
+import { useHydrated } from "@/shared/use-hydrated";
 import { useQueueAlerts } from "./use-queue-alerts";
 
 export const CONSOLE_PATH = "/console";
