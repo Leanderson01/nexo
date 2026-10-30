@@ -33,27 +33,27 @@ O cache de prompt do gpt-oss é automático (prefixo igual entre chamadas). O us
 
 ## Medições
 
-**Pendente:** a chave do Groq não estava no `.env.local` quando a T6 foi feita. Para medir:
+Rodada de 30/10/2026 com a chave paga (`npm run spike:llm`): 12 frases dos cenários (§8, §13.2) no
+ENTENDER e 3 pedidos com tools falsas no AGIR, nos dois candidatos.
 
-```bash
-# GROQ_API_KEY no .env.local
-npm run spike:llm
-```
+| Modelo                | JSON ok | Intenção ok | ENTENDER p50 | Tool certa | 1º token (AGIR) | AGIR p50 | US$/ENTENDER | US$/AGIR   |
+| --------------------- | ------- | ----------- | ------------ | ---------- | --------------- | -------- | ------------ | ---------- |
+| `openai/gpt-oss-20b`  | 100%    | 100%        | 622 ms       | 100%       | 955 ms          | 1.059 ms | US$ 0,00009  | US$ 0,0001 |
+| `openai/gpt-oss-120b` | 92%     | 92%         | 1.029 ms     | 100%       | 686 ms          | 948 ms   | US$ 0,00022  | US$ 0,0002 |
 
-O script roda 12 frases dos cenários (§8, §13.2) no ENTENDER e 3 pedidos com tools falsas no AGIR,
-nos dois candidatos, e imprime: JSON válido, acerto da intenção, latência, tokens e custo (ENTENDER);
-tools chamadas, tempo até o primeiro token, latência, tokens e custo (AGIR); um resumo por modelo;
-e os headers `x-ratelimit-*` da chave. Ele também responde a **decisão 18**: se o modo estrito
-recusar o `minimum`/`maximum` da confiança, o script avisa e segue com `strictJsonSchema: false`.
+O que a rodada confirmou:
 
-Preencher depois da rodada:
+- **ENTENDER no 20b:** acertou as 12 intenções, inclusive a tentativa de injeção ("ignore as regras…"
+  → `out_of_scope`) e a mensagem vaga ("aquilo lá de novo" → `unclear`, confiança 0,3). É mais rápido
+  e mais barato que o 120b nessa etapa.
+- **Decisão 18 resolvida:** o modo estrito **aceita** o `minimum`/`maximum` da confiança (o 20b passou
+  com `strict: true`). A recusa do 120b não foi do schema: o modelo gerou `category: "network"`, fora
+  do enum, e o Groq rejeitou a resposta. Isso confirma a regra da §10: uma nova tentativa com lembrete
+  do schema quando a saída estruturada vem inválida.
+- **AGIR:** os dois escolheram a tool certa nos 3 pedidos; o 120b teve o primeiro token mais rápido.
+  O português das respostas está correto e direto.
 
-| Modelo                | JSON ok | Intenção ok | ENTENDER p50 | Tool certa | 1º token (AGIR) | AGIR p50 | US$/ENTENDER | US$/AGIR |
-| --------------------- | ------- | ----------- | ------------ | ---------- | --------------- | -------- | ------------ | -------- |
-| `openai/gpt-oss-20b`  | —       | —           | —            | —          | —               | —        | —            | —        |
-| `openai/gpt-oss-120b` | —       | —           | —            | —          | —               | —        | —            | —        |
-
-## Custo estimado (até a medição)
+## Custo estimado por turno real
 
 Hipóteses por turno, com a janela de 12 mensagens, o resumo acumulado e as 11 tools da §6.4:
 
@@ -71,13 +71,12 @@ Hipóteses por turno, com a janela de 12 mensagens, o resumo acumulado e as 11 t
 
 ## Limite de taxa
 
-A tabela base do Groq mostra, **por modelo**: 30 req/min, 1.000 req/dia e **8.000 tokens/min**.
-Com ~6.700 tokens por AGIR, isso dá cerca de **um turno completo por minuto** no 120b, o que aperta
-o runner de evals (T14b) e a demonstração com várias pessoas. A chave paga deve ter limite maior:
-o `spike:llm` imprime os `x-ratelimit-limit-*` reais, e o console do Groq mostra o plano
-(decisão 17).
+A chave paga tem, pelos headers da rodada de 30/10/2026, **500.000 req/dia e 250.000 tokens/min**
+(decisão 17 resolvida). Com ~7.000 tokens por turno completo, são mais de 30 turnos por minuto: não
+é gargalo para o runner de evals nem para a demonstração. (A tabela base do plano gratuito, de
+8.000 tokens/min, não se aplica.)
 
-Consequências:
+Mesmo assim:
 
 - O runner de evals espera e repete no 429 usando o `retry-after` (o `spike:llm` já faz isso, ver
   `withRateLimitRetry`).

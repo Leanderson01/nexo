@@ -56,8 +56,8 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 14. ~~**Números do login**~~ → **decidido: estáticos até o T17.** Contexto: ("8 s", "72%", "6 analistas online"): estáticos ou vindos das métricas? Proposta: estáticos até o T17 e, se ele entrar, reais.
 15. ~~**`findSimilar` só até 7 dias × F4**~~ → **decidido:** a §5.6 limita a abertos e resolvidos há até 7 dias, mas o F4 e o eval do Rafael precisam ver o INC-20077 (resolvido há 10 dias). `findSimilar` devolve abertos e resolvidos/fechados **há até 30 dias**; o domínio decide entre atualizar, reabrir e criar novo com referência.
 16. ~~**Esperas do retry (300/900/2.000 ms)**~~ → **decidido:** 3 tentativas com esperas de ~300 ms e ~900 ms (±20% de jitter) e **2.000 ms de limite por tentativa**.
-17. **Limite de taxa do Groq** (aberta): a tabela base mostra 8.000 tokens/min e 1.000 req/dia por modelo, cerca de 1 turno completo por minuto no 120b. O `npm run spike:llm` imprime os headers `x-ratelimit-*` da chave real; rodar quando a `GROQ_API_KEY` estiver no `.env.local`. O runner de evals (T14b) precisa esperar e repetir no 429 de qualquer forma.
-18. **Modo estrito × `confidence.min(0).max(1)`** (aberta, depende da chave): o teste offline da T6 provou que o schema sai com `minimum`/`maximum` e que as duas saídas funcionam (`strictJsonSchema: false`, ou schema sem limites e limite em código). O `spike:llm` detecta a recusa e cai na primeira sozinho. O tipo do domínio não muda.
+17. ~~**Limite de taxa do Groq**~~ → **resolvido (30/10):** a chave paga tem 500.000 req/dia e 250.000 tokens/min, mais de 30 turnos completos por minuto. Não é gargalo; o runner de evals (T14b) ainda espera e repete no 429 por segurança.
+18. ~~**Modo estrito × `confidence.min(0).max(1)`**~~ → **resolvido (30/10):** o Groq aceita `minimum`/`maximum` no modo estrito; o ENTENDER fica com `strict: true` no `gpt-oss-20b` (100% de JSON válido e de intenção certa nas 12 frases). Saída inválida do modelo (o 120b gerou uma categoria fora do enum) é tratada pela nova tentativa com lembrete do schema da §10.
 
 ## Desvios da spec feitos no T0
 
