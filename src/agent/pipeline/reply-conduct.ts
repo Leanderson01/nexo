@@ -1,6 +1,7 @@
 import type { ReplyCorrection } from "@/domain/decision-record";
 import type { AnyIntakeQuestion } from "@/domain/intake-questions";
-import { normalizeText } from "@/shared/normalize-text";
+import { novelWords } from "@/domain/ticket-description";
+import { normalizeText, splitWords } from "@/shared/normalize-text";
 
 // Condução da resposta, conferida em código depois do AGIR (QA de ponta a ponta, F4): uma
 // pergunta por turno; as perguntas conhecidas (impacto, bloqueio, urgência, condição do artigo,
@@ -200,9 +201,13 @@ const INSTRUCTS =
 
 /**
  * A ponte curta do modelo: a primeira frase, se ela não orienta nada (sem passo, sem número,
- * sem anunciar uma lista), não pergunta e não promete o que é decidido em código.
+ * sem anunciar uma lista), não pergunta, não promete o que é decidido em código, não traz fato
+ * que nem o artigo nem o funcionário disseram ("portal de equipamentos") e não repete o artigo.
  */
-export function articleBridge(text: string): string {
+export function articleBridge(
+  text: string,
+  context: { body: string; employeeTexts: string[] } = { body: "", employeeTexts: [] },
+): string {
   const first = splitSentences(text)[0];
   if (!first) return ARTICLE_BRIDGE_FALLBACK;
   const sentence = first.text;
@@ -213,8 +218,48 @@ export function articleBridge(text: string): string {
     !/:\s*$/.test(sentence) &&
     !INSTRUCTS.test(sentence) &&
     !DECIDED_IN_CODE.test(sentence) &&
-    !/\bpassos?\b/i.test(sentence);
+    !/\bpassos?\b/i.test(sentence) &&
+    novelWords(sentence, [context.body, ...context.employeeTexts]).filter(
+      (word) => !BRIDGE_WORDS.has(word),
+    ).length <= 1 &&
+    !repeatsBody(sentence, context.body);
   return usable ? sentence : ARTICLE_BRIDGE_FALLBACK;
+}
+
+/** Palavras de acolhimento e de ponte, que não trazem fato. */
+const BRIDGE_WORDS: ReadonlySet<string> = new Set([
+  "entendi",
+  "entendo",
+  "certo",
+  "claro",
+  "vamos",
+  "resolver",
+  "ajudar",
+  "ajudo",
+  "isso",
+  "aqui",
+  "encontrei",
+  "orientacao",
+  "central",
+  "ajuda",
+  "artigo",
+  "segue",
+  "veja",
+  "caso",
+  "situacao",
+  "chato",
+  "costuma",
+  "acontecer",
+  "acontece",
+]);
+
+/** A frase diz, com outras palavras, o que o artigo já diz (o corpo vem logo abaixo). */
+function repeatsBody(sentence: string, body: string): boolean {
+  const words = splitWords(sentence).filter((word) => word.length >= 4);
+  if (words.length === 0) return false;
+  const bodyWords = new Set(splitWords(body).map((word) => word.slice(0, 5)));
+  const shared = words.filter((word) => bodyWords.has(word.slice(0, 5)));
+  return shared.length * 2 >= words.length;
 }
 
 /**
@@ -222,8 +267,13 @@ export function articleBridge(text: string): string {
  * artigo, como "Selecione a categoria Hardware e escolha Monitor"): a ponte curta, o corpo do
  * artigo como está e "Isso resolveu?".
  */
-export function articleOrientation(text: string, article: { body: string }): string {
-  return `${articleBridge(text)}\n\n${article.body.trim()}\n\n${ARTICLE_QUESTION}`;
+export function articleOrientation(
+  text: string,
+  article: { body: string },
+  employeeTexts: string[] = [],
+): string {
+  const bridge = articleBridge(text, { body: article.body, employeeTexts });
+  return `${bridge}\n\n${article.body.trim()}\n\n${ARTICLE_QUESTION}`;
 }
 
 /** A resposta segue o artigo: passos numerados ou a pergunta se resolveu, ajudou, funcionou. */

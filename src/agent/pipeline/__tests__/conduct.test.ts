@@ -210,14 +210,35 @@ describe("reply-conduct", () => {
   });
 
   it("a ponte curta do modelo fica quando não orienta nada", () => {
-    expect(
-      articleBridge("Isso costuma acontecer depois de tentativas erradas. 1. Abra o portal."),
-    ).toBe("Isso costuma acontecer depois de tentativas erradas.");
+    expect(articleBridge("Entendi, isso costuma acontecer. 1. Abra o portal.")).toBe(
+      "Entendi, isso costuma acontecer.",
+    );
     expect(articleBridge("Reinstale o cliente de VPN. Isso resolveu?")).toBe(
       ARTICLE_BRIDGE_FALLBACK,
     );
     expect(articleBridge("Siga os passos abaixo:")).toBe(ARTICLE_BRIDGE_FALLBACK);
     expect(articleBridge("O bloqueio acontece após 3 tentativas.")).toBe(ARTICLE_BRIDGE_FALLBACK);
+    const context = {
+      body: "O bloqueio acontece após 3 tentativas erradas. O desbloqueio é automático em 30 minutos.",
+      employeeTexts: ["Não consigo entrar no SAP, aparece usuário bloqueado"],
+    };
+    // Repete o artigo, que vem logo abaixo.
+    expect(articleBridge("O bloqueio ocorre depois de três tentativas erradas.", context)).toBe(
+      ARTICLE_BRIDGE_FALLBACK,
+    );
+    // Traz um fato que ninguém disse.
+    expect(
+      articleBridge(
+        "Para solicitar um novo teclado, basta abrir a requisição no portal de equipamentos.",
+        {
+          body: "Monitores, teclados e headsets são pedidos por requisição.",
+          employeeTexts: ["Meu teclado está com várias teclas falhando."],
+        },
+      ),
+    ).toBe(ARTICLE_BRIDGE_FALLBACK);
+    expect(articleBridge("Entendi, vamos resolver o acesso ao SAP.", context)).toBe(
+      "Entendi, vamos resolver o acesso ao SAP.",
+    );
   });
 
   it('com o seletor, "não encontrei" sai do texto (QA R1, F2)', () => {

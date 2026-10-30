@@ -771,7 +771,7 @@ async function conductReply(
   ) {
     // Os passos vêm do corpo do artigo, montados em código; o modelo só faz a ponte curta.
     const text = modelText(turn);
-    const fixed = articleOrientation(text, top);
+    const fixed = articleOrientation(text, top, turn.facts.employeeTexts);
     if (fixed !== text.trim()) {
       replaceModelText(turn, fixed);
       turn.corrections.push(
