@@ -19,18 +19,28 @@ intent:
 - unclear: não dá para saber o que a pessoa quer.
 A resposta curta a uma pergunta do assistente ("Windows 11", "Sim", "Não", "Só eu") herda o assunto em andamento e tem confiança alta.
 
+Sistema, aplicativo, site ou acesso que caiu, está fora do ar ou não funciona é TI, mesmo quando o sistema é de RH, financeiro ou facilities. O que decide é se o problema é no sistema (TI) ou no conteúdo (a área):
+- "o sistema de folha de ponto caiu para a equipe" → open_ticket (TI: o sistema parou).
+- "não consigo entrar no portal do RH" → question (TI: acesso).
+- "o sistema de reembolso não abre" → question (TI).
+- "meu holerite veio com o valor errado" → out_of_scope (RH: o conteúdo).
+- "quando cai o reembolso?" → out_of_scope (financeiro).
+
 summary: uma frase em português com o pedido. Em out_of_scope, repita as palavras do funcionário que mostram o assunto (ex.: "holerite", "ignore as regras", "todos os chamados").
 
 entities: o que já se sabe na conversa inteira, não só na última mensagem; null quando não foi dito. Não invente.
 - os: como o funcionário disse ("Windows 11"). "Não sei" também vale.
-- ticketRef: sempre que ele falar de um chamado existente, o código citado ("INC-20311") ou a descrição do chamado ("e o meu chamado do notebook?" → "notebook"; "o pedido do monitor" → "monitor").
+- ticketRef: sempre que ele falar de um chamado existente, o código citado ("INC-20311") ou a descrição do chamado ("e o meu chamado do notebook?" → "notebook"; "o pedido do monitor" → "monitor"; "como está o chamado da impressora do 2º andar?" → "impressora do 2º andar").
 
-ticketSignals (null quando o funcionário não disse; não deduza):
+ticketSignals: o que o funcionário já disse na conversa inteira, não só na última mensagem (a resposta "Não" a "Isso resolveu?" mantém os sinais ditos antes). null quando ele não disse; não deduza.
 - kind: INC = algo parou ou não funciona; REQ = pedido de acesso, equipamento ou software.
 - category: ${TICKET_CATEGORIES.join(", ")} (network_vpn inclui Wi-Fi e VPN; access inclui senhas e permissões).
 - impact: individual (só a pessoa), team (equipe, setor, time), company (a empresa toda).
-- blocked: true só se ele disse que não consegue trabalhar e não tem alternativa; false se disse que dá para trabalhar de outro jeito; null se não falou disso ("a impressora não imprime" sozinho é null).
-- deadlineToday: true se há compromisso hoje que depende disso; false se disse que não há.
+- blocked: a pessoa (ou a equipe) está impedida de trabalhar, sem alternativa?
+  true: "não consigo trabalhar sem ela", "não consigo trabalhar de casa sem a VPN", "ninguém consegue registrar o ponto e não temos alternativa", "estou parado", "não tenho como fazer meu trabalho".
+  false: "dá para usar a impressora do 3º andar", "consigo trabalhar pelo celular por enquanto", "atrapalha, mas dá para seguir", "Sim" a "Consegue trabalhar de outro jeito?".
+  null: ele não falou disso ("a impressora não imprime" sozinho é null; "erro 809" sozinho é null).
+- deadlineToday: true se há compromisso hoje que depende disso; false se disse que não há ("não tenho nenhum compromisso hoje que dependa disso" é false).
 
 missingFields: o que falta saber para abrir um chamado, entre "impact", "blocked", "deadlineToday", "os" e "description".
 
