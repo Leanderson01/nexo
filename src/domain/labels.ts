@@ -1,5 +1,6 @@
 import type {
   ConfidenceLevel,
+  ConsoleTab,
   ConversationStatus,
   HandoffReason,
   Impact,
@@ -74,4 +75,12 @@ export const CONFIDENCE_LEVEL_LABELS: Record<ConfidenceLevel, string> = {
   high: "Alta",
   medium: "Média",
   low: "Baixa",
+};
+
+export const CONSOLE_TAB_LABELS: Record<ConsoleTab, string> = {
+  all: "Todas",
+  for_you: "Para você",
+  with_agent: "Com o agent",
+  mine: "Minhas",
+  closed: "Encerradas",
 };

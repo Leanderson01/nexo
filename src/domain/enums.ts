@@ -128,3 +128,10 @@ export type DecisionOutcome = (typeof DECISION_OUTCOMES)[number];
 
 export const GATEWAY_ERROR_KINDS = ["unavailable", "not_found", "conflict", "validation"] as const;
 export type GatewayErrorKind = (typeof GATEWAY_ERROR_KINDS)[number];
+
+/**
+ * Abas da fila do console (§7.4, protótipo 05): todas as abertas, aguardando analista
+ * ("Para você"), com o agent, em atendimento por mim e encerradas (decisão 13).
+ */
+export const CONSOLE_TABS = ["all", "for_you", "with_agent", "mine", "closed"] as const;
+export type ConsoleTab = (typeof CONSOLE_TABS)[number];
