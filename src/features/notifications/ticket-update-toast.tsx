@@ -1,9 +1,9 @@
 "use client";
 
 import { Notification, Portal, Transition } from "@mantine/core";
-import { useConvexAuth, useQuery } from "convex/react";
 import { useEffect, useState } from "react";
 
+import { useSignedInQuery } from "@/features/auth/use-signed-in-query";
 import { api } from "../../../convex/_generated/api";
 import type { SupportUpdateNotice } from "../../../convex/notifications";
 import { ticketUpdatedText } from "./notification-texts";
@@ -18,8 +18,7 @@ const TOAST_DURATION_MS = 8000;
  * leitura é a base: o que já existia ao abrir o chat não vira toast.
  */
 export function TicketUpdateToast() {
-  const { isAuthenticated } = useConvexAuth();
-  const latest = useQuery(api.notifications.latestSupportUpdate, isAuthenticated ? {} : "skip");
+  const latest = useSignedInQuery(api.notifications.latestSupportUpdate, {});
   // undefined: ainda sem base; null: não havia nenhuma atualização do suporte.
   const [seenId, setSeenId] = useState<string | null | undefined>(undefined);
   const [toast, setToast] = useState<SupportUpdateNotice | null>(null);
