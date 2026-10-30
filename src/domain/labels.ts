@@ -102,4 +102,13 @@ export const REPLY_CORRECTION_RULE_LABELS: Record<ReplyCorrectionRule, string> =
   tool_call_as_text: "Chamada de tool escrita como texto removida",
   empty_reply: "Resposta vazia",
   quick_replies_as_text: "Opções rápidas escritas como texto",
+  unsupported_signal: "Sinal sem evidência descartado",
+  invented_description: "Fato inventado tirado do rascunho",
+  intake_question: "Pergunta da abertura definida em código",
+  condition_question: "Pergunta da condição do artigo em código",
+  article_answer: "Card do artigo e Sim/Não em código",
+  one_question: "Uma pergunta por vez",
+  closed_question_options: "Sim/Não na pergunta fechada",
+  markdown_removed: "Markdown removido do texto",
+  return_note: "Nota do analista sem uso na resposta",
 };

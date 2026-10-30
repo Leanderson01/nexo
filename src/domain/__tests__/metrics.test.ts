@@ -215,6 +215,15 @@ describe("computeMetrics", () => {
       tool_call_as_text: 0,
       empty_reply: 0,
       quick_replies_as_text: 0,
+      unsupported_signal: 0,
+      invented_description: 0,
+      intake_question: 0,
+      condition_question: 0,
+      article_answer: 0,
+      one_question: 0,
+      closed_question_options: 0,
+      markdown_removed: 0,
+      return_note: 0,
     });
   });
 });

@@ -124,7 +124,19 @@ export type TurnStage = (typeof TURN_STAGES)[number];
  * - `empty_reply`: terminou sem texto e sem partes (o gpt-oss às vezes deixa a resposta só no
  *   raciocínio);
  * - `quick_replies_as_text`: escreveu as opções rápidas como texto (`[options] ...`, JSON,
- *   "Opções: - Sim - Não") em vez de chamar a tool.
+ *   "Opções: - Sim - Não") em vez de chamar a tool;
+ * - `unsupported_signal`: impacto, bloqueio, urgência ou sistema operacional sem nada na fala do
+ *   funcionário que sustente (descartado; o agent pergunta);
+ * - `invented_description`: campo do rascunho sem apoio na conversa, trocado pela fala do
+ *   funcionário ou descartado (§11.2);
+ * - `intake_question`: pergunta da abertura (impacto, bloqueio, urgência) com texto e opções
+ *   definidos em código;
+ * - `condition_question`: pergunta da condição do artigo com o texto definido em código;
+ * - `article_answer`: resposta baseada no artigo ganhou o card e o "Isso resolveu?" com Sim/Não;
+ * - `one_question`: mais de uma pergunta no turno (ou repetida no seletor) reduzida a uma;
+ * - `closed_question_options`: pergunta fechada sem opções ganhou Sim/Não;
+ * - `markdown_removed`: markdown cru (`>`, `**`, `#`) removido do texto;
+ * - `return_note`: a nota do analista não tinha sido usada na resposta.
  */
 export const REPLY_CORRECTION_RULES = [
   "foreign_ticket_code",
@@ -134,6 +146,15 @@ export const REPLY_CORRECTION_RULES = [
   "tool_call_as_text",
   "empty_reply",
   "quick_replies_as_text",
+  "unsupported_signal",
+  "invented_description",
+  "intake_question",
+  "condition_question",
+  "article_answer",
+  "one_question",
+  "closed_question_options",
+  "markdown_removed",
+  "return_note",
 ] as const;
 export type ReplyCorrectionRule = (typeof REPLY_CORRECTION_RULES)[number];
 
