@@ -11,6 +11,7 @@
 import type * as auth from "../auth.js";
 import type * as conversations from "../conversations.js";
 import type * as decisionPanel from "../decisionPanel.js";
+import type * as decisions from "../decisions.js";
 import type * as http from "../http.js";
 import type * as knowledge_articles from "../knowledge/articles.js";
 import type * as knowledge_ranking from "../knowledge/ranking.js";
@@ -18,6 +19,7 @@ import type * as knowledge_searchTerms from "../knowledge/searchTerms.js";
 import type * as lib_guards from "../lib/guards.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as messages from "../messages.js";
+import type * as pendingActions from "../pendingActions.js";
 import type * as seed from "../seed.js";
 import type * as seedData from "../seedData.js";
 import type * as ticketing_chaos from "../ticketing/chaos.js";
@@ -37,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   conversations: typeof conversations;
   decisionPanel: typeof decisionPanel;
+  decisions: typeof decisions;
   http: typeof http;
   "knowledge/articles": typeof knowledge_articles;
   "knowledge/ranking": typeof knowledge_ranking;
@@ -44,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   "lib/guards": typeof lib_guards;
   "lib/validators": typeof lib_validators;
   messages: typeof messages;
+  pendingActions: typeof pendingActions;
   seed: typeof seed;
   seedData: typeof seedData;
   "ticketing/chaos": typeof ticketing_chaos;
