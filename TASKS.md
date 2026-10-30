@@ -13,30 +13,30 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 
 ## Quadro
 
-| Task | Descrição                           | Onda | Depende de         | Status  | Branch / commit      |
-| ---- | ----------------------------------- | ---- | ------------------ | ------- | -------------------- |
-| T0.1 | Repositório e setup                 | 0    | —                  | feito   | `5f1f37f`            |
-| T0.2 | Contratos travados                  | 0    | T0.1               | feito   | `4b5dae1`..`4f25cb5` |
-| T1   | Domínio puro + testes               | 1    | T0                 | feito   | `ee40947`..`e41bcb0` |
-| T2   | Auth, seed e login                  | 1    | T0                 | feito   | `3a37742`..`aa3dc9a` |
-| T3   | Serviço de chamados + gateway       | 1    | T0                 | feito   | `ab067b4`..`f105990` |
-| T4   | Central de ajuda                    | 1    | T0                 | a fazer |                      |
-| T5   | Chat core com agent de eco          | 1    | T0                 | feito   | `7b27cac`..`235b877` |
-| T6   | Teste do Mastra + escolha do LLM    | 1    | —                  | feito   | `c6ba9b3`..`7498b88` |
-| T7   | Blocos de mensagem                  | 1    | T0                 | a fazer |                      |
-| T8   | Painel de decisão                   | 1    | T0                 | a fazer |                      |
-| T9   | Políticas de decisão                | 1    | T0, T1             | a fazer |                      |
-| T14a | Cenários de eval (escrita)          | 1    | T0                 | a fazer |                      |
-| T10  | Pipeline do agent                   | 2    | T3, T4, T5, T6, T9 | a fazer |                      |
-| T11  | Rascunho fora do LLM                | 2    | T3, T5, T7         | a fazer |                      |
-| T12  | Console do analista                 | 2    | T2, T5, T7, T8     | a fazer |                      |
-| T15  | Voz                                 | 2    | T5                 | a fazer |                      |
-| T20  | Tela "Meu perfil" (só no protótipo) | 1    | T2                 | a fazer |                      |
-| T14b | Runner de evals                     | 3    | T10, T11           | a fazer |                      |
-| T16  | Limites e custo                     | 3    | T10                | a fazer |                      |
-| T17  | Faixa 2                             | 3    | T10, T12           | a fazer |                      |
-| T18  | README e deploy                     | 3    | tudo               | a fazer |                      |
-| T19  | QA de ponta a ponta                 | 3    | tudo               | a fazer |                      |
+| Task | Descrição                           | Onda | Depende de         | Status       | Branch / commit      |
+| ---- | ----------------------------------- | ---- | ------------------ | ------------ | -------------------- |
+| T0.1 | Repositório e setup                 | 0    | —                  | feito        | `5f1f37f`            |
+| T0.2 | Contratos travados                  | 0    | T0.1               | feito        | `4b5dae1`..`4f25cb5` |
+| T1   | Domínio puro + testes               | 1    | T0                 | feito        | `ee40947`..`e41bcb0` |
+| T2   | Auth, seed e login                  | 1    | T0                 | feito        | `3a37742`..`aa3dc9a` |
+| T3   | Serviço de chamados + gateway       | 1    | T0                 | feito        | `ab067b4`..`f105990` |
+| T4   | Central de ajuda                    | 1    | T0                 | feito        | `c7ec055`..`9d6585d` |
+| T5   | Chat core com agent de eco          | 1    | T0                 | feito        | `7b27cac`..`235b877` |
+| T6   | Teste do Mastra + escolha do LLM    | 1    | —                  | feito        | `c6ba9b3`..`7498b88` |
+| T7   | Blocos de mensagem                  | 1    | T0                 | em andamento | `task/T7-blocos`     |
+| T8   | Painel de decisão                   | 1    | T0                 | feito        | `5a60bbe`..`03c62b3` |
+| T9   | Políticas de decisão                | 1    | T0, T1             | feito        | `5b75da3`..`7653f89` |
+| T14a | Cenários de eval (escrita)          | 1    | T0                 | feito        | `c8241e0`..`52d8f64` |
+| T10  | Pipeline do agent                   | 2    | T3, T4, T5, T6, T9 | a fazer      |                      |
+| T11  | Rascunho fora do LLM                | 2    | T3, T5, T7         | a fazer      |                      |
+| T12  | Console do analista                 | 2    | T2, T5, T7, T8     | a fazer      |                      |
+| T15  | Voz                                 | 2    | T5                 | a fazer      |                      |
+| T20  | Tela "Meu perfil" (só no protótipo) | 1    | T2                 | feito        | `acdd166`..`7ea35be` |
+| T14b | Runner de evals                     | 3    | T10, T11           | a fazer      |                      |
+| T16  | Limites e custo                     | 3    | T10                | a fazer      |                      |
+| T17  | Faixa 2                             | 3    | T10, T12           | a fazer      |                      |
+| T18  | README e deploy                     | 3    | tudo               | a fazer      |                      |
+| T19  | QA de ponta a ponta                 | 3    | tudo               | a fazer      |                      |
 
 ## Decisões em aberto
 
@@ -59,6 +59,12 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 17. ~~**Limite de taxa do Groq**~~ → **resolvido (30/10):** a chave paga tem 500.000 req/dia e 250.000 tokens/min, mais de 30 turnos completos por minuto. Não é gargalo; o runner de evals (T14b) ainda espera e repete no 429 por segurança.
 18. ~~**Modo estrito × `confidence.min(0).max(1)`**~~ → **resolvido (30/10):** o Groq aceita `minimum`/`maximum` no modo estrito; o ENTENDER fica com `strict: true` no `gpt-oss-20b` (100% de JSON válido e de intenção certa nas 12 frases). Saída inválida do modelo (o 120b gerou uma categoria fora do enum) é tratada pela nova tentativa com lembrete do schema da §10.
 
+19. ~~**Confiança média pergunta para sempre**~~ → **decidido:** depois de 2 esclarecimentos, transfere por `low_confidence` sempre que a confiança não for alta (a §6.2 só citava a baixa; a §8 vale para as duas).
+20. ~~**Recusa de injeção dependia do modelo**~~ → **decidido:** o contrato das políticas ganhou a ação decisiva `refuse` (`rule_change` ou `not_it`). "Ignore as regras…" e assunto fora de TI sem área são recusados em código, sem o modelo principal; o turno sai como `redirected`.
+21. ~~**Tipo nulo bloqueava o crítico**~~ → **decidido:** Crítica e Alta são derivadas mesmo sem o tipo (INC/REQ), que só separa Média de Baixa; sem o tipo, só não deriva quando o resultado dependeria dele.
+22. **Vencido aceito: motivo `overdue` ou `requested`?** (aberta) Quando o funcionário aceita a oferta de analista do chamado vencido, a intenção vira `talk_to_analyst` e a transferência sairia como `requested`. A §3.3 sugere `overdue`. Proposta: a T10 lembra que a oferta veio da `OverdueTicketPolicy` no turno anterior e transfere como `overdue`.
+23. **Campos a mais no `DecisionRecord`** (aberta, para a T10) pedidos por T8 e T14a, todos opcionais: a ação de cada política (`offer_handoff` × `handoff`) em `PolicyEvaluation`, `shortCircuit` (o modelo principal não foi chamado), `cachedInputTokens` no `usage`, os erros de cada tentativa em `ToolCallTrace` e a etapa onde o turno falhou. A T10 também deve gravar o `note` das políticas que não se aplicam em `explanation`.
+
 ## Desvios da spec feitos no T0
 
 Valem para todas as tasks; entram no README (T18).
@@ -66,7 +72,7 @@ Valem para todas as tasks; entram no README (T18).
 - **Valores de enum em inglês, rótulos em português** (`src/domain/labels.ts`). Ex.: categoria `network_vpn` → "Rede e VPN", status `awaiting_employee` → "Aguardando você".
 - **Tabela `pendingActions`** no lugar do `pendingAction` embutido na conversa: o card de rascunho precisa mostrar o estado final depois de confirmado ou cancelado. A conversa guarda só `pendingActionId`; o `_id` da linha é a chave de idempotência.
 - **`prioritySignals` guardado no chamado**, para recalcular a prioridade quando uma atualização muda a gravidade (F3).
-- **`searchText` em `articles`**: o índice de busca do Convex aceita um campo só, então título, corpo e tags vão concatenados.
+- **`searchText` em `articles`**: o índice de busca do Convex aceita um campo só, então título, corpo e tags vão concatenados **já normalizados** (minúsculas, sem acento, sem palavras vazias, com corte simples de terminação; ver `convex/knowledge/searchTerms.ts`).
 - **`employeeMessageCount`** no lugar de `messageCount` (decisão 5) e **`returnNote`** para a nota do analista ao devolver.
 - **Variável `NEXT_PUBLIC_CONVEX_SITE_URL`** (nome que o `npx convex dev` gera) no lugar de `CONVEX_SITE_URL`.
 

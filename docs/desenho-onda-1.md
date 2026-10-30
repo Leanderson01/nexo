@@ -171,7 +171,8 @@ O que as outras tasks usam:
 - **Sair:** `<SignOutButton />` em `src/features/auth/sign-out-button.tsx` (aceita props do Button).
 - **Rotas protegidas:** regras em `src/features/auth/route-access.ts` (`HOME_BY_ROLE`,
   `decideRedirect`). O proxy decide `/`, `/login`, `/chat/**` e `/console/**`; `/api/*` passa direto
-  e cada rota autentica sozinha. **Página nova protegida (ex.: perfil da T20) precisa entrar ali.**
+  e cada rota autentica sozinha. Página nova fora de `/chat/**` e `/console/**` precisa entrar ali
+  (o perfil, em `/chat/perfil`, já fica coberto).
 - **Páginas provisórias:** `src/app/chat/page.tsx` e `src/app/console/page.tsx` (marcadas
   PROVISÓRIO). T5 e T12 substituem e podem apagar `src/features/auth/provisional-area.tsx`.
 - **`convex/http.ts`** só registra as rotas do auth; a T3 acrescenta `registerTicketingRoutes(http)`.
@@ -259,3 +260,67 @@ savedText, masked }, "not_found" | "closed" | "busy" | "limit_reached" | "empty"
   6. `out.usage` já vem somado na 1.80; por passo, `out.steps[i].usage`.
   7. Transcrição: `models.transcription.doGenerate({ audio, mediaType, providerOptions: { groq: {
 language: "pt" } } })` (compila, não testado).
+
+## Segunda leva da onda 1 (na `main` quando integrada)
+
+### T4: central de ajuda
+
+- `api.knowledge.articles.search({ query })` → até 3 `Article & { excerpt }`, para qualquer pessoa
+  logada; `getBySlug({ slug })`. A ordem final vem de `convex/knowledge/ranking.ts` (termo no
+  título/tags vale 2, só no corpo vale 1), igual no convex-test e no Convex real.
+- `new ConvexKnowledgeGateway({ client, onAttempt? })`: uma tentativa, exceção vira `unavailable`.
+- `checkArticleConditions(article, entities)` em `src/domain/article-conditions.ts` →
+  `applies` (aplica e pergunta "Isso resolveu?"), `does_not_apply` (não segue o artigo, propõe
+  chamado) ou `needs_confirmation` (pergunta com opções rápidas; para `os`: "Windows 10",
+  "Windows 11", "Não sei" — as opções são montadas pela T10).
+- Pendências pequenas: as palavras vazias de `convex/knowledge/searchTerms.ts` repetem parte das de
+  `convex/ticketing/similarity.ts`; o corte de terminação é simples ("bloqueada" × "bloqueio").
+
+### T8: painel de decisão
+
+- `<DecisionPanel record />` puro, 7 seções na ordem da §7.3 (`DECISION_PANEL_SECTIONS`), "ver JSON".
+- `useDecisionPanel()` → `{ decisionId, open(id), close() }` e
+  `<DecisionPanelDrawer decisionId onClose />` (gaveta com skeleton, não encontrado e erro).
+- Query `api.decisionPanel.get({ decisionId })`: dono da conversa ou analista; `null` para id
+  inválido, inexistente ou alheio. Guard `canReadConversation(person, conversation)` reutilizável
+  pela T12.
+- Exemplos em `src/features/decision-panel/fixtures.ts` e página `/dev/painel` (só em dev).
+- Rótulos de intenção, resultado e política ficam em `src/features/decision-panel/format.ts`.
+
+### T9: políticas
+
+- `runPolicies(ctx)` → `{ evaluations, decisiveAction, guidingActions }`. Decisivas: `handoff`,
+  `redirect_out_of_scope` e `refuse` (decisão 20). Não decisivas: `offer_handoff`, `ask_clarification`.
+- Como a T10 age em cada ação:
+  - `redirect_out_of_scope` / `refuse`: responde em código, sem modelo principal; `outcome: redirected`.
+  - `handoff` (`requested` ou `low_confidence`): transfere com resumo; explica o motivo.
+  - `offer_handoff` `critical`: o AGIR propõe o rascunho com prioridade Crítica e
+    `handoffOnConfirm: true`; a T11 transfere ao confirmar **e** ao cancelar.
+  - `offer_handoff` `overdue`: o AGIR diz que está vencido, usa a explicação da política e oferece
+    analista com opções rápidas; só transfere se aceitar (ver decisão 22).
+  - `ask_clarification`: uma pergunta; o pipeline soma 1 em `clarificationAttempts` (sugestão:
+    zerar num turno de confiança alta).
+- `resolveFocusedTicket({ ticketRef, selectedTicketCode, employeeTickets })` →
+  `{ focusedTicket, ambiguousCandidates }` (decisão 2); `deriveSignalsPriority(signals)` (decisão 21);
+  `confidenceLevel(value)`; `normalizeText`/`splitWords` em `src/shared/normalize-text.ts`.
+- Nomes das políticas no painel e nos evals: `OutOfScopePolicy`, `ExplicitHandoffPolicy`,
+  `CriticalPolicy`, `OverdueTicketPolicy`, `LowConfidencePolicy`.
+
+### T14a: cenários de eval
+
+- `src/agent/evals/`: formato (`scenario.ts`), verificador puro `checkScenario(scenario, observed)`,
+  13 cenários da §13.2 + 5 extras (`scenarios.ts`) e o `README.md` com o que a T14b observa.
+- **Os nomes das tools da T10 precisam bater com `TOOL_NAMES`** dos evals.
+- **O runner (T14b) precisa apagar os chamados criados nos cenários**: o seed não apaga chamados que
+  não são dele, e o INC do cenário crítico apareceria no `findSimilar` do Rafael depois.
+- Escolhas registradas: legado fora do ar sai com `outcome: error` e parte `error` com
+  `retryable: true`; o cenário do vencido testa só a oferta de analista (decisão 22).
+
+### T20: Meu perfil
+
+- `/chat/perfil` (coberto pelo proxy sem mudar `route-access.ts`), tela em `src/features/profile/`.
+  "Redefinir senha" é simulado; no lugar de "Alterada há 42 dias" mostra "A mesma da rede Nexo".
+- Navegação: `src/features/chat/chat-navigation.ts` (`activeNavItem`), `PageHeader` exportado em
+  `chat-header.tsx`.
+- Para a T19: no celular a lateral some e não há como chegar ao perfil nem sair; a query
+  `conversations.listMine` lança "Sessão expirada" no instante do logout (o redirecionamento funciona).
