@@ -34,10 +34,25 @@ describe("deriveSignalsPriority", () => {
     expect(deriveSignalsPriority({ ...COMPLETE, deadlineToday: null })?.priority).toBe("MEDIUM");
   });
 
-  it.each(["kind", "impact", "blocked"] as const)("sem %s, não deriva", (field) => {
+  it.each(["impact", "blocked"] as const)("sem %s, não deriva", (field) => {
     expect(
       deriveSignalsPriority({ ...COMPLETE, impact: "team", blocked: true, [field]: null }),
     ).toBe(null);
+  });
+
+  it('sem o tipo, "caiu para o time todo" continua Crítica', () => {
+    const signals: TicketSignals = { ...COMPLETE, kind: null, impact: "team", blocked: true };
+    expect(deriveSignalsPriority(signals)?.priority).toBe("CRITICAL");
+  });
+
+  it("sem o tipo, compromisso hoje continua Alta", () => {
+    expect(deriveSignalsPriority({ ...COMPLETE, kind: null, deadlineToday: true })?.priority).toBe(
+      "HIGH",
+    );
+  });
+
+  it("sem o tipo, não chuta entre Média e Baixa", () => {
+    expect(deriveSignalsPriority({ ...COMPLETE, kind: null })).toBe(null);
   });
 
   it("a categoria não entra na prioridade", () => {
