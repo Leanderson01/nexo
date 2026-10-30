@@ -90,7 +90,25 @@ describe("applyShortAnswerRules", () => {
 
   it("não baixa a confiança que já era alta", () => {
     const understood = makeUnderstanding({ intent: "question", confidence: 0.95 });
-    expect(applyShortAnswerRules(understood, ASKED_WINDOWS, "Windows 11")).toBe(understood);
+    expect(applyShortAnswerRules(understood, ASKED_WINDOWS, "Windows 11")).toMatchObject({
+      intent: "question",
+      confidence: 0.95,
+      confidenceReason: understood.confidenceReason,
+    });
+  });
+});
+
+describe("opção da condição do artigo vale como o valor dela", () => {
+  it('"Windows 10" escolhido em "Qual é o seu Windows?" vira o sistema operacional', () => {
+    const understood = makeUnderstanding({ intent: "question", confidence: 0.95 });
+    const result = applyShortAnswerRules(understood, ASKED_WINDOWS, "Windows 11");
+    expect(result.entities.os).toBe("Windows 11");
+  });
+
+  it('"Não sei" não informa nada', () => {
+    const asked = [...ASKED_WINDOWS.slice(0, 2), userMessage("Não sei")];
+    const understood = makeUnderstanding({ intent: "question", confidence: 0.95 });
+    expect(applyShortAnswerRules(understood, asked, "Não sei").entities.os).toBeNull();
   });
 });
 

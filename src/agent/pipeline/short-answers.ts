@@ -1,3 +1,4 @@
+import { conditionQuestion } from "@/agent/tools/search-knowledge-base";
 import type { Understanding } from "@/domain/understanding";
 import { normalizeText } from "@/shared/normalize-text";
 
@@ -46,6 +47,38 @@ export function describePickedReply(picked: PickedReply): string {
 
 /** Aplica as duas regras ao que o ENTENDER devolveu. */
 export function applyShortAnswerRules(
+  understanding: Understanding,
+  messages: HistoryMessage[],
+  userText: string,
+): Understanding {
+  const answered = withConditionAnswer(understanding, findPickedReply(messages, userText));
+  return applyRules(answered, messages, userText);
+}
+
+const OS_QUESTION = conditionQuestion("os", []).question;
+const DEVICE_QUESTION = conditionQuestion("device", []).question;
+
+/**
+ * A opção escolhida na pergunta da condição do artigo ("Windows 10", "No celular") é o valor
+ * dela: o ENTENDER às vezes esquecia o Windows, a condição ficava "falta confirmar" e o modelo
+ * pulava o artigo direto para o rascunho (extra-artigo-nao-resolveu).
+ */
+function withConditionAnswer(
+  understanding: Understanding,
+  picked: PickedReply | null,
+): Understanding {
+  if (!picked || normalizeText(picked.label).startsWith("nao sei")) return understanding;
+  if (picked.question.includes(OS_QUESTION)) {
+    return { ...understanding, entities: { ...understanding.entities, os: picked.label } };
+  }
+  if (picked.question.includes(DEVICE_QUESTION)) {
+    const device = picked.label.replace(/^(no|na) /i, "");
+    return { ...understanding, entities: { ...understanding.entities, device } };
+  }
+  return understanding;
+}
+
+function applyRules(
   understanding: Understanding,
   messages: HistoryMessage[],
   userText: string,
