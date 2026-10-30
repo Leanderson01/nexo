@@ -38,6 +38,8 @@ describe("runPolicies", () => {
     expect(decision.evaluations[3]).toMatchObject({
       name: "OverdueTicketPolicy",
       outcome: "triggered",
+      // O painel e os evals distinguem "ofereceu analista" de "transferiu" (decisão 23).
+      actionKind: "offer_handoff",
     });
   });
 
@@ -124,7 +126,12 @@ describe("runPolicies", () => {
     };
     const decision = runPolicies(makeContext(), [always]);
     expect(decision.evaluations).toEqual([
-      { name: "Sempre", outcome: "triggered", explanation: "sempre" },
+      {
+        name: "Sempre",
+        outcome: "triggered",
+        explanation: "sempre",
+        actionKind: "ask_clarification",
+      },
     ]);
   });
 });

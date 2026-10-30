@@ -93,6 +93,20 @@ export type OutOfScopeArea = (typeof OUT_OF_SCOPE_AREAS)[number];
 export const REFUSAL_TOPICS = ["rule_change", "not_it"] as const;
 export type RefusalTopic = (typeof REFUSAL_TOPICS)[number];
 
+/** O que uma política que disparou mandou fazer (espelha `PolicyAction` em src/agent/policies). */
+export const POLICY_ACTION_KINDS = [
+  "handoff",
+  "redirect_out_of_scope",
+  "refuse",
+  "offer_handoff",
+  "ask_clarification",
+] as const;
+export type PolicyActionKind = (typeof POLICY_ACTION_KINDS)[number];
+
+/** Etapas do turno do agent (§6.1); usadas para dizer onde um turno falhou. */
+export const TURN_STAGES = ["understand", "decide", "act", "record"] as const;
+export type TurnStage = (typeof TURN_STAGES)[number];
+
 export const CONFIDENCE_LEVELS = ["high", "medium", "low"] as const;
 export type ConfidenceLevel = (typeof CONFIDENCE_LEVELS)[number];
 

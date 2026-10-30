@@ -5,6 +5,7 @@ import {
   CONVERSATION_EVENTS,
   CONVERSATION_STATUSES,
   DECISION_OUTCOMES,
+  GATEWAY_ERROR_KINDS,
   HANDOFF_REASONS,
   IMPACTS,
   INTENTS,
@@ -12,6 +13,7 @@ import {
   MESSAGE_STATUSES,
   PENDING_ACTION_STATUSES,
   PERSON_ROLES,
+  POLICY_ACTION_KINDS,
   POLICY_OUTCOMES,
   PRIORITIES,
   ANALYST_LEVELS,
@@ -20,6 +22,7 @@ import {
   TICKET_STATUSES,
   TICKET_UPDATE_AUTHORS,
   TOOL_CALL_STATUSES,
+  TURN_STAGES,
 } from "../../src/domain/enums";
 import type { DecisionRecord } from "../../src/domain/decision-record";
 import type { Handoff } from "../../src/domain/conversation";
@@ -61,6 +64,9 @@ export const vConfidenceLevel = literals(CONFIDENCE_LEVELS);
 export const vPolicyOutcome = literals(POLICY_OUTCOMES);
 export const vToolCallStatus = literals(TOOL_CALL_STATUSES);
 export const vDecisionOutcome = literals(DECISION_OUTCOMES);
+export const vPolicyActionKind = literals(POLICY_ACTION_KINDS);
+export const vTurnStage = literals(TURN_STAGES);
+export const vGatewayErrorKind = literals(GATEWAY_ERROR_KINDS);
 
 // ---------- Chamados ----------
 
@@ -175,6 +181,7 @@ export const decisionRecordFields = {
       name: v.string(),
       outcome: vPolicyOutcome,
       explanation: v.optional(v.string()),
+      actionKind: v.optional(vPolicyActionKind),
     }),
   ),
   actions: v.array(
@@ -186,6 +193,7 @@ export const decisionRecordFields = {
       status: vToolCallStatus,
       attempts: v.number(),
       latencyMs: v.number(),
+      attemptErrors: v.optional(v.array(vGatewayErrorKind)),
     }),
   ),
   derived: v.optional(
@@ -199,9 +207,12 @@ export const decisionRecordFields = {
   ),
   rationale: v.string(),
   outcome: vDecisionOutcome,
+  shortCircuit: v.optional(v.boolean()),
+  errorStage: v.optional(vTurnStage),
   usage: v.object({
     models: v.array(v.string()),
     inputTokens: v.number(),
+    cachedInputTokens: v.optional(v.number()),
     outputTokens: v.number(),
     estimatedCostUsd: v.number(),
     latencyMs: v.number(),

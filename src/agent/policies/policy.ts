@@ -2,8 +2,10 @@ import type {
   ConversationStatus,
   HandoffReason,
   OutOfScopeArea,
+  PolicyActionKind,
   RefusalTopic,
 } from "@/domain/enums";
+import { assertTypesMatch, type Equals } from "@/shared/type-equals";
 import type { DerivedPriority, TicketSummary } from "@/domain/ticket";
 import type { Understanding } from "@/domain/understanding";
 
@@ -31,6 +33,9 @@ export type PolicyAction =
   /** O agent segue, mas precisa oferecer a transferência. */
   | { kind: "offer_handoff"; reason: HandoffReason }
   | { kind: "ask_clarification" };
+
+// O `DecisionRecord` guarda só o `kind` da ação (POLICY_ACTION_KINDS); as duas listas não podem divergir.
+assertTypesMatch<Equals<PolicyAction["kind"], PolicyActionKind>>();
 
 export type PolicyResult =
   | { outcome: "not_applicable"; note?: string }

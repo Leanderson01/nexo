@@ -53,6 +53,7 @@ export function runPolicies(
         name: policy.name,
         outcome: "triggered",
         explanation: result.explanation,
+        actionKind: result.action.kind,
       });
       actions.push(result.action);
     } else {
