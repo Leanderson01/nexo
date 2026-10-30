@@ -87,3 +87,27 @@ export function PauseIcon(props: IconProps) {
     </StrokeIcon>
   );
 }
+
+export function ChartBarsIcon(props: IconProps) {
+  return (
+    <StrokeIcon {...props}>
+      <path d="M4 20h16M7 16v-5M12 16V6M17 16v-8" />
+    </StrokeIcon>
+  );
+}
+
+export function BellIcon(props: IconProps) {
+  return (
+    <StrokeIcon {...props}>
+      <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15L6 16ZM10 20.5a2 2 0 0 0 4 0" />
+    </StrokeIcon>
+  );
+}
+
+export function BellOffIcon(props: IconProps) {
+  return (
+    <StrokeIcon {...props}>
+      <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15L6 16ZM10 20.5a2 2 0 0 0 4 0M4 4l16 16" />
+    </StrokeIcon>
+  );
+}

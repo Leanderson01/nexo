@@ -63,7 +63,15 @@
 }
 
 .railFooter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   margin-top: auto;
+}
+
+/* Painel de métricas (T17): sem a fila, a área principal ocupa a largura toda. */
+.shell:not(:has(> .queue)) {
+  grid-template-columns: 52px minmax(0, 1fr);
 }
 
 .avatarButton {
