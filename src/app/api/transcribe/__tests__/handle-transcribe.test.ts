@@ -8,7 +8,7 @@ import {
   type TranscribeDeps,
   type TranscribeResponse,
 } from "../handle-transcribe";
-import { createGroqTranscriber } from "../transcriber";
+import { TRANSCRIPTION_PROMPT, createGroqTranscriber } from "../transcriber";
 
 // A rota com o Groq falso: o `fetch` do provider responde como a API de transcrição, e
 // conferimos o que foi enviado (idioma, formato) e o que a rota devolve.
@@ -124,6 +124,10 @@ describe("POST /api/transcribe", () => {
     expect(form.get("language")).toBe("pt");
     expect(form.get("response_format")).toBe("verbose_json");
     expect(form.get("model")).toBe("whisper-large-v3-turbo");
+    // Vocabulário do suporte e saída determinística.
+    expect(form.get("prompt")).toBe(TRANSCRIPTION_PROMPT);
+    expect(form.get("prompt")).toContain("VPN");
+    expect(form.get("temperature")).toBe("0");
     expect((form.get("file") as File).name).toBe("audio.webm");
   });
 
