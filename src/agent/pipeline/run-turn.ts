@@ -408,7 +408,8 @@ async function answerWithModel(
       history: context.history,
       tools: createTools(session, traceEnvironment),
       onText,
-      shouldStop: () => workspace.legacyUnavailable,
+      // Rascunho recusado por falta de sinais: a pergunta sai em código, o loop para aqui.
+      shouldStop: () => workspace.legacyUnavailable || workspace.draftNeedsSignals,
     });
 
   turn.modelTextStart = turn.replyText.length;
@@ -419,7 +420,11 @@ async function answerWithModel(
   // Conferências em código depois do AGIR (decisão 25).
   // Regra 5: sem texto e sem partes, uma nova tentativa (em streaming, nada foi mostrado) e,
   // falhando, um aviso honesto; nunca um balão vazio.
-  if (isEmptyReply({ text: modelText(turn), hasParts: hasStructuredParts(workspace) })) {
+  // Rascunho recusado por falta de sinais: o texto vem da pergunta em código, sem nova tentativa.
+  if (
+    !workspace.draftNeedsSignals &&
+    isEmptyReply({ text: modelText(turn), hasParts: hasStructuredParts(workspace) })
+  ) {
     const retried = await runAct(EMPTY_REPLY_RETRY_INSTRUCTION, (piece) => write(turn, piece));
     if (retried.usage) addUsages(turn, turn.deps.llm.mainModel, [retried.usage]);
     if (workspace.legacyUnavailable) replaceModelText(turn, "");
@@ -677,6 +682,7 @@ async function conductReply(
           `Falta saber ${next.signal} para abrir o chamado: a pergunta "${next.question}" e as opções saíram em código no lugar de "${text.trim().slice(0, 160)}".`,
         ),
       );
+      explainInapplicableArticle(turn);
       return false;
     }
     if (workspace.draft === null) {
@@ -699,7 +705,10 @@ async function conductReply(
             : "Os sinais já estavam completos e o AGIR perguntou de novo; nem a nova tentativa propôs o rascunho.",
         ),
       );
-      if (workspace.draft !== null) return false;
+      if (workspace.draft !== null) {
+        explainInapplicableArticle(turn);
+        return false;
+      }
     }
   }
 
@@ -758,16 +767,20 @@ async function conductReply(
     );
   }
 
-  // Artigo que não vale para o caso (F1): o funcionário fica sabendo por quê.
-  if (top?.status === "does_not_apply") {
-    const sentence = inapplicableArticleSentence(modelText(turn), {
-      title: top.part.title,
-      appliesTo: top.appliesTo,
-      knownValue: top.knownValue,
-    });
-    if (sentence) replaceModelText(turn, `${sentence} ${modelText(turn).trim()}`.trim());
-  }
+  explainInapplicableArticle(turn);
   return false;
+}
+
+/** Artigo que não vale para o caso (F1, Windows 11): o funcionário fica sabendo por quê. */
+function explainInapplicableArticle(turn: Turn): void {
+  const top = turn.workspace.topArticle;
+  if (top?.status !== "does_not_apply") return;
+  const sentence = inapplicableArticleSentence(modelText(turn), {
+    title: top.part.title,
+    appliesTo: top.appliesTo,
+    knownValue: top.knownValue,
+  });
+  if (sentence) replaceModelText(turn, `${sentence} ${modelText(turn).trim()}`.trim());
 }
 
 /**
@@ -778,6 +791,7 @@ async function conductReply(
 function isIntakeTurn(turn: Turn, understanding: Understanding): boolean {
   const { workspace, context, facts } = turn;
   if (context.snapshot.pendingDraft !== null || workspace.conditionQuestion) return false;
+  if (workspace.draftNeedsSignals) return true;
   if (!INTAKE_INTENTS.includes(understanding.intent)) return false;
 
   const refusedForSignals = workspace.traces.some(

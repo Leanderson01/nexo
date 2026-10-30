@@ -229,13 +229,9 @@ function osWords(text: string): string[] {
 }
 
 /**
- * A mensagem do funcionário que conta o problema: a mais longa da janela (as respostas às
- * perguntas são curtas). Sem nenhuma, o resumo do ENTENDER.
+ * A mensagem do funcionário que conta o problema: a primeira com conteúdo na janela (as
+ * respostas às perguntas vêm depois e são curtas). Sem nenhuma, o resumo do ENTENDER.
  */
 export function problemStatement(employeeTexts: string[], summary: string): string {
-  const longest = employeeTexts.reduce(
-    (best, text) => (text.length > best.length ? text : best),
-    "",
-  );
-  return longest.length >= 12 ? longest : summary;
+  return employeeTexts.find((text) => contentWords(text).length >= 3) ?? summary;
 }

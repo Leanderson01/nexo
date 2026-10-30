@@ -72,7 +72,10 @@ export function proposeTicketDraftTool(session: ToolSession): AgentTool<Input, O
       if (blocked) return blocked;
 
       const signals = resolveSignals(session);
-      if (!signals.ok) return signals;
+      if (!signals.ok) {
+        workspace.draftNeedsSignals = true;
+        return signals;
+      }
 
       const derived = derivePriority({ kind: fields.kind, ...signals.value });
       const built = describeTicket(fields, signals.value, session);

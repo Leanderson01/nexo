@@ -51,6 +51,8 @@ export class TurnWorkspace {
   handoff: HandoffReason | null = null;
   /** O serviço de chamados falhou depois das tentativas: o turno termina com erro honesto. */
   legacyUnavailable = false;
+  /** O rascunho foi recusado por falta de sinais: o AGIR para e a pergunta sai em código. */
+  draftNeedsSignals = false;
 
   private quickReplies: string[] | null = null;
   private readonly ticketCards: TicketCode[] = [];

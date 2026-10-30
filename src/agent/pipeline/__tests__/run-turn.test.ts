@@ -735,6 +735,73 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
   });
 });
 
+describe("runTurn: abertura conduzida em código (QA C1)", () => {
+  it("Wi-Fi sem impacto nem bloqueio: sem crítico, a pergunta de impacto sai em código", async () => {
+    const turn = setup({ userText: "O Wi-Fi da sala 3 caiu de novo" });
+    // O modelo do ENTENDER inventa equipe parada; o código descarta.
+    turn.understands({
+      intent: "open_ticket",
+      summary: "Wi-Fi da sala 3 caiu de novo.",
+      ticketSignals: {
+        kind: "INC",
+        category: "network_vpn",
+        impact: "team",
+        blocked: true,
+        deadlineToday: null,
+      },
+    });
+    turn.groq.reply(
+      streamToolCall(
+        MAIN,
+        {
+          id: "call_1",
+          name: "proposeTicketDraft",
+          arguments: {
+            kind: "INC",
+            category: "network_vpn",
+            title: "Wi-Fi da sala 3 caiu",
+            symptom: "O Wi-Fi da sala 3 caiu de novo e a equipe está parada.",
+            symptomEvidence: "O Wi-Fi da sala 3 caiu de novo",
+            since: null,
+            sinceEvidence: null,
+            tried: null,
+            triedEvidence: null,
+            referenceCode: null,
+          },
+        },
+        USAGE,
+      ),
+    );
+
+    await turn.run();
+
+    expect(turn.store.drafts).toEqual([]);
+    expect(turn.sink.text).toBe(
+      "Vou registrar um chamado para isso. Antes, preciso de alguns detalhes. Quem está sendo afetado por isso?",
+    );
+    expect(turn.sink.finalParts).toEqual([
+      {
+        type: "quickReplies",
+        options: ["Só eu", "Minha equipe", "A empresa toda"].map((label) => ({
+          label,
+          value: label,
+        })),
+      },
+    ]);
+    const [record] = turn.store.decisions;
+    expect(record.policies.find((policy) => policy.name === "CriticalPolicy")?.outcome).toBe(
+      "not_applicable",
+    );
+    expect(record.derived?.priority).toBeUndefined();
+    expect(record.corrections?.map((item) => item.rule)).toEqual([
+      "unsupported_signal",
+      "intake_question",
+    ]);
+    // O AGIR parou depois da recusa: ENTENDER e um passo do AGIR.
+    expect(turn.groq.requests).toHaveLength(2);
+  });
+});
+
 describe("runTurn: erros (§10)", () => {
   it("legado fora do ar: mensagem honesta, erro com Tentar de novo e 3 tentativas no painel", async () => {
     const turn = setup({
