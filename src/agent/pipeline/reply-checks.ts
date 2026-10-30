@@ -461,6 +461,9 @@ const TAG_OPTIONS_INLINE = new RegExp(String.raw`\[\s*${OPTIONS_WORD}\s*:\s*([^\
 /** `[options] Só eu; Minha equipe` (as opções vão até o fim da linha). */
 const TAG_OPTIONS_LINE = new RegExp(String.raw`\[\s*${OPTIONS_WORD}\s*\]\s*:?[ \t]*([^\n]*)`, "gi");
 /** Narração entre parênteses ou colchetes: "(oferecendo opções rápidas)", "(opções rápidas: Sim, Não)". */
+/** "(Selecione uma opção)", "(escolha uma das opções abaixo)": o parêntese inteiro é a frase. */
+const PICK_ONE_NARRATION =
+  /[(\[]\s*(?:selecion|escolh|toqu)\w*\s+(?:em\s+)?(?:uma|alguma)\s+(?:das\s+)?op[çc](?:[ãa]o|[õo]es)(?:\s+abaixo)?\s*[)\]]/gi;
 const NARRATION = new RegExp(
   String.raw`[(\[][^()\[\]\n]{0,60}?(?:op[çc][õo]es\s+r[áa]pidas|quick\s*replies|offerQuickReplies|(?:oferec|mostr|anex)\w*\s+(?:as\s+|algumas\s+)?op[çc][õo]es)([^()\[\]\n]{0,200}?)[)\]]`,
   "gi",
@@ -473,9 +476,14 @@ const LABEL_LINE = new RegExp(
 const BULLET_ITEM = /^[ \t]*[-*•][ \t]+(.+?)[ \t]*$/;
 const ANY_LIST_ITEM = /^[ \t]*(?:[-*•]|\d+[.)])[ \t]+(.+?)[ \t]*$/;
 
-/** Tira aspas, negrito, marcador e pontuação final de um rótulo. */
+/**
+ * Tira aspas, negrito, marcador e pontuação final de um rótulo. Espaços especiais e hífens
+ * tipográficos (o gpt-oss escreve "Windows\u202f11") viram os comuns.
+ */
 function cleanLabel(label: string): string {
   return label
+    .replace(/\s+/g, " ")
+    .replace(/[\u2010-\u2015]/g, "-")
     .trim()
     .replace(/^(?:[-•]|\d+[.)])\s+/, "")
     .replace(/^["'“”‘’`*]+|["'“”‘’`*]+$/g, "")
@@ -608,10 +616,56 @@ function parseNarratedOptions(raw: string): string[] {
 }
 
 /**
+ * Opções entre parênteses logo depois de uma pergunta: "Isso resolveu? (Sim/Não)", "Qual é o
+ * seu Windows? (Windows 10, Windows 11 ou Não sei)". Só com "/" ou "ou" separando 2 a 4 itens
+ * curtos: "(por exemplo, a Cisco)" fica.
+ */
+function takeQuestionChoices(text: string, found: Found[]): string {
+  return text.replace(/\?[ \t]*\(([^()\n]{1,120})\)/g, (whole, inner: string) => {
+    if (!/\/|\s+ou\s+/.test(inner)) return whole;
+    const rawItems = inner.split(/\s*\/\s*|\s*,\s*|\s+ou\s+/);
+    if (!looksLikeOptions(rawItems)) return whole;
+    found.push({
+      labels: usableLabels(rawItems.map(cleanLabel), MAX_LIST_LABEL_LENGTH),
+      format: "opções entre parênteses depois da pergunta",
+    });
+    return "?";
+  });
+}
+
+/**
+ * As opções que a tool já anexou, repetidas entre parênteses no texto: "Qual é o seu Windows?
+ * (Windows 10, Windows 11 ou Não sei)". Só vale com 2 ou mais rótulos, todos da tool.
+ */
+function takeEchoedOptions(text: string, toolLabels: string[], found: Found[]): string {
+  const known = new Set(toolLabels.map((label) => cleanLabel(label).toLowerCase()));
+  return text.replace(/\(([^()\n]{1,200})\)/g, (whole, inner: string) => {
+    const labels = splitInlineOptions(inner).filter((label) => label !== "");
+    const echoed = labels.length >= 2 && labels.every((label) => known.has(label.toLowerCase()));
+    if (!echoed) return whole;
+    found.push({ labels: [], format: "opções da tool repetidas no texto" });
+    return "";
+  });
+}
+
+export interface WrittenQuickReplies {
+  text: string;
+  /** Rótulos tirados do texto para virar a parte de opções (só quando a tool não anexou). */
+  quickReplies: string[] | null;
+  /**
+   * O texto anunciava opções sem dizer quais ("[options]", "(oferecendo opções)") e a tool não
+   * foi chamada: a resposta ficou sem as opções que a pergunta pedia.
+   */
+  missingOptions: boolean;
+  correction: ReplyCorrection;
+}
+
+/**
  * O modelo às vezes escreve as opções rápidas no texto em vez de chamar `offerQuickReplies`:
  * `[options] Só eu; Minha equipe`, `{"options": [...]}`, "(oferecendo opções rápidas)",
- * "Opções: - Sim - Não". O trecho sai do texto e, se a resposta ainda não tem opções, os
- * rótulos viram a parte `quickReplies`. A narração sem rótulos só sai.
+ * "(Selecione uma opção)", "Opções: - Sim - Não", ou repete entre parênteses as opções que a
+ * tool já anexou. O trecho sai do texto e, se a resposta ainda não tem opções, os rótulos
+ * viram a parte `quickReplies`. Sem rótulos e sem a tool, `missingOptions` avisa quem chama.
  *
  * Contra falso positivo, lista só conta como opções com sinal claro e no fim do texto: o
  * rótulo "Opções:" logo antes, ou uma pergunta logo antes e itens com marcador (não
@@ -621,15 +675,19 @@ function parseNarratedOptions(raw: string): string[] {
  */
 export function extractQuickRepliesFromText(input: {
   text: string;
-  /** A resposta já tem a parte de opções (a tool foi chamada). */
-  hasQuickReplies: boolean;
-}): { text: string; quickReplies: string[] | null; correction: ReplyCorrection } | null {
+  /** As opções que a tool já anexou à resposta, ou `null`. */
+  toolQuickReplies: string[] | null;
+}): WrittenQuickReplies | null {
+  const toolLabels = input.toolQuickReplies;
   const found: Found[] = [];
   let text = input.text;
   text = takePattern(text, JSON_OPTIONS, "JSON", parseWrittenOptions, found);
   text = takePattern(text, TAG_OPTIONS_INLINE, "marcação [options]", parseWrittenOptions, found);
   text = takePattern(text, TAG_OPTIONS_LINE, "marcação [options]", parseWrittenOptions, found);
   text = takePattern(text, NARRATION, "narração das opções", parseNarratedOptions, found);
+  text = takePattern(text, PICK_ONE_NARRATION, "narração das opções", () => [], found);
+  text = takeQuestionChoices(text, found);
+  if (toolLabels) text = takeEchoedOptions(text, toolLabels, found);
   for (const take of [takeLabeledList, takeListAfterQuestion]) {
     const taken = take(text);
     if (taken) {
@@ -640,21 +698,69 @@ export function extractQuickRepliesFromText(input: {
   if (found.length === 0) return null;
 
   const labels = found.find((item) => item.labels.length > 0)?.labels ?? null;
-  const quickReplies = !input.hasQuickReplies && labels ? labels : null;
+  const quickReplies = !toolLabels && labels ? labels : null;
+  const missingOptions = !toolLabels && !labels;
   const tidy = tidyText(text);
-  const withOptions = input.hasQuickReplies || quickReplies !== null;
+  const withOptions = toolLabels !== null || quickReplies !== null;
   const formats = [...new Set(found.map((item) => item.format))].join(", ");
   const fix = quickReplies
     ? `o trecho saiu e virou ${quickReplies.length} opção(ões) rápida(s)`
-    : input.hasQuickReplies
+    : toolLabels
       ? "o trecho saiu e as opções da tool ficaram"
-      : "o trecho saiu";
+      : "o trecho saiu, sem rótulos para virar opções";
   return {
     text: tidy !== "" ? tidy : withOptions ? QUICK_REPLIES_ONLY_TEXT : TOOL_CALL_FALLBACK_TEXT,
     quickReplies,
+    missingOptions,
     correction: {
       rule: "quick_replies_as_text",
       explanation: `O modelo escreveu opções rápidas como texto (${formats}): ${fix}.`,
     },
   };
+}
+
+/** Instrução extra da nova tentativa quando o texto anunciou opções sem chamar a tool. */
+export function quickRepliesRetryInstruction(previousText: string): string {
+  return `## Correção (decidida em código)
+Na tentativa anterior deste turno você respondeu "${previousText.trim()}" e anunciou opções no texto sem chamar a tool offerQuickReplies, então nenhuma opção apareceu. Agora escreva a pergunta e CHAME offerQuickReplies com as opções; não escreva as opções nem fale delas no texto.`;
+}
+
+/**
+ * Resultado da nova tentativa: quando ela chamou a tool, fica o texto dela (sem opções
+ * escritas) ou, se ela só chamou a tool, o texto da primeira; senão, o texto da primeira
+ * tentativa sem o anúncio.
+ */
+export function resolveQuickRepliesRetry(input: {
+  first: WrittenQuickReplies;
+  retryText: string | null;
+  retryQuickReplies: string[] | null;
+}): { text: string; correction: ReplyCorrection } {
+  const { first } = input;
+  if (input.retryQuickReplies) {
+    const retryText = cleanRetryText(input.retryText ?? "", input.retryQuickReplies);
+    return {
+      text: retryText ?? first.text,
+      correction: {
+        ...first.correction,
+        explanation: `${first.correction.explanation.replace(/\.$/, "")}; uma nova tentativa do AGIR chamou offerQuickReplies.`,
+      },
+    };
+  }
+  return {
+    text: first.text,
+    correction: {
+      ...first.correction,
+      explanation: `${first.correction.explanation.replace(/\.$/, "")}; a nova tentativa do AGIR também não chamou offerQuickReplies.`,
+    },
+  };
+}
+
+/** O texto da nova tentativa sem chamadas nem opções escritas, ou `null` se não sobrar resposta. */
+function cleanRetryText(text: string, toolQuickReplies: string[]): string | null {
+  const withoutCalls = removeToolCallsFromText(text, true)?.text ?? text;
+  const cleaned =
+    extractQuickRepliesFromText({ text: withoutCalls, toolQuickReplies })?.text ??
+    withoutCalls.trim();
+  const fallbacks = [QUICK_REPLIES_ONLY_TEXT, TOOL_CALL_FALLBACK_TEXT, ""];
+  return fallbacks.includes(cleaned) ? null : cleaned;
 }

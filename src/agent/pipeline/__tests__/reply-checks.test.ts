@@ -10,6 +10,8 @@ import {
   extractQuickRepliesFromText,
   isEmptyReply,
   QUICK_REPLIES_ONLY_TEXT,
+  quickRepliesRetryInstruction,
+  resolveQuickRepliesRetry,
   resolveEmptyReply,
   TALK_TO_ANALYST_OPTION,
   extractTicketCodes,
@@ -376,8 +378,8 @@ describe("resolveEmptyReply", () => {
 });
 
 describe("extractQuickRepliesFromText", () => {
-  const extract = (text: string, hasQuickReplies = false) =>
-    extractQuickRepliesFromText({ text, hasQuickReplies });
+  const extract = (text: string, toolQuickReplies: string[] | null = null) =>
+    extractQuickRepliesFromText({ text, toolQuickReplies });
 
   it("marcação [options] com ponto e vírgula (visto com o modelo real)", () => {
     const result = extract(
@@ -412,11 +414,56 @@ describe("extractQuickRepliesFromText", () => {
     ).toMatchObject({ text: "Qual o impacto?", quickReplies: ["Só eu", "Minha equipe"] });
   });
 
-  it("narração sem rótulos só sai; com dois-pontos, os rótulos viram opções", () => {
+  it("narração sem rótulos só sai e avisa que faltam as opções", () => {
     expect(extract("Qual o impacto? (oferecendo opções rápidas)")).toMatchObject({
       text: "Qual o impacto?",
       quickReplies: null,
+      missingOptions: true,
     });
+    expect(extract("Qual é o impacto do problema? (Selecione uma opção)")).toMatchObject({
+      text: "Qual é o impacto do problema?",
+      missingOptions: true,
+    });
+    // Visto com o modelo real: só a marcação, sem os rótulos.
+    expect(extract("Consegue trabalhar de outro jeito?\n\n[options]")).toMatchObject({
+      text: "Consegue trabalhar de outro jeito?",
+      missingOptions: true,
+    });
+  });
+
+  it("opções entre parênteses depois da pergunta viram opções", () => {
+    expect(extract("Isso está impedindo você de trabalhar? (Sim/Não)")).toMatchObject({
+      text: "Isso está impedindo você de trabalhar?",
+      quickReplies: ["Sim", "Não"],
+    });
+    // Espaço fino e hífen tipográfico, como o gpt-oss escreve.
+    expect(
+      extract("Qual é o seu Windows? (Windows\u202f10, Windows\u00a011 ou Não sei)", [
+        "Windows 10",
+        "Windows 11",
+        "Não sei",
+      ]),
+    ).toMatchObject({ text: "Qual é o seu Windows?", quickReplies: null, missingOptions: false });
+    expect(extract("Qual o problema? (Wi\u2011Fi ou VPN)")?.quickReplies).toEqual(["Wi-Fi", "VPN"]);
+  });
+
+  it("opções da tool repetidas entre parênteses saem do texto", () => {
+    const result = extract("Qual é o seu Windows? (Windows 10, Windows 11 ou Não sei)", [
+      "Windows 10",
+      "Windows 11",
+      "Não sei",
+    ]);
+    expect(result).toMatchObject({
+      text: "Qual é o seu Windows?",
+      quickReplies: null,
+      missingOptions: false,
+    });
+    expect(
+      extract("Abra o app (Teams ou Outlook) e entre.", ["Windows 10", "Windows 11"]),
+    ).toBeNull();
+  });
+
+  it("com dois-pontos, os rótulos da narração viram opções", () => {
     expect(extract("Qual o impacto?\n[mostrando as opções]")?.text).toBe("Qual o impacto?");
     expect(extract("Funcionou? (opções rápidas: Sim, Não)")).toMatchObject({
       text: "Funcionou?",
@@ -449,8 +496,12 @@ describe("extractQuickRepliesFromText", () => {
   });
 
   it("com as opções da tool já anexadas, o trecho só sai", () => {
-    const result = extract("Qual o impacto?\n[options] Só eu; Minha equipe", true);
-    expect(result).toMatchObject({ text: "Qual o impacto?", quickReplies: null });
+    const result = extract("Qual o impacto?\n[options] Só eu; Minha equipe", ["Só eu"]);
+    expect(result).toMatchObject({
+      text: "Qual o impacto?",
+      quickReplies: null,
+      missingOptions: false,
+    });
     expect(result?.correction.explanation).toContain("as opções da tool ficaram");
   });
 
@@ -459,7 +510,7 @@ describe("extractQuickRepliesFromText", () => {
       text: QUICK_REPLIES_ONLY_TEXT,
       quickReplies: ["Sim", "Não"],
     });
-    expect(extract("(oferecendo opções rápidas)", true)?.text).toBe(QUICK_REPLIES_ONLY_TEXT);
+    expect(extract("(oferecendo opções rápidas)", ["Sim"])?.text).toBe(QUICK_REPLIES_ONLY_TEXT);
     expect(extract("(oferecendo opções rápidas)")?.text).toBe(TOOL_CALL_FALLBACK_TEXT);
   });
 
@@ -497,6 +548,60 @@ describe("extractQuickRepliesFromText", () => {
     it('"opções" no meio de uma frase e parênteses comuns', () => {
       expect(extract("Você tem duas opções: reiniciar ou abrir um chamado.")).toBeNull();
       expect(extract("Abra o portal (de softwares) e escolha as opções de instalação.")).toBeNull();
+      expect(extract("No Painel (selecione a opção Reparar) e reinicie.")).toBeNull();
+      expect(extract("Você usa VPN? (por exemplo, a Cisco)")).toBeNull();
+      expect(
+        extract(
+          "Já tentou reiniciar? (desligue, espere um minuto e ligue de novo ou use o atalho)",
+        ),
+      ).toBeNull();
     });
+  });
+});
+
+describe("quickRepliesRetryInstruction / resolveQuickRepliesRetry", () => {
+  const first = extractQuickRepliesFromText({
+    text: "Qual o impacto? (oferecendo opções)",
+    toolQuickReplies: null,
+  })!;
+
+  it("a instrução cita a resposta anterior e pede a tool", () => {
+    const instruction = quickRepliesRetryInstruction("Qual o impacto? (oferecendo opções)");
+    expect(instruction).toContain("## Correção (decidida em código)");
+    expect(instruction).toContain('"Qual o impacto? (oferecendo opções)"');
+    expect(instruction).toContain("CHAME offerQuickReplies");
+  });
+
+  it("a nova tentativa que chamou a tool fica, sem as opções repetidas no texto", () => {
+    const resolved = resolveQuickRepliesRetry({
+      first,
+      retryText: "Qual o impacto do problema? (Só eu, Minha equipe ou A empresa toda)",
+      retryQuickReplies: ["Só eu", "Minha equipe", "A empresa toda"],
+    });
+    expect(resolved.text).toBe("Qual o impacto do problema?");
+    expect(resolved.correction.rule).toBe("quick_replies_as_text");
+    expect(resolved.correction.explanation).toContain("nova tentativa do AGIR chamou");
+  });
+
+  it("nova tentativa que só chamou a tool mantém o texto da primeira sem o anúncio", () => {
+    for (const retryText of ["", "[options]"]) {
+      const resolved = resolveQuickRepliesRetry({
+        first,
+        retryText,
+        retryQuickReplies: ["Só eu", "Minha equipe"],
+      });
+      expect(resolved.text).toBe("Qual o impacto?");
+      expect(resolved.correction.explanation).toContain("nova tentativa do AGIR chamou");
+    }
+  });
+
+  it("sem a tool na nova tentativa, fica o texto da primeira sem o anúncio", () => {
+    const resolved = resolveQuickRepliesRetry({
+      first,
+      retryText: "Qual o impacto?",
+      retryQuickReplies: null,
+    });
+    expect(resolved.text).toBe("Qual o impacto?");
+    expect(resolved.correction.explanation).toContain("também não chamou");
   });
 });

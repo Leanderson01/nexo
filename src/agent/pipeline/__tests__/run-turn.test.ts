@@ -664,6 +664,49 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
       expect.objectContaining({ rule: "quick_replies_as_text" }),
     ]);
   });
+
+  it("opções anunciadas sem rótulos ganham nova tentativa, que chama a tool", async () => {
+    const turn = setup({ userText: MOUSE });
+    turn.understands({
+      intent: "open_ticket",
+      summary: "Mouse sem fio parou.",
+      ticketSignals: MOUSE_SIGNALS,
+    });
+    turn.groq.reply(streamText(MAIN, ["Qual o impacto do problema? (oferecendo opções)"], USAGE));
+    turn.groq.reply(
+      streamToolCall(
+        MAIN,
+        {
+          id: "call_1",
+          name: "offerQuickReplies",
+          arguments: { options: ["Só eu", "Minha equipe", "A empresa toda"] },
+        },
+        USAGE,
+      ),
+    );
+    turn.groq.reply(streamText(MAIN, ["Qual o impacto desse problema?"], USAGE));
+
+    await turn.run();
+
+    expect(turn.groq.requests).toHaveLength(4); // ENTENDER, AGIR e os 2 passos da nova tentativa
+    expect(JSON.stringify(turn.groq.requests[2].messages)).toContain("CHAME offerQuickReplies");
+    expect(turn.sink.text).toBe("Qual o impacto desse problema?");
+    expect(turn.sink.finalParts).toEqual([
+      {
+        type: "quickReplies",
+        options: ["Só eu", "Minha equipe", "A empresa toda"].map((label) => ({
+          label,
+          value: label,
+        })),
+      },
+    ]);
+    expect(turn.store.decisions[0].corrections).toEqual([
+      expect.objectContaining({
+        rule: "quick_replies_as_text",
+        explanation: expect.stringContaining("nova tentativa do AGIR chamou"),
+      }),
+    ]);
+  });
 });
 
 describe("runTurn: erros (§10)", () => {

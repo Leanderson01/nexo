@@ -43,7 +43,9 @@ import {
   offerToOpenTicket,
   removeToolCallsFromText,
   resolveDraftRetry,
+  quickRepliesRetryInstruction,
   resolveEmptyReply,
+  resolveQuickRepliesRetry,
   retrySucceeded,
   saysNotFound,
 } from "./reply-checks";
@@ -438,17 +440,31 @@ async function answerWithModel(
     if (withoutToolCalls.quickReplies) workspace.offerQuickReplies(withoutToolCalls.quickReplies);
     turn.corrections.push(withoutToolCalls.correction);
   }
-  // Regra 6: opções escritas como texto saem do texto e viram a parte de opções.
-  const withoutWrittenOptions = extractQuickRepliesFromText({
+  // Regra 6: opções escritas como texto saem do texto e viram a parte de opções; anunciadas
+  // sem rótulos e sem a tool, uma nova tentativa do AGIR pede a tool.
+  const writtenOptions = extractQuickRepliesFromText({
     text: modelText(turn),
-    hasQuickReplies: workspace.quickReplyLabels() !== null,
+    toolQuickReplies: workspace.quickReplyLabels(),
   });
-  if (withoutWrittenOptions) {
-    replaceModelText(turn, withoutWrittenOptions.text);
-    if (withoutWrittenOptions.quickReplies) {
-      workspace.offerQuickReplies(withoutWrittenOptions.quickReplies);
+  if (writtenOptions) {
+    let resolved = { text: writtenOptions.text, correction: writtenOptions.correction };
+    if (writtenOptions.quickReplies) workspace.offerQuickReplies(writtenOptions.quickReplies);
+    if (writtenOptions.missingOptions) {
+      let text = "";
+      const retried = await runAct(quickRepliesRetryInstruction(modelText(turn)), async (piece) => {
+        text += piece;
+      });
+      if (retried.usage) addUsages(turn, turn.deps.llm.mainModel, [retried.usage]);
+      if (workspace.legacyUnavailable) replaceModelText(turn, "");
+      if (!(await actSucceeded(turn, retried, { understanding, decision }, false))) return;
+      resolved = resolveQuickRepliesRetry({
+        first: writtenOptions,
+        retryText: retried.ok ? text : null,
+        retryQuickReplies: workspace.quickReplyLabels(),
+      });
     }
-    turn.corrections.push(withoutWrittenOptions.correction);
+    replaceModelText(turn, resolved.text);
+    turn.corrections.push(resolved.correction);
   }
 
   // As opções da oferta de analista são fixas em código (decisão 22 lê a resposta).
