@@ -158,7 +158,7 @@ export function retrySucceeded(input: {
 
 const RETRY_PROBLEM: Record<DraftRetryReason, string> = {
   claim: "O texto dizia que o rascunho estava pronto sem chamar a tool de proposta",
-  critical: "Caso crítico sem o rascunho que a CriticalPolicy exige neste turno",
+  critical: "Caso crítico sem o rascunho que a regra de caso crítico exige neste turno",
 };
 
 /** Resultado das novas tentativas: o texto da última, se resolveu; senão, a resposta honesta. */

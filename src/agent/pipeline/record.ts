@@ -97,7 +97,7 @@ function understoodSentence(understanding: Understanding | null): string {
 
 function policySentence(input: RecordInput): string {
   if (input.decisiveAction) {
-    return `${decidingPolicy(input.decisiveAction)} decidiu ${describeDecisive(input.decisiveAction)}, sem chamar o modelo principal.`;
+    return `A regra "${decidingPolicy(input.decisiveAction)}" decidiu ${describeDecisive(input.decisiveAction)}, sem chamar o modelo principal.`;
   }
   if (input.guidingActions.length > 0) {
     return `As políticas orientaram a resposta: ${input.guidingActions.map(describeGuiding).join("; ")}.`;
@@ -138,18 +138,21 @@ const STAGE_TEXT: Record<TurnStage, string> = {
   record: "REGISTRAR",
 };
 
-/** Que política toma cada ação decisiva (a transferência por vencido vem da oferta aceita). */
+/**
+ * Que política toma cada ação decisiva (a transferência por vencido vem da oferta aceita), com
+ * o nome legível do painel: o "Por quê" é lido pelo analista, sem nome técnico.
+ */
 function decidingPolicy(action: DecisiveAction): string {
-  if (action.kind !== "handoff") return "OutOfScopePolicy";
+  if (action.kind !== "handoff") return "Fora de escopo";
   switch (action.reason) {
     case "requested":
-      return "ExplicitHandoffPolicy";
+      return "Pedido de analista";
     case "overdue":
-      return "OverdueTicketPolicy";
+      return "Chamado vencido";
     case "low_confidence":
-      return "LowConfidencePolicy";
+      return "Baixa confiança";
     case "critical":
-      return "CriticalPolicy";
+      return "Caso crítico";
   }
 }
 

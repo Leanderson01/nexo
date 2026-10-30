@@ -363,7 +363,7 @@ describe("buildDecisionRecord", () => {
       latencyMs: 820,
     });
     expect(record.rationale).toBe(
-      "Entendeu, com confiança alta: quer um analista. ExplicitHandoffPolicy decidiu transferir (pedido do funcionário), sem chamar o modelo principal. Transferiu a conversa para um analista com o resumo do caso.",
+      'Entendeu, com confiança alta: quer um analista. A regra "Pedido de analista" decidiu transferir (pedido do funcionário), sem chamar o modelo principal. Transferiu a conversa para um analista com o resumo do caso.',
     );
   });
 });
