@@ -5,6 +5,7 @@ import { PRIORITY_LABELS } from "@/domain/labels";
 import { derivePriority, PRIORITY_DEADLINES } from "@/domain/priority";
 import { computeDueAt } from "@/domain/sla";
 import type { NewTicket, PrioritySignals } from "@/domain/ticket";
+import { normalizeText } from "@/shared/normalize-text";
 
 import type { AgentTool, ToolFailure, ToolSession } from "./tool-session";
 
@@ -15,7 +16,7 @@ const input = z.object({
   description: z
     .string()
     .describe(
-      "Descrição em norma culta: sintoma, desde quando, o que já foi tentado, impacto e ambiente.",
+      "Descrição em norma culta: sintoma, desde quando, o que já foi tentado (inclusive os passos de artigo da central que não resolveram), impacto e ambiente (sistema operacional).",
     ),
   affected: z.string().nullable().describe('Quem é afetado, ex.: "Equipe Comercial".'),
   impact: z.enum(IMPACTS).nullable(),
@@ -67,7 +68,7 @@ export function proposeTicketDraftTool(session: ToolSession): AgentTool<Input, O
         kind: fields.kind,
         category: fields.category,
         title: fields.title.trim(),
-        description: fields.description.trim(),
+        description: withOperatingSystem(fields.description, session.understanding.entities.os),
         affected: fields.affected?.trim() || defaultAffected(signals.value.impact, session),
         prioritySignals: signals.value,
         priority: derived.priority,
@@ -98,6 +99,19 @@ export function proposeTicketDraftTool(session: ToolSession): AgentTool<Input, O
       };
     },
   };
+}
+
+/**
+ * O sistema operacional que o funcionário informou entra na descrição (§11.2, ambiente) mesmo
+ * quando o modelo esquece; "Não sei" não entra.
+ */
+export function withOperatingSystem(description: string, os: string | null): string {
+  const text = description.trim();
+  const informed = os?.trim() ?? "";
+  if (informed === "" || normalizeText(informed).startsWith("nao sei")) return text;
+  if (normalizeText(text).includes(normalizeText(informed))) return text;
+  const separator = text === "" || /[.!?]$/.test(text) ? " " : ". ";
+  return `${text}${separator}Sistema operacional: ${informed}.`.trim();
 }
 
 function draftInstruction(transfersOnConfirm: boolean, referenceCode: string | null): string {

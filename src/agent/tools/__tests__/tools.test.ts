@@ -16,7 +16,7 @@ import type { Understanding } from "@/domain/understanding";
 
 import { getMyTicketTool } from "../get-my-ticket";
 import { proposeReopenTool } from "../propose-reopen";
-import { proposeTicketDraftTool } from "../propose-ticket-draft";
+import { proposeTicketDraftTool, withOperatingSystem } from "../propose-ticket-draft";
 import { searchKnowledgeBaseTool } from "../search-knowledge-base";
 import type { ToolGateways, ToolSession } from "../tool-session";
 
@@ -127,6 +127,22 @@ describe("proposeTicketDraft", () => {
     });
     expect(accepted.ok).toBe(true);
     expect(store.drafts[0].action).toMatchObject({ ticket: { reopenedFrom: WIFI.code } });
+  });
+});
+
+describe("withOperatingSystem", () => {
+  it("acrescenta o sistema operacional informado que a descrição esqueceu", () => {
+    expect(withOperatingSystem("VPN com erro 809 ao conectar de casa", "Windows 10")).toBe(
+      "VPN com erro 809 ao conectar de casa. Sistema operacional: Windows 10.",
+    );
+  });
+
+  it("não repete quando a descrição já cita, nem acrescenta sem informação", () => {
+    expect(withOperatingSystem("Erro 809 no windows 10.", "Windows 10")).toBe(
+      "Erro 809 no windows 10.",
+    );
+    expect(withOperatingSystem("Erro 809.", null)).toBe("Erro 809.");
+    expect(withOperatingSystem("Erro 809.", "Não sei")).toBe("Erro 809.");
   });
 });
 

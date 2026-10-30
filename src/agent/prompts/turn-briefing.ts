@@ -116,6 +116,11 @@ function ticketLines(input: TurnBriefingInput): string[] {
   ];
   if (input.focusedTicket) {
     lines.push(`Chamado em foco: ${input.focusedTicket.code}.`);
+    if (input.understanding.intent === "ticket_status") {
+      lines.push(
+        `Mostre-o com getMyTicket("${input.focusedTicket.code}"): o card aparece e as atualizações dizem o que o suporte pediu. Se está "Aguardando você", diga o que falta ele fazer.`,
+      );
+    }
   } else if (input.ambiguousCandidates.length > 1) {
     const codes = input.ambiguousCandidates.map((ticket) => ticket.code).join(", ");
     lines.push(
