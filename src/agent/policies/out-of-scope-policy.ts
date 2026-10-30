@@ -1,4 +1,5 @@
 import { OUT_OF_SCOPE_AREA_LABELS } from "@/domain/labels";
+import type { TicketSignals } from "@/domain/understanding";
 
 import { classifyOutOfScope } from "./classify-out-of-scope";
 import type { Policy, PolicyResult, TurnContext } from "./policy";
@@ -9,6 +10,11 @@ import type { Policy, PolicyResult, TurnContext } from "./policy";
  * Sempre curto-circuita: área conhecida vira redirecionamento; pedido para mudar as regras
  * (tentativa de injeção) ou assunto fora de TI sem área vira recusa educada, escrita em código,
  * sem chamar o modelo principal. Ver `classify-out-of-scope.ts`.
+ *
+ * Salvaguarda (decisão 25): sistema fora do ar é TI mesmo quando o assunto do sistema é de
+ * outra área ("o sistema de folha de ponto caiu para a equipe"). Se o ENTENDER marcou fora de
+ * escopo, mas os sinais dizem que uma equipe (ou a empresa) está parada, a política não recusa
+ * e o turno segue como incidente. Pedido para mudar as regras continua sendo recusado sempre.
  */
 export const outOfScopePolicy: Policy = {
   name: "OutOfScopePolicy",
@@ -18,6 +24,12 @@ export const outOfScopePolicy: Policy = {
     }
 
     const classification = classifyOutOfScope(ctx.understanding.summary);
+    if (classification.kind !== "rule_change" && isGroupOutage(ctx.understanding.ticketSignals)) {
+      return {
+        outcome: "not_applicable",
+        note: "Marcado como fora de TI, mas há uma equipe (ou a empresa) parada, sem alternativa: sistema fora do ar é TI, então segue como incidente.",
+      };
+    }
     switch (classification.kind) {
       case "area": {
         const label = OUT_OF_SCOPE_AREA_LABELS[classification.area];
@@ -43,3 +55,9 @@ export const outOfScopePolicy: Policy = {
     }
   },
 };
+
+/** Impacto de equipe ou empresa e bloqueio: sinal claro de sistema parado (§3.5, Crítica). */
+export function isGroupOutage(signals: TicketSignals): boolean {
+  const affectsGroup = signals.impact === "team" || signals.impact === "company";
+  return affectsGroup && signals.blocked === true;
+}

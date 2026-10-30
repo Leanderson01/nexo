@@ -131,6 +131,12 @@ function ticketLines(input: TurnBriefingInput): string[] {
 
 function decisionLines(input: TurnBriefingInput): string[] {
   const lines = input.guidingActions.map((action) => guidingLine(action, input));
+  if (input.understanding.intent === "out_of_scope") {
+    // Só chega aqui pela salvaguarda da OutOfScopePolicy (decisão 25).
+    lines.push(
+      "O ENTENDER marcou como fora de TI, mas a OutOfScopePolicy viu uma equipe parada: sistema fora do ar é TI. Trate como incidente de TI; não diga que o assunto é de outra área.",
+    );
+  }
   if (input.understanding.intent === "update_ticket") {
     lines.push(
       "Complemento de um problema que já tem chamado: chame findSimilarTickets agora e proponha a atualização (ou a reabertura) neste turno, sem perguntar impacto.",
