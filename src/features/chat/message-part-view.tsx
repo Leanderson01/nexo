@@ -1,137 +1,85 @@
 "use client";
 
-import { Alert, Button, Group, Paper, Stack, Text } from "@mantine/core";
-
 import type { MessagePart } from "@/domain/message-parts";
-import classes from "./chat.module.css";
-import { conversationEventText, handoffBannerText } from "./chat-texts";
+import { ArticleCard } from "./blocks/article-card";
+import { ConversationEventLine } from "./blocks/conversation-event";
+import { LiveDraftCard, type DraftCallbacks } from "./blocks/draft-card";
+import { ErrorBlock } from "./blocks/error-block";
+import { HandoffBanner } from "./blocks/handoff-banner";
+import { QuickReplies } from "./blocks/quick-replies";
+import { ReplyBubble } from "./blocks/reply-bubble";
+import { LiveTicketCard } from "./blocks/ticket-card";
+import { LiveTicketSelector } from "./blocks/ticket-selector";
 
-// Um componente por `type` de MessagePart (§7.2). Texto, evento, transferência e erro já
-// são os definitivos; artigo, chamado, seletor, rascunho e opções rápidas têm aqui um
-// fallback simples, que a T7 troca pelos blocos ricos do protótipo.
+// Um bloco por `type` de MessagePart (§7.2). Os componentes ficam em ./blocks.
 
 export interface PartActions {
   /** Envia um texto como mensagem do funcionário (opções rápidas, seletor). */
   onSend: (text: string) => void;
   /** Falso quando o bloco já foi usado ou o campo está bloqueado. */
   interactive: boolean;
+  /** O que o funcionário mandou logo depois desta mensagem: marca a opção escolhida. */
+  chosenText: string | null;
+  /** Botões do card de rascunho (a T11 liga às rotas). */
+  draft: DraftCallbacks;
+  /** "Tentar de novo" do erro (a T11 liga à rota de retry). */
+  onRetry: () => void;
 }
 
-export function MessagePartView({ part, actions }: { part: MessagePart; actions: PartActions }) {
+export function MessagePartView({
+  part,
+  actions,
+  createdAt,
+}: {
+  part: MessagePart;
+  actions: PartActions;
+  /** Quando a mensagem foi criada: o banner de fora do horário diz quando o atendimento volta. */
+  createdAt: number;
+}) {
   switch (part.type) {
     case "text":
-      return <p className={classes.text}>{part.text}</p>;
-    case "event":
-      return (
-        <div className={classes.event}>{conversationEventText(part.kind, part.actorName)}</div>
-      );
-    case "handoff":
-      return <HandoffBanner reason={part.reason} outOfHours={part.outOfHours} />;
-    case "error":
-      return (
-        <Alert color="red" variant="light" p="xs">
-          {part.message}
-        </Alert>
-      );
+      return <ReplyBubble text={part.text} />;
     case "article":
-      return (
-        <FallbackCard label="Central de ajuda" title={part.title}>
-          {part.excerpt}
-        </FallbackCard>
-      );
+      return <ArticleCard title={part.title} excerpt={part.excerpt} />;
     case "ticket":
-      return <FallbackCard label="Chamado" title={part.code} />;
-    case "draft":
-      // O estado (pendente, confirmado, cancelado) vem de `pendingActions`: fica para o card rico.
-      return <FallbackCard label="Rascunho" title="Rascunho de chamado" />;
+      return <LiveTicketCard code={part.code} />;
     case "ticketSelector":
       return (
-        <ChoiceButtons
-          prompt={part.prompt}
-          choices={part.codes.map((code) => ({ label: code, text: code }))}
-          actions={actions}
-        />
+        <>
+          <ReplyBubble text={part.prompt} />
+          <LiveTicketSelector
+            codes={part.codes}
+            prompt={part.prompt}
+            chosenText={actions.chosenText}
+            interactive={actions.interactive}
+            onChoose={actions.onSend}
+          />
+        </>
       );
+    case "draft":
+      return <LiveDraftCard pendingActionId={part.pendingActionId} callbacks={actions.draft} />;
     case "quickReplies":
       return (
-        <ChoiceButtons
-          choices={part.options.map((option) => ({ label: option.label, text: option.label }))}
-          actions={actions}
+        <QuickReplies
+          options={part.options}
+          chosenText={actions.chosenText}
+          interactive={actions.interactive}
+          onChoose={actions.onSend}
         />
       );
+    case "handoff":
+      return (
+        <HandoffBanner
+          reason={part.reason}
+          outOfHours={part.outOfHours}
+          transferredAt={createdAt}
+        />
+      );
+    case "event":
+      return <ConversationEventLine kind={part.kind} actorName={part.actorName} />;
+    case "error":
+      return (
+        <ErrorBlock message={part.message} retryable={part.retryable} onRetry={actions.onRetry} />
+      );
   }
-}
-
-function HandoffBanner({
-  reason,
-  outOfHours,
-}: Pick<Extract<MessagePart, { type: "handoff" }>, "reason" | "outOfHours">) {
-  const { title, outOfHoursNote } = handoffBannerText(reason, outOfHours);
-  return (
-    <Alert color="orange" variant="light" p="sm" w="100%">
-      <Text size="sm" fw={500}>
-        {title}
-      </Text>
-      {outOfHoursNote && (
-        <Text size="xs" mt={4}>
-          {outOfHoursNote}
-        </Text>
-      )}
-    </Alert>
-  );
-}
-
-function FallbackCard({
-  label,
-  title,
-  children,
-}: {
-  label: string;
-  title: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <Paper withBorder radius="md" p="sm">
-      <Text size="xs" c="dimmed">
-        {label}
-      </Text>
-      <Text size="sm" fw={600}>
-        {title}
-      </Text>
-      {children && (
-        <Text size="sm" c="dimmed" mt={2}>
-          {children}
-        </Text>
-      )}
-    </Paper>
-  );
-}
-
-function ChoiceButtons({
-  prompt,
-  choices,
-  actions,
-}: {
-  prompt?: string;
-  choices: { label: string; text: string }[];
-  actions: PartActions;
-}) {
-  return (
-    <Stack gap={6}>
-      {prompt && <Text size="sm">{prompt}</Text>}
-      <Group gap={6}>
-        {choices.map((choice) => (
-          <Button
-            key={choice.label}
-            variant="default"
-            size="xs"
-            disabled={!actions.interactive}
-            onClick={() => actions.onSend(choice.text)}
-          >
-            {choice.label}
-          </Button>
-        ))}
-      </Group>
-    </Stack>
-  );
 }

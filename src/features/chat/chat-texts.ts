@@ -5,6 +5,7 @@ import type {
   HandoffReason,
 } from "@/domain/enums";
 import { CONVERSATION_STATUS_LABELS } from "@/domain/labels";
+import { nextBusinessDayText } from "./blocks/block-texts";
 
 // Textos do chat que dependem de dados (estado, eventos, banner). Puros, para testar.
 
@@ -63,12 +64,22 @@ const HANDOFF_REASON_FOR_EMPLOYEE: Record<HandoffReason, string> = {
   low_confidence: "o Nexo Assist não teve certeza de como ajudar",
 };
 
-export function handoffBannerText(reason: HandoffReason, outOfHours: boolean): HandoffBannerText {
+/**
+ * Texto do banner de transferência (§3.8). Com `transferredAt`, o aviso de fora do horário
+ * diz quando o atendimento recomeça ("na segunda-feira, 03 nov, a partir das 8h").
+ */
+export function handoffBannerText(
+  reason: HandoffReason,
+  outOfHours: boolean,
+  transferredAt?: number,
+): HandoffBannerText {
+  const when =
+    transferredAt === undefined ? "no próximo dia útil" : nextBusinessDayText(transferredAt);
   return {
     title: `Transferimos para um analista: ${HANDOFF_REASON_FOR_EMPLOYEE[reason]}.`,
     outOfHoursNote:
       outOfHours && reason !== "critical"
-        ? "Estamos fora do horário de atendimento (8h às 18h, dias úteis). Um analista responde no próximo dia útil."
+        ? `Estamos fora do horário de atendimento (8h às 18h, dias úteis). Um analista responde ${when}.`
         : null,
   };
 }

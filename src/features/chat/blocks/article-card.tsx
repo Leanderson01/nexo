@@ -1,0 +1,22 @@
+import { BookIcon } from "../icons";
+import classes from "./blocks.module.css";
+
+/** Artigo da central de ajuda citado pelo agent (§7.2). */
+export function ArticleCard({ title, excerpt }: { title: string; excerpt: string }) {
+  return (
+    <article className={classes.card}>
+      <div className={classes.cardBody}>
+        <div className={classes.cardKicker}>
+          <span className={classes.kickerTrail}>
+            <span className={classes.articleIcon}>
+              <BookIcon size={14} />
+            </span>
+            Central de ajuda
+          </span>
+        </div>
+        <h3 className={classes.articleTitle}>{title}</h3>
+        <p className={classes.cardText}>{excerpt}</p>
+      </div>
+    </article>
+  );
+}

@@ -62,3 +62,37 @@ export function ChevronRightIcon(props: IconProps) {
     </StrokeIcon>
   );
 }
+
+export function CheckIcon(props: IconProps) {
+  return (
+    <StrokeIcon {...props}>
+      <path d="m5 12 5 5 9-10" />
+    </StrokeIcon>
+  );
+}
+
+export function BookIcon(props: IconProps) {
+  return (
+    <StrokeIcon {...props}>
+      <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5Z" />
+      <path d="M4 19a2 2 0 0 1 2-2h13" />
+    </StrokeIcon>
+  );
+}
+
+export function ArrowsSwapIcon(props: IconProps) {
+  return (
+    <StrokeIcon {...props}>
+      <path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7" />
+    </StrokeIcon>
+  );
+}
+
+export function HeadsetIcon(props: IconProps) {
+  return (
+    <StrokeIcon {...props}>
+      <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
+      <path d="M4 14h3v5H5a1 1 0 0 1-1-1v-4ZM20 14h-3v5h2a1 1 0 0 0 1-1v-4Z" />
+    </StrokeIcon>
+  );
+}

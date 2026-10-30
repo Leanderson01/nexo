@@ -150,20 +150,17 @@
   overflow-wrap: anywhere;
 }
 
+/* Resposta do agent ou do analista: balões de texto até 82%, cards na largura toda. */
 .reply {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 6px;
-  max-width: 82%;
-}
-
-.replyAuthor {
-  font-size: 12px;
-  font-weight: 600;
-  color: #1e2430;
+  width: 100%;
 }
 
 .replyCard {
+  max-width: 82%;
   padding: 10px 14px;
   border: 1px solid var(--mantine-color-gray-3);
   border-radius: 8px;
@@ -172,9 +169,10 @@
   line-height: 1.55;
 }
 
+/* Analista em verde, como no console (protótipo 06), distinto do agent. */
 .analystCard {
-  border-color: var(--mantine-color-blue-2);
-  background: var(--mantine-color-blue-0);
+  border-color: var(--mantine-color-green-2);
+  background: var(--mantine-color-green-0);
 }
 
 .text {
@@ -213,12 +211,6 @@
 
 .typing span:nth-child(3) {
   animation-delay: 0.3s;
-}
-
-.event {
-  align-self: center;
-  font-size: 12px;
-  color: var(--mantine-color-gray-6);
 }
 
 /* ---------- Campo de mensagem ---------- */

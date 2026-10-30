@@ -1,0 +1,299 @@
+/* Blocos de mensagem do chat (docs/prototipo/02-chat-rascunho.png e 03-chat-consulta.png). */
+
+/* ---------- Linha do autor com os chips de ação ---------- */
+
+.replyHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 2px;
+  font-size: 12px;
+}
+
+.replyAuthor {
+  font-weight: 600;
+  color: #1e2430;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--mantine-color-gray-6);
+}
+
+.detailsLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--mantine-color-blue-7);
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.levelBadge {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--mantine-color-green-0);
+  color: var(--mantine-color-green-8);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ---------- Cards (artigo, chamado, rascunho, seletor) ---------- */
+
+.card {
+  width: 100%;
+  border: 1px solid var(--mantine-color-gray-3);
+  border-radius: 8px;
+  background: var(--mantine-color-white);
+  box-shadow: 0 1px 3px rgb(30 36 48 / 6%);
+  overflow: hidden;
+}
+
+.cardBody {
+  padding: 12px 14px;
+}
+
+.cardKicker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--mantine-color-gray-6);
+}
+
+.kickerTrail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kickerSeparator {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--mantine-color-gray-4);
+}
+
+.cardTitle {
+  margin: 6px 0 4px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #1e2430;
+}
+
+.cardText {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--mantine-color-gray-7);
+  white-space: pre-wrap;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--mantine-color-gray-2);
+}
+
+.fieldLabel {
+  font-size: 12px;
+  color: var(--mantine-color-gray-6);
+}
+
+.fieldValue {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e2430;
+}
+
+.fieldNote {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--mantine-color-gray-6);
+}
+
+/* Bolinha colorida antes de status e prioridade. */
+.dotLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ---------- Artigo ---------- */
+
+.articleIcon {
+  display: inline-flex;
+  color: var(--mantine-color-blue-7);
+}
+
+.articleTitle {
+  margin: 6px 0 2px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e2430;
+}
+
+/* ---------- Rascunho ---------- */
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--mantine-color-gray-2);
+  background: var(--mantine-color-gray-0);
+}
+
+.finalCard {
+  box-shadow: none;
+}
+
+.finalCard .cardTitle,
+.finalCard .cardText,
+.finalCard .fieldValue {
+  color: var(--mantine-color-gray-6);
+}
+
+.shortcut {
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 20%);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* ---------- Seletor de chamados ---------- */
+
+.selectorRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  border-top: 1px solid var(--mantine-color-gray-2);
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: #1e2430;
+  cursor: pointer;
+
+  &:first-child {
+    border-top: 0;
+  }
+
+  &:hover:not(:disabled) {
+    background: var(--mantine-color-gray-0);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &[data-chosen] {
+    background: var(--mantine-color-blue-0);
+  }
+}
+
+.selectorCode {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--mantine-color-gray-6);
+}
+
+.selectorTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.selectorMeta {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--mantine-color-gray-6);
+}
+
+/* ---------- Opções rápidas ---------- */
+
+.quickReplies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.quickReply {
+  padding: 5px 12px;
+  border: 1px solid var(--mantine-color-gray-3);
+  border-radius: 6px;
+  background: var(--mantine-color-white);
+  font: inherit;
+  font-size: 13px;
+  color: #1e2430;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: var(--mantine-color-gray-5);
+  }
+
+  &:disabled {
+    cursor: default;
+    color: var(--mantine-color-gray-6);
+  }
+
+  &[data-chosen] {
+    border-color: var(--mantine-color-blue-4);
+    background: var(--mantine-color-blue-0);
+    color: var(--mantine-color-blue-7);
+  }
+}
+
+/* ---------- Eventos ---------- */
+
+.event {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  font-size: 12px;
+  color: var(--mantine-color-gray-6);
+
+  &::before,
+  &::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--mantine-color-gray-2);
+  }
+}
+
+.eventContent {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
