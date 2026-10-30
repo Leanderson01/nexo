@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { TICKET_CATEGORIES, TICKET_KINDS, type Impact } from "@/domain/enums";
 import { nextMissingSignal } from "@/domain/intake-questions";
-import { PRIORITY_LABELS } from "@/domain/labels";
+import { PRIORITY_LABELS, TICKET_CATEGORY_LABELS, TICKET_KIND_LABELS } from "@/domain/labels";
 import { derivePriority, PRIORITY_DEADLINES } from "@/domain/priority";
 import { computeDueAt } from "@/domain/sla";
 import type { NewTicket, PrioritySignals } from "@/domain/ticket";
@@ -51,6 +51,9 @@ type Input = z.infer<typeof input>;
 type Output = {
   ok: true;
   draftNumber: number;
+  /** Tipo e categoria finais, depois das correções em código, com o rótulo legível. */
+  kind: string;
+  category: string;
   priority: string;
   deadline: string;
   transfersOnConfirm: boolean;
@@ -71,10 +74,12 @@ export function proposeTicketDraftTool(session: ToolSession): AgentTool<Input, O
     description:
       "Propõe um chamado NOVO como rascunho para o funcionário conferir e confirmar. Chame findSimilarTickets antes. A prioridade é calculada pelo sistema.",
     inputSchema: input,
-    describeInput: ({ kind, category, title, referenceCode }) =>
-      `${kind} ${category}: "${title}"${referenceCode ? ` (referência ${referenceCode})` : ""}`,
-    describeOutput: ({ draftNumber, priority }) =>
-      `Rascunho D-${draftNumber} com prioridade ${priority}`,
+    // O tipo e a categoria do modelo podem ser corrigidos em código: o painel mostra os finais,
+    // no resultado (R3: a entrada dizia "INC other" e o card, Software).
+    describeInput: ({ title, referenceCode }) =>
+      `"${title}"${referenceCode ? ` (referência ${referenceCode})` : ""}`,
+    describeOutput: ({ draftNumber, kind, category, priority }) =>
+      `Rascunho D-${draftNumber}: ${kind} · ${category} · prioridade ${priority}`,
     async run(fields) {
       const { workspace } = session;
       const blocked = checkPreconditions(fields, session);
@@ -114,7 +119,7 @@ export function proposeTicketDraftTool(session: ToolSession): AgentTool<Input, O
       );
 
       workspace.draft = { pendingActionId: draft.pendingActionId, kind: "create_ticket" };
-      workspace.draftTicketKind = kind;
+      workspace.draftClassification = { kind, category };
       workspace.correctedDescriptionFields = built.corrected;
       workspace.derivedPriority = {
         value: derived.priority,
@@ -124,6 +129,8 @@ export function proposeTicketDraftTool(session: ToolSession): AgentTool<Input, O
       return {
         ok: true,
         draftNumber: draft.draftNumber,
+        kind: TICKET_KIND_LABELS[kind],
+        category: TICKET_CATEGORY_LABELS[category],
         priority: PRIORITY_LABELS[derived.priority],
         deadline: PRIORITY_DEADLINES[derived.priority].label,
         transfersOnConfirm,

@@ -1,6 +1,8 @@
 import { z } from "zod";
 
-import { TICKET_CATEGORIES } from "@/domain/enums";
+import { TICKET_CATEGORIES, type TicketCategory } from "@/domain/enums";
+import { TICKET_CATEGORY_LABELS } from "@/domain/labels";
+import { categoryFromSpeech } from "@/domain/ticket-classification";
 import {
   findDuplicateCandidates,
   suggestDuplicateAction,
@@ -43,20 +45,26 @@ const WHAT_TO_DO: Record<DuplicateAction, string> = {
  * de propor um chamado novo.
  */
 export function findSimilarTicketsTool(session: ToolSession): AgentTool<Input, Output> {
+  // A categoria corrigida em código (sistema de vendas em "Outros" vira Software) vale na busca
+  // e no painel, com o rótulo legível (R3: o painel mostrava "em other").
+  const finalCategory = (category: TicketCategory | null) =>
+    category && categoryFromSpeech(category, session.facts.employeeTexts);
   return {
     name: "findSimilarTickets",
     label: "procurou chamados parecidos",
     description:
       "Procura chamados parecidos do funcionário (abertos e encerrados há até 30 dias), com a sugestão de atualizar, reabrir ou criar novo com referência. Chame sempre antes de propor um chamado.",
     inputSchema: input,
-    describeInput: ({ description, category }) =>
-      category ? `"${description}" em ${category}` : `"${description}"`,
+    describeInput: ({ description, category }) => {
+      const final = finalCategory(category);
+      return final ? `"${description}" em ${TICKET_CATEGORY_LABELS[final]}` : `"${description}"`;
+    },
     describeOutput: ({ similar }) =>
       similar.length === 0
         ? "nenhum parecido"
         : similar.map((ticket) => `${ticket.code} → ${ticket.suggestedAction}`).join(", "),
     async run({ description, category }, { tickets: gateway }) {
-      const result = await gateway.findSimilar({ description, category });
+      const result = await gateway.findSimilar({ description, category: finalCategory(category) });
       if (!result.ok) return gatewayFailure(result.error, session.workspace);
 
       const candidates = findDuplicateCandidates(result.value, session.now);

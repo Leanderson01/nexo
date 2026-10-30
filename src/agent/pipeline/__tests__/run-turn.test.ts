@@ -278,6 +278,75 @@ describe("runTurn: AGIR com tools", () => {
   });
 });
 
+describe("runTurn: o painel mostra a classificação final (R3)", () => {
+  it('"Outros" corrigido para Software aparece igual no registro e nas tools', async () => {
+    const turn = setup({ userText: "O sistema de vendas caiu para o time todo." });
+    turn.understands({
+      intent: "open_ticket",
+      summary: "Sistema de vendas fora do ar para a equipe.",
+      ticketSignals: {
+        kind: null,
+        category: "other",
+        impact: "team",
+        blocked: true,
+        deadlineToday: null,
+      },
+    });
+    turn.groq.reply(
+      streamToolCall(
+        MAIN,
+        {
+          id: "call_1",
+          name: "findSimilarTickets",
+          arguments: { description: "sistema de vendas fora do ar", category: "other" },
+        },
+        USAGE,
+      ),
+    );
+    turn.groq.reply(
+      streamToolCall(
+        MAIN,
+        {
+          id: "call_2",
+          name: "proposeTicketDraft",
+          arguments: {
+            kind: "REQ",
+            category: "other",
+            title: "Sistema de vendas fora do ar",
+            symptom: "O sistema de vendas caiu para o time todo.",
+            symptomEvidence: "O sistema de vendas caiu para o time todo",
+            since: null,
+            sinceEvidence: null,
+            tried: null,
+            triedEvidence: null,
+            referenceCode: null,
+          },
+        },
+        USAGE,
+      ),
+    );
+    turn.groq.reply(streamText(MAIN, ["É um caso crítico. Confira e confirme o rascunho."], USAGE));
+
+    await turn.run();
+
+    expect(turn.store.drafts[0]).toMatchObject({
+      action: { kind: "create_ticket", ticket: { kind: "INC", category: "software" } },
+    });
+    const [record] = turn.store.decisions;
+    expect(record.understanding?.signals).toMatchObject({ kind: "INC", category: "software" });
+    const summaries = record.actions.map(
+      (action) => `${action.inputSummary} ${action.outputSummary}`,
+    );
+    expect(summaries.join(" ")).not.toMatch(/\bother\b|\bINC\b/);
+    const draftTrace = record.actions.find((action) => action.tool === "proposeTicketDraft");
+    expect(draftTrace?.outputSummary).toMatch(
+      /^Rascunho D-\d+: Incidente · Software · prioridade Crítica$/,
+    );
+    const similarTrace = record.actions.find((action) => action.tool === "findSimilarTickets");
+    expect(similarTrace?.inputSummary).toContain("em Software");
+  });
+});
+
 describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
   const PRINTER_TEXT =
     "A impressora continua sem imprimir. Só eu uso, dá para imprimir no 3º andar e não tenho nada urgente.";

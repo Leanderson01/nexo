@@ -7,7 +7,7 @@ import { listMyTicketsTool } from "@/agent/tools/list-my-tickets";
 import type { ToolSession } from "@/agent/tools/tool-session";
 import { withTrace, type TraceEnvironment } from "@/agent/tools/with-trace";
 import type { ReplyCorrection } from "@/domain/decision-record";
-import type { TicketKind, TurnStage } from "@/domain/enums";
+import type { TicketCategory, TicketKind, TurnStage } from "@/domain/enums";
 import type { MessagePart } from "@/domain/message-parts";
 import { computeDueAt } from "@/domain/sla";
 import type { Understanding } from "@/domain/understanding";
@@ -1137,15 +1137,19 @@ interface Completion {
   overdueOfferCode?: string | null;
 }
 
-/** O tipo do rascunho proposto preenche o sinal "tipo" que o ENTENDER deixou em branco. */
-function withDraftKind(
+/**
+ * O tipo e a categoria do rascunho proposto (os finais, depois das correções em código) valem
+ * no registro: o painel mostra o mesmo que o card (R3: card Software, painel "Outros").
+ */
+function withDraftClassification(
   understanding: Understanding | null,
-  kind: TicketKind | null,
+  classification: { kind: TicketKind; category: TicketCategory } | null,
 ): Understanding | null {
-  if (!understanding || kind === null || understanding.ticketSignals.kind !== null) {
-    return understanding;
-  }
-  return { ...understanding, ticketSignals: { ...understanding.ticketSignals, kind } };
+  if (!understanding || classification === null) return understanding;
+  return {
+    ...understanding,
+    ticketSignals: { ...understanding.ticketSignals, ...classification },
+  };
 }
 
 /** Grava o estado da conversa e o `DecisionRecord`, e conclui a mensagem com as partes. */
@@ -1173,7 +1177,7 @@ async function complete(turn: Turn, completion: Completion): Promise<void> {
   const record = buildDecisionRecord({
     now: turn.now,
     latencyMs: Math.max(0, turn.deps.now() - turn.startedAt),
-    understanding: withDraftKind(completion.understanding, workspace.draftTicketKind),
+    understanding: withDraftClassification(completion.understanding, workspace.draftClassification),
     evaluations: decision?.evaluations ?? [],
     decisiveAction: decision?.decisiveAction ?? null,
     guidingActions: decision?.guidingActions ?? [],
