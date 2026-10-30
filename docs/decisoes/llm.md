@@ -4,11 +4,11 @@ Provedor: **Groq** (decisão 8 do `TASKS.md`). A spec pede um modelo rápido e b
 ENTENDER e um principal para AGIR (§5.1, §6.7); a transcrição de voz usa o mesmo provedor e a
 mesma chave.
 
-| Papel                                   | Modelo                   | Por quê                                                                                    |
-| --------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------ |
-| Rápido (ENTENDER, resumo acumulado)     | `openai/gpt-oss-20b`     | ~1.000 tokens/s, saída estruturada com `json_schema` estrito, metade do preço do principal |
-| Principal (AGIR, com tools e streaming) | `openai/gpt-oss-120b`    | melhor raciocínio e tool calling da família, ainda barato; ~500 tokens/s                   |
-| Transcrição (`/api/transcribe`, T15)    | `whisper-large-v3-turbo` | US$ 0,04/hora, PT-BR com `language: "pt"`; o `whisper-large-v3` custa ~3× mais             |
+| Papel                                   | Modelo                   | Por quê                                                                                       |
+| --------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------- |
+| Rápido (ENTENDER, resumo acumulado)     | `openai/gpt-oss-20b`     | ~1.000 tokens/s, saída estruturada com `json_schema` estrito, metade do preço do principal    |
+| Principal (AGIR, com tools e streaming) | `openai/gpt-oss-120b`    | melhor raciocínio e tool calling da família, ainda barato; ~500 tokens/s                      |
+| Transcrição (`/api/transcribe`, T15)    | `whisper-large-v3-turbo` | US$ 0,04/hora; `language: "pt"`, `prompt` de vocabulário e `temperature: 0` (medições abaixo) |
 
 Variáveis: `LLM_PROVIDER=groq`, `LLM_MODEL_FAST`, `LLM_MODEL_MAIN`, `GROQ_API_KEY` e, opcional,
 `TRANSCRIPTION_MODEL` (padrão `whisper-large-v3-turbo`). Leitura e preços em
@@ -27,6 +27,39 @@ preview e custa de 5 a 7 vezes mais.
 
 Transcrição: `whisper-large-v3-turbo` a US$ 0,04 por hora de áudio, com mínimo cobrado de 10 s por
 requisição.
+
+## Transcrição: parâmetros e medições
+
+Rodada de 30/10/2026 com a chave paga: frases do domínio geradas por TTS (gTTS, PT-BR), em WAV e no
+webm/opus que o Chrome grava, inclusive capturadas pelo próprio Chromium com microfone falso. Acerto
+= 1 − WER contra o texto original ("2" e "duas" contam igual).
+
+| Áudio                                            | turbo | turbo, `temperature: 0` | turbo, t0 + `prompt` | v3   | v3, t0 + `prompt` |
+| ------------------------------------------------ | ----- | ----------------------- | -------------------- | ---- | ----------------- |
+| Frase longa (22 s), limpa, WAV e webm 32 kbps    | 98%   | 98%                     | 100%                 | 100% | 100%              |
+| Frase longa com ruído rosa, webm 32 e 64 kbps    | 98%   | 98%                     | 100%                 | 100% | 100%              |
+| Frase com pausas, -48 dB + ruído                 | 92%   | 92%                     | 96%                  | 100% | 100%              |
+| Capturada no Chromium, captura padrão, 32 kbps   | 92%   | 92%                     | 100%                 | 96%  | 100%              |
+| Capturada no Chromium, sem NS e sem AGC, 32 kbps | 96%   | 96%                     | 100%                 | 96%  | 100%              |
+
+- Os erros sem `prompt` são justamente os termos do domínio: "VPN" vira "BPM"/"DPM"/"BTN" com
+  ruído e "INC 4521" vira "Ink 4521". O `prompt` com o vocabulário (`TRANSCRIPTION_PROMPT` em
+  `src/app/api/transcribe/transcriber.ts`) corrige os dois e não custa nada a mais.
+- `temperature: 0` não mudou o texto nestas amostras; fica para a saída ser determinística.
+- O `whisper-large-v3` erra um pouco menos com ruído forte, mas custa 2,8× (US$ 0,111/hora) e
+  alucina mais em silêncio (com `prompt`, um trecho de 4 s virou "Acesse o link na descrição do
+  vídeo..."). Fica o turbo; trocar é só `TRANSCRIPTION_MODEL=whisper-large-v3` (o preço já está em
+  `TRANSCRIPTION_PRICES_PER_HOUR_USD`).
+- Latência: 0,4 a 0,8 s por áudio de 20 s nos dois modelos (webm); WAV, 3× maior, leva 1,5 a 2 s.
+- Volume baixo não atrapalha: fala com pico em -60 dBFS ainda sai 100%.
+- **Silêncio vira texto inventado:** áudio mudo devolve "E aí", ruído de sala devolve
+  "Obrigado.", e o Groq informa `no_speech_prob` 0 nesses casos, então o servidor não tem como
+  filtrar. Por isso o gravador mede o nível e não envia gravação só de silêncio
+  (`src/features/voice/audio-level.ts`).
+- **Captura:** sem supressor de ruído e sem ganho automático (cancelamento de eco ligado) foi igual
+  ou melhor que o padrão do navegador; com o ganho automático ligado e o supressor desligado, o
+  ganho subiu o ruído e o acerto caiu para 92%. 64 kbps não melhorou nada em relação a 32 kbps;
+  ficam 32 kbps (~240 KB por minuto).
 
 O cache de prompt do gpt-oss é automático (prefixo igual entre chamadas). O uso informa
 `cachedInputTokens`, e `estimateCostUsd` aplica o desconto. Tokens de raciocínio contam como saída.
