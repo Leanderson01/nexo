@@ -350,6 +350,7 @@ describe("conversas", () => {
 
   test("requestAnalyst transfere a conversa e registra o evento", async () => {
     const { mariana, conversationId } = await setup();
+    await sendOk(mariana, conversationId, "Minha VPN não conecta");
 
     const result = await mariana.mutation(api.conversations.requestAnalyst, { conversationId });
 
@@ -357,9 +358,21 @@ describe("conversas", () => {
     const conversation = await mariana.query(api.conversations.get, { conversationId });
     expect(conversation?.status).toBe("waiting_analyst");
     const messages = await mariana.query(api.messages.list, { conversationId });
-    expect(messages?.at(-1)?.parts).toContainEqual({ type: "event", kind: "transferred" });
+    const system = messages?.find((message) => message.role === "system");
+    expect(system?.parts).toContainEqual({ type: "event", kind: "transferred" });
 
     const again = await mariana.mutation(api.conversations.requestAnalyst, { conversationId });
     expect(again).toEqual({ ok: false, error: "invalid_transition" });
+  });
+
+  test("requestAnalyst não manda conversa vazia para a fila", async () => {
+    const { t, mariana, conversationId } = await setup();
+
+    const result = await mariana.mutation(api.conversations.requestAnalyst, { conversationId });
+
+    expect(result).toEqual({ ok: false, error: "empty_conversation" });
+    const conversation = await t.run((ctx) => ctx.db.get(conversationId));
+    expect(conversation?.status).toBe("agent");
+    expect(conversation?.handoff).toBeUndefined();
   });
 });

@@ -6,7 +6,8 @@ import { mutation, query, type QueryCtx } from "./_generated/server";
 import { requireEmployee } from "./lib/guards";
 import { transferToAnalyst, type TransferError } from "./lib/handoff";
 import {
-  countConversationsCreatedToday,
+  countStartedConversations,
+  findConversationsCreatedToday,
   isDailyCostLimitReached,
   readConversationsPerDayLimit,
 } from "./usage";
@@ -113,7 +114,11 @@ export type CreateConversationError = "not_found" | "conversation_limit_reached"
 /**
  * Abre uma conversa em `agent`. Com `inheritSummaryFrom`, herda o resumo acumulado da
  * anterior ("Nova conversa (com resumo desta)", quando o limite de 30 foi atingido).
- * Cada funcionário abre no máximo `MAX_CONVERSATIONS_PER_DAY` conversas por dia (§12.3).
+ *
+ * Cada funcionário começa no máximo `MAX_CONVERSATIONS_PER_DAY` conversas por dia (§12.3);
+ * só conta a conversa que recebeu ao menos uma mensagem dele. Se já houver uma conversa vazia
+ * criada hoje (o "Nova conversa" clicado sem escrever nada), ela é devolvida em vez de
+ * criar outra: assim as vazias não contam e também não se acumulam.
  */
 export const create = mutation({
   args: { inheritSummaryFrom: v.optional(v.string()) },
@@ -123,14 +128,22 @@ export const create = mutation({
   ): Promise<Result<{ conversationId: Id<"conversations"> }, CreateConversationError>> => {
     const employee = await requireEmployee(ctx);
     const now = Date.now();
-    const createdToday = await countConversationsCreatedToday(ctx, employee._id, now);
-    if (createdToday >= readConversationsPerDayLimit()) return err("conversation_limit_reached");
+    const createdToday = await findConversationsCreatedToday(ctx, employee._id, now);
+    if (countStartedConversations(createdToday) >= readConversationsPerDayLimit()) {
+      return err("conversation_limit_reached");
+    }
 
     let rollingSummary: string | undefined;
     if (inheritSummaryFrom !== undefined) {
       const previous = await findOwnedConversation(ctx, employee._id, inheritSummaryFrom);
       if (!previous) return err("not_found");
       rollingSummary = previous.rollingSummary;
+    }
+
+    const empty = createdToday.find(isUnusedConversation);
+    if (empty) {
+      await ctx.db.patch(empty._id, { rollingSummary, lastMessageAt: now });
+      return ok({ conversationId: empty._id });
     }
 
     const conversationId = await ctx.db.insert("conversations", {
@@ -146,7 +159,16 @@ export const create = mutation({
   },
 });
 
-export type RequestAnalystError = "not_found" | TransferError;
+/** Conversa aberta e nunca usada: sem mensagem do funcionário e ainda com o agent. */
+function isUnusedConversation(conversation: Doc<"conversations">): boolean {
+  return (
+    conversation.employeeMessageCount === 0 &&
+    conversation.status === "agent" &&
+    conversation.handoff === undefined
+  );
+}
+
+export type RequestAnalystError = "not_found" | "empty_conversation" | TransferError;
 
 const MESSAGE_LIMIT_HANDOFF_SUMMARY =
   "O funcionário atingiu o limite de mensagens da conversa e pediu para falar com um analista.";
@@ -157,6 +179,11 @@ const DAILY_LIMIT_HANDOFF_SUMMARY =
  * "Falar com um analista" no campo bloqueado pelo limite de mensagens ou pelo teto diário de
  * custo (§7.2, §12.3): transfere sem passar pelo agent. Os outros pedidos de transferência
  * chegam como mensagem e quem decide é o agent.
+ *
+ * Conversa sem nenhuma mensagem do funcionário não vai para a fila (`empty_conversation`):
+ * o analista receberia "Sem mensagens ainda" sem saber o pedido. No teto diário, o "Nova
+ * conversa" leva à conversa nova; a primeira mensagem é salva para o analista e o campo
+ * oferece "Falar com um analista", que transfere já com o pedido.
  */
 export const requestAnalyst = mutation({
   args: { conversationId: v.string() },
@@ -164,6 +191,7 @@ export const requestAnalyst = mutation({
     const employee = await requireEmployee(ctx);
     const conversation = await findOwnedConversation(ctx, employee._id, conversationId);
     if (!conversation) return err("not_found");
+    if (conversation.employeeMessageCount === 0) return err("empty_conversation");
 
     return await transferToAnalyst(ctx, conversation, {
       reason: "requested",

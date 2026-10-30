@@ -47,6 +47,14 @@ async function createConversation(mariana: Awaited<ReturnType<typeof loginAs>>) 
   return created.value.conversationId;
 }
 
+/** Conversa começada: criada e com a primeira mensagem do funcionário. */
+async function startConversation(mariana: Awaited<ReturnType<typeof loginAs>>, text = "Oi") {
+  const conversationId = await createConversation(mariana);
+  const sent = await mariana.mutation(api.messages.sendUserMessage, { conversationId, text });
+  if (!sent.ok) throw new Error(`envio recusado: ${sent.error}`);
+  return conversationId;
+}
+
 function recordWithCost(estimatedCostUsd: number): DecisionRecord {
   return {
     understanding: null,
@@ -246,8 +254,8 @@ describe("conversas por funcionário por dia (MAX_CONVERSATIONS_PER_DAY)", () =>
   test("recusa a partir do limite e libera no dia seguinte", async () => {
     vi.stubEnv("MAX_CONVERSATIONS_PER_DAY", "2");
     const { mariana } = await setup();
-    await createConversation(mariana);
-    await createConversation(mariana);
+    await startConversation(mariana);
+    await startConversation(mariana);
 
     const third = await mariana.mutation(api.conversations.create, {});
     expect(third).toEqual({ ok: false, error: "conversation_limit_reached" });
@@ -270,6 +278,104 @@ describe("conversas por funcionário por dia (MAX_CONVERSATIONS_PER_DAY)", () =>
 
     const today = await mariana.mutation(api.conversations.create, {});
     expect(today.ok).toBe(true);
+  });
+});
+
+describe("conversas vazias (só o clique em 'Nova conversa')", () => {
+  test("não contam para o limite do dia", async () => {
+    vi.stubEnv("MAX_CONVERSATIONS_PER_DAY", "1");
+    const { mariana } = await setup();
+    await createConversation(mariana);
+    await createConversation(mariana);
+    await createConversation(mariana);
+
+    const started = await startConversation(mariana, "Minha VPN caiu");
+    expect(started).toBeDefined();
+
+    const afterLimit = await mariana.mutation(api.conversations.create, {});
+    expect(afterLimit).toEqual({ ok: false, error: "conversation_limit_reached" });
+  });
+
+  test("o 'Nova conversa' reaproveita a vazia de hoje em vez de acumular outra", async () => {
+    const { t, mariana } = await setup();
+    const first = await createConversation(mariana);
+    const second = await createConversation(mariana);
+    expect(second).toBe(first);
+
+    await mariana.mutation(api.messages.sendUserMessage, { conversationId: first, text: "Oi" });
+    const third = await createConversation(mariana);
+    expect(third).not.toBe(first);
+
+    const all = await t.run((ctx) => ctx.db.query("conversations").collect());
+    const firstDoc = all.find((conversation) => conversation._id === first);
+    const marianas = all.filter((conversation) => conversation.employeeId === firstDoc?.employeeId);
+    expect(new Set(marianas.map((conversation) => conversation._id))).toEqual(
+      new Set([first, third]),
+    );
+  });
+
+  test("a vazia de ontem não é reaproveitada", async () => {
+    const { mariana } = await setup();
+    const yesterday = await createConversation(mariana);
+
+    vi.setSystemTime(EARLY_ON_30);
+    const today = await createConversation(mariana);
+    expect(today).not.toBe(yesterday);
+  });
+
+  test("conversa transferida não volta como vazia", async () => {
+    vi.stubEnv("MAX_DAILY_LLM_COST_USD", "0");
+    const { mariana } = await setup();
+    const conversationId = await startConversation(mariana, "Preciso de acesso ao SAP");
+    await mariana.mutation(api.conversations.requestAnalyst, { conversationId });
+
+    const next = await createConversation(mariana);
+    expect(next).not.toBe(conversationId);
+  });
+
+  test("com resumo herdado, a vazia reaproveitada recebe o resumo", async () => {
+    const { t, mariana } = await setup();
+    const previous = await startConversation(mariana);
+    await t.run((ctx) => ctx.db.patch(previous, { rollingSummary: "VPN caiu no home office." }));
+    const empty = await createConversation(mariana);
+
+    const created = await mariana.mutation(api.conversations.create, {
+      inheritSummaryFrom: previous,
+    });
+
+    expect(created).toEqual({ ok: true, value: { conversationId: empty } });
+    const conversation = await t.run((ctx) => ctx.db.get(empty));
+    expect(conversation?.rollingSummary).toBe("VPN caiu no home office.");
+  });
+});
+
+describe("teto diário a partir de uma conversa nova", () => {
+  test("a conversa vazia não vai para a fila; com o pedido escrito, vai junto", async () => {
+    vi.stubEnv("MAX_DAILY_LLM_COST_USD", "0");
+    const { t, mariana } = await setup();
+    const conversationId = await createConversation(mariana);
+
+    const empty = await mariana.mutation(api.conversations.requestAnalyst, { conversationId });
+    expect(empty).toEqual({ ok: false, error: "empty_conversation" });
+
+    await mariana.mutation(api.messages.sendUserMessage, {
+      conversationId,
+      text: "Preciso resetar a senha do e-mail",
+    });
+    const transferred = await mariana.mutation(api.conversations.requestAnalyst, {
+      conversationId,
+    });
+    expect(transferred.ok).toBe(true);
+
+    const messages = await t.run((ctx) =>
+      ctx.db
+        .query("messages")
+        .filter((q) => q.eq(q.field("conversationId"), conversationId))
+        .collect(),
+    );
+    const request = messages.find((message) => message.role === "user");
+    expect(request?.parts).toEqual([{ type: "text", text: "Preciso resetar a senha do e-mail" }]);
+    expect(request?.receiver).toBe("analyst");
   });
 });
 

@@ -5,20 +5,21 @@ import { useState } from "react";
 
 import { useSignedInQuery } from "@/features/auth/use-signed-in-query";
 import { api } from "../../../convex/_generated/api";
-import { useCreateConversation, useRequestAnalyst } from "./use-chat-mutations";
+import { useCreateConversation } from "./use-chat-mutations";
 
 type NewConversationOptions = { inheritSummaryFrom?: string };
 
 /**
- * "Nova conversa": cria (aparece no histórico na hora, UX1) e abre a conversa criada. Com o teto diário de custo atingido
- * (§12.3), o agent não responderia: em vez de criar uma conversa que já nasce bloqueada, abre o
- * aviso do teto (`dailyLimitNotice`), que oferece "Falar com um analista".
+ * "Nova conversa": cria (aparece no histórico na hora, UX1) e abre a conversa criada. Com o
+ * teto diário de custo atingido (§12.3), o agent não responderia: antes de abrir, mostra o
+ * aviso do teto (`dailyLimitNotice`). "Escrever para um analista" abre a conversa nova com o
+ * campo livre; a primeira mensagem fica guardada para o analista e o campo então oferece
+ * "Falar com um analista", que transfere já com o pedido. Conversa vazia não vai para a fila.
  */
 export function useNewConversation() {
   const router = useRouter();
   const dailyLimitReached = useSignedInQuery(api.conversations.dailyLimitReached, {}) ?? false;
   const createConversation = useCreateConversation();
-  const requestAnalyst = useRequestAnalyst();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** As opções do pedido que esbarrou no teto; null com o aviso fechado. */
@@ -48,13 +49,11 @@ export function useNewConversation() {
     if (conversationId) router.push(`/chat/${conversationId}`);
   }
 
-  /** "Falar com um analista" do aviso: a conversa nova já vai para a fila do analista. */
-  async function startWithAnalyst() {
+  /** "Escrever para um analista" do aviso: abre a conversa nova para a pessoa escrever o pedido. */
+  async function startForAnalyst() {
     const conversationId = await create(blockedByDailyLimit ?? {});
     setBlockedByDailyLimit(null);
-    if (!conversationId) return;
-    await requestAnalyst({ conversationId });
-    router.push(`/chat/${conversationId}`);
+    if (conversationId) router.push(`/chat/${conversationId}`);
   }
 
   return {
@@ -64,7 +63,7 @@ export function useNewConversation() {
     dailyLimitNotice: {
       opened: blockedByDailyLimit !== null,
       isCreating,
-      onTalkToAnalyst: () => void startWithAnalyst(),
+      onWriteToAnalyst: () => void startForAnalyst(),
       onClose: () => setBlockedByDailyLimit(null),
     },
   };

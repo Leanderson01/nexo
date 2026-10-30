@@ -74,9 +74,9 @@ export function ChatConversation({ conversationId }: { conversationId: string | 
     agentBusy: (conversation?.agentBusy ?? false) || waitingForAgent,
     employeeMessageCount,
     messageLimit,
-    // Na conversa nova o campo fica livre: o envio salva a mensagem e abre a conversa, que
-    // então mostra o aviso com "Falar com um analista".
-    dailyLimitReached: conversation?.dailyLimitReached ?? false,
+    // Na conversa nova (ou ainda vazia) o campo fica livre: o envio salva o pedido para o
+    // analista e só então aparece o aviso com "Falar com um analista", que o leva junto.
+    dailyLimitReached: (conversation?.dailyLimitReached ?? false) && employeeMessageCount > 0,
   });
   const canSend = canType(composerState);
 

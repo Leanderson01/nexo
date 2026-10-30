@@ -115,15 +115,15 @@ export async function isDailyCostLimitReached(ctx: QueryCtx, now: number): Promi
 // ---------- Conversas por funcionário ----------
 
 /**
- * Quantas conversas o funcionário abriu hoje. Usa o índice por `lastMessageAt`: quem foi
+ * As conversas que o funcionário criou hoje. Usa o índice por `lastMessageAt`: quem foi
  * criada hoje teve atividade hoje, então o intervalo do índice já contém todas, e a data de
  * criação separa as que só foram retomadas hoje.
  */
-export async function countConversationsCreatedToday(
+export async function findConversationsCreatedToday(
   ctx: QueryCtx,
   employeeId: Id<"people">,
   now: number,
-): Promise<number> {
+): Promise<Doc<"conversations">[]> {
   const startOfToday = startOfLocalDay(now);
   const activeToday = await ctx.db
     .query("conversations")
@@ -131,7 +131,16 @@ export async function countConversationsCreatedToday(
       q.eq("employeeId", employeeId).gte("lastMessageAt", startOfToday),
     )
     .collect();
-  return activeToday.filter((conversation) => conversation._creationTime >= startOfToday).length;
+  return activeToday.filter((conversation) => conversation._creationTime >= startOfToday);
+}
+
+/**
+ * Conversas criadas hoje que contam para `MAX_CONVERSATIONS_PER_DAY`: só as que têm ao menos
+ * uma mensagem do funcionário. Clicar em "Nova conversa" sem escrever nada não gasta o limite
+ * (e o `create` reaproveita a conversa vazia, então elas não se acumulam).
+ */
+export function countStartedConversations(conversations: Doc<"conversations">[]): number {
+  return conversations.filter((conversation) => conversation.employeeMessageCount > 0).length;
 }
 
 // ---------- Transcrição (rota /api/transcribe, com o segredo do servidor) ----------
