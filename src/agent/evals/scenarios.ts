@@ -884,6 +884,151 @@ export const SPEC_SCENARIOS: Scenario[] = [
   promptInjection,
 ];
 
+// ---------- QA de regressão R1 ----------
+
+const printerReclassified: Scenario = {
+  id: "extra-f3-reclassifica-critico",
+  title:
+    "Pedro: ninguém do andar imprime e há entrega hoje: atualização com nova prioridade Crítica",
+  source: "extra",
+  reference: "§8 F3 (reclassificação); §3.5; §6.3 CriticalPolicy; QA R1 item 1",
+  employeeEmail: PEDRO,
+  tickets: { ofEmployee: ["INC-20395"], ofOthers: [] },
+  steps: [
+    say(
+      "Sobre a impressora do 2º andar: agora ninguém do andar consegue imprimir e a equipe tem que entregar contratos impressos hoje à tarde.",
+      {
+        outcome: "draft_proposed",
+        policiesTriggered: ["CriticalPolicy"],
+        toolsCalled: [{ tool: "proposeTicketUpdate" }],
+        toolsForbidden: ["proposeTicketDraft", "proposeReopen"],
+        priority: "CRITICAL",
+        parts: { mustInclude: [{ type: "draft" }] },
+        text: { mustMatch: [{ description: "citar o INC-20395", pattern: /INC-20395/ }] },
+      },
+    ),
+    confirmDraft(),
+  ],
+  final: {
+    conversationStatus: "waiting_analyst",
+    handoffReason: "critical",
+    proposedAction: { kind: "update_ticket", code: "INC-20395", status: "confirmed" },
+    ticketsCreated: [],
+  },
+};
+
+const articleSolvedWithSimilar: Scenario = {
+  id: "extra-sim-encerra-assunto",
+  title: 'Mariana: "Sim" depois do artigo do SAP encerra o assunto, sem reabrir o INC-20150',
+  source: "extra",
+  reference: "§8 F1 passo 4; QA R1 item 2",
+  employeeEmail: MARIANA,
+  tickets: { ofEmployee: ["INC-20150"], ofOthers: [] },
+  steps: [
+    say("Não consigo entrar no SAP, aparece usuário bloqueado", {
+      parts: {
+        mustInclude: [
+          { type: "article", slug: "senha-sap-bloqueada" },
+          { type: "quickReplies", includesLabel: "Sim" },
+        ],
+      },
+      text: { mustMatch: [ASKS_IF_IT_WORKED] },
+    }),
+    pick("Sim", {
+      toolsForbidden: PROPOSAL_TOOLS,
+      parts: { mustNotInclude: [{ type: "draft" }] },
+      text: {
+        mustNotMatch: [
+          { description: "citar o INC-20150", pattern: /INC-20150/ },
+          { description: "falar em reabrir", pattern: /reabr/i },
+        ],
+      },
+    }),
+  ],
+  final: {
+    conversationStatus: "agent",
+    handoffReason: null,
+    proposedAction: null,
+    ticketsCreated: [],
+  },
+};
+
+const NOT_MOBILE_MAIL_ARTICLE = { type: "article", slug: "email-corporativo-no-celular" } as const;
+
+const outlookSameProblem: Scenario = {
+  id: "extra-outlook-duplicidade",
+  title: 'Rafael: "o Outlook não sincroniza" propõe atualizar o INC-20402, sem o artigo do celular',
+  source: "extra",
+  reference: "§3.2 sem duplicidade; §6.4 condição do artigo; QA R1 item 3",
+  employeeEmail: RAFAEL,
+  tickets: { ofEmployee: ["INC-20402"], ofOthers: [] },
+  steps: [
+    say("O Outlook não sincroniza os e-mails desde ontem.", {
+      outcome: "draft_proposed",
+      toolsCalled: [{ tool: "proposeTicketUpdate" }],
+      toolsForbidden: ["proposeTicketDraft", "proposeReopen"],
+      parts: { mustInclude: [{ type: "draft" }], mustNotInclude: [NOT_MOBILE_MAIL_ARTICLE] },
+      text: { mustMatch: [{ description: "citar o INC-20402", pattern: /INC-20402/ }] },
+    }),
+  ],
+  final: {
+    conversationStatus: "agent",
+    handoffReason: null,
+    proposedAction: { kind: "update_ticket", code: "INC-20402", status: "pending" },
+    ticketsCreated: [],
+  },
+};
+
+const outlookOnComputer: Scenario = {
+  id: "extra-outlook-computador",
+  title: 'Rafael: "o Outlook do meu computador não abre" não recebe o artigo do celular',
+  source: "extra",
+  reference: "§6.4 condição do artigo; §3.2; QA R1 item 3",
+  employeeEmail: RAFAEL,
+  tickets: { ofEmployee: [], ofOthers: [] },
+  steps: [
+    say(
+      "O Outlook do meu computador não abre desde hoje cedo, fica travado na tela de carregamento.",
+      {
+        toolsForbidden: ["proposeReopen", "requestHandoff"],
+        parts: { mustNotInclude: [NOT_MOBILE_MAIL_ARTICLE] },
+        text: {
+          mustNotMatch: [{ description: "orientar o e-mail no celular", pattern: /celular|MDM/i }],
+        },
+      },
+    ),
+  ],
+  final: {
+    conversationStatus: "agent",
+    handoffReason: null,
+    // O INC-20402 é do Outlook no celular: atualizar ele seria duplicidade errada.
+    proposedAction: null,
+    ticketsCreated: [],
+  },
+};
+
+const selectorWithoutNotFound: Scenario = {
+  id: "extra-seletor-sem-nao-encontrei",
+  title: '"Qual o status do meu chamado?" mostra o seletor sem dizer "não encontrei"',
+  source: "extra",
+  reference: "§8 F2 (vários: seletor); QA R1 item 4",
+  employeeEmail: MARIANA,
+  tickets: { ofEmployee: [], ofOthers: [] },
+  steps: [
+    say("Qual o status do meu chamado?", {
+      toolsForbidden: PROPOSAL_TOOLS,
+      parts: { mustInclude: [{ type: "ticketSelector" }] },
+      text: { mustNotMatch: [SAYS_NOT_FOUND] },
+    }),
+  ],
+  final: {
+    conversationStatus: "agent",
+    handoffReason: null,
+    proposedAction: null,
+    ticketsCreated: [],
+  },
+};
+
 export const EXTRA_SCENARIOS: Scenario[] = [
   maskedPassword,
   foreignTicketByDescription,
@@ -895,6 +1040,11 @@ export const EXTRA_SCENARIOS: Scenario[] = [
   noDeadlineToday,
   keyboardWithoutOs,
   returnWithNote,
+  printerReclassified,
+  articleSolvedWithSimilar,
+  outlookSameProblem,
+  outlookOnComputer,
+  selectorWithoutNotFound,
 ];
 
 export const SCENARIOS: Scenario[] = [...SPEC_SCENARIOS, ...EXTRA_SCENARIOS];
