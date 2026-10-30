@@ -78,6 +78,11 @@ describe("applyShortAnswerRules", () => {
     );
   });
 
+  it("opção lida como unclear com confiança alta segue o assunto como question", () => {
+    const understood = makeUnderstanding({ intent: "unclear", confidence: 0.95 });
+    expect(applyShortAnswerRules(understood, ASKED_WINDOWS, "Windows 11").intent).toBe("question");
+  });
+
   it("não baixa a confiança que já era alta", () => {
     const understood = makeUnderstanding({ intent: "question", confidence: 0.95 });
     expect(applyShortAnswerRules(understood, ASKED_WINDOWS, "Windows 11")).toBe(understood);

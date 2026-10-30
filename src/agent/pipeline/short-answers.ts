@@ -57,7 +57,12 @@ export function applyShortAnswerRules(
     };
   }
   const picked = findPickedReply(messages, userText);
-  if (picked && understanding.confidence < CLEAR_ANSWER_CONFIDENCE) {
+  // Lida como `unclear` (mesmo com confiança alta), a opção segue o assunto como `question`:
+  // sem isso, a central não era consultada depois do "Windows 10" e o modelo pulava o artigo.
+  if (
+    picked &&
+    (understanding.confidence < CLEAR_ANSWER_CONFIDENCE || understanding.intent === "unclear")
+  ) {
     return {
       ...understanding,
       intent: understanding.intent === "unclear" ? "question" : understanding.intent,
