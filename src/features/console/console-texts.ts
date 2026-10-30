@@ -110,6 +110,12 @@ export function queueCornerText(
   return queueTimeText(item.lastMessageAt, now);
 }
 
+/** Faixa de espera da conversa: "acabou de chegar" no primeiro minuto, depois "espera há 12 min". */
+export function waitingBarText(since: number, now: number): string {
+  const waited = elapsedText(since, now);
+  return waited === "agora" ? "acabou de chegar" : `espera há ${waited}`;
+}
+
 /** Horário do item da fila, como no protótipo: "agora", "10:05", "ontem" ou "16 out". */
 export function queueTimeText(timestamp: number, now: number): string {
   if (now - timestamp < MINUTE_MS) return "agora";

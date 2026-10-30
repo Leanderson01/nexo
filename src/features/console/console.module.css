@@ -858,9 +858,11 @@
 }
 
 /* O texto cede espaço aos botões; a barra só quebra quando nem 120 px sobram para ele. */
+/* Com pouco espaço (painel aberto a 1280 px), os botões descem para a linha de baixo em vez
+   de cortar "Mariana espera um atendente · espera há 12 min". */
 .waitingText {
-  flex: 1 1 120px;
-  min-width: 120px;
+  flex: 1 1 220px;
+  min-width: 220px;
 }
 
 .waitingTitle,

@@ -49,8 +49,8 @@ import {
   confidenceText,
   conversationBadge,
   dayLabel,
-  elapsedText,
   firstName,
+  waitingBarText,
 } from "./console-texts";
 import { EmployeePanel } from "./employee-panel";
 import { InitialsAvatar } from "./initials-avatar";
@@ -502,7 +502,7 @@ function WaitingFooter({
           </div>
           <div className={classes.waitingSub}>
             Agent pausado
-            {waitingSince !== null && ` · espera há ${elapsedText(waitingSince, now)}`}
+            {waitingSince !== null && ` · ${waitingBarText(waitingSince, now)}`}
           </div>
         </div>
         <div className={classes.footerActions}>

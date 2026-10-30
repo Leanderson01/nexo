@@ -18,11 +18,19 @@ import {
   ticketCountsText,
   ticketStatusText,
   ticketUpdateText,
+  waitingBarText,
 } from "../console-texts";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
+
+describe("waitingBarText", () => {
+  test('no primeiro minuto não diz "espera há agora"', () => {
+    expect(waitingBarText(0, 30_000)).toBe("acabou de chegar");
+    expect(waitingBarText(0, 12 * MINUTE)).toBe("espera há 12 min");
+  });
+});
 
 describe("elapsedText", () => {
   test("agora, minutos, horas com minutos e dias", () => {
