@@ -11,7 +11,6 @@ import type { DraftCallbacks } from "./draft-card";
 //   PATCH /api/conversations/:id/pending-action          → draft.onSaveEdit
 //   POST  /api/conversations/:id/retry                   → onRetry
 // e apaga este arquivo. Até lá, o clique só mostra um aviso.
-// O "Ver detalhes" dos chips (`onShowDetails`) também é provisório: a T8 abre o painel de decisão.
 
 export function useBlockActionsStub() {
   const [notice, setNotice] = useState<string | null>(null);
@@ -29,8 +28,6 @@ export function useBlockActionsStub() {
   return {
     draft,
     onRetry: () => announce("Tentar de novo"),
-    /** PROVISÓRIO (T8): abre o painel de decisão desse `decisionId`. */
-    onShowDetails: () => announce("O painel de decisão"),
     notice,
     dismissNotice: () => setNotice(null),
   };

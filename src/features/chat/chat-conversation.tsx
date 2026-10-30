@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef, type RefObject } from "react";
 
 import { api } from "../../../convex/_generated/api";
+import { DecisionPanelDrawer, useDecisionPanel } from "../decision-panel/decision-panel-drawer";
 import { findChosenText } from "./blocks/reply-segments";
 import { useBlockActionsStub } from "./blocks/use-block-actions-stub";
 import classes from "./chat.module.css";
@@ -37,6 +38,8 @@ export function ChatConversation({ conversationId }: { conversationId: string | 
   const requestAnalyst = useMutation(api.conversations.requestAnalyst);
   // PROVISÓRIO (T11): troca pelas rotas de confirmar, cancelar, editar e tentar de novo.
   const blockActions = useBlockActionsStub();
+  // "Ver detalhes" dos chips abre o painel de decisão daquela resposta (§7.3).
+  const decisionPanel = useDecisionPanel();
   const scrollerRef = useRef<HTMLDivElement>(null);
   const scroller = useStickToBottom(scrollerRef, messages);
 
@@ -83,7 +86,7 @@ export function ChatConversation({ conversationId }: { conversationId: string | 
               <MessageItem
                 key={message._id}
                 message={message}
-                onShowDetails={blockActions.onShowDetails}
+                onShowDetails={decisionPanel.open}
                 actions={{
                   onSend: sendFromButton,
                   // Opções e seletor só valem na última mensagem (depois do uso, desabilitam).
@@ -162,6 +165,8 @@ export function ChatConversation({ conversationId }: { conversationId: string | 
             : undefined
         }
       />
+
+      <DecisionPanelDrawer decisionId={decisionPanel.decisionId} onClose={decisionPanel.close} />
     </>
   );
 }

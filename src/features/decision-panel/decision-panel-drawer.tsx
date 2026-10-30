@@ -6,7 +6,6 @@ import { catchError, type ErrorInfo } from "next/error";
 import { useCallback, useState } from "react";
 
 import { api } from "../../../convex/_generated/api";
-import type { Id } from "../../../convex/_generated/dataModel";
 import { DecisionPanel } from "./decision-panel";
 
 // Gaveta lateral do painel de decisão (§7.3). O chat (T7) e o console (T12) ligam assim:
@@ -15,7 +14,11 @@ import { DecisionPanel } from "./decision-panel";
 //   <Anchor onClick={() => decisionPanel.open(message.decisionId)}>Ver detalhes</Anchor>
 //   <DecisionPanelDrawer decisionId={decisionPanel.decisionId} onClose={decisionPanel.close} />
 
-export type DecisionId = Id<"decisions">;
+/**
+ * Id de um registro em `decisions`. Como no resto do chat, circula como `string`: a query
+ * normaliza o id e devolve `null` para id inválido, inexistente ou alheio.
+ */
+export type DecisionId = string;
 
 /** Qual registro a gaveta mostra; `null` = gaveta fechada. */
 export function useDecisionPanel() {
