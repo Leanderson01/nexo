@@ -12,9 +12,53 @@ import {
   NOT_FOUND_TEXT,
   offerToOpenTicket,
   OPEN_TICKET_OPTION,
+  removeToolCallsFromText,
   resolveDraftRetry,
   retrySucceeded,
+  TOOL_CALL_FALLBACK_TEXT,
 } from "../reply-checks";
+
+describe("removeToolCallsFromText", () => {
+  it("tira a chamada escrita no fim do texto (achado da T10b)", () => {
+    const result = removeToolCallsFromText(
+      'Isso resolveu?\n\nofferQuickReplies({"options":["Sim","Não"]})',
+    );
+    expect(result?.text).toBe("Isso resolveu?");
+    expect(result?.correction.rule).toBe("tool_call_as_text");
+    expect(result?.correction.explanation).toContain("offerQuickReplies");
+  });
+
+  it("tira chamada no meio, em crases, e com parênteses dentro das aspas", () => {
+    const result = removeToolCallsFromText(
+      'Vou ver. `listMyTickets({"onlyOpen":true})` Achei dois. proposeReopen({"note":"(de novo)"}) Confira.',
+    );
+    expect(result?.text).toBe("Vou ver. Achei dois. Confira.");
+    expect(result?.correction.explanation).toContain("listMyTickets, proposeReopen");
+  });
+
+  it("tira o bloco de código que só tinha a chamada", () => {
+    const result = removeToolCallsFromText(
+      'Escolha uma opção.\n```json\nofferQuickReplies({"options":["A"]})\n```',
+    );
+    expect(result?.text).toBe("Escolha uma opção.");
+  });
+
+  it("sem fechamento, a chamada vai até o fim", () => {
+    expect(removeToolCallsFromText('Pronto. offerQuickReplies({"options":["Sim"')?.text).toBe(
+      "Pronto.",
+    );
+  });
+
+  it("se só havia a chamada, vira um aviso honesto", () => {
+    const result = removeToolCallsFromText('offerQuickReplies({"options":["Sim","Não"]})');
+    expect(result?.text).toBe(TOOL_CALL_FALLBACK_TEXT);
+  });
+
+  it("não mexe em texto normal, nem no nome da tool sem parênteses", () => {
+    expect(removeToolCallsFromText("Abra o portal (de softwares) e instale.")).toBeNull();
+    expect(removeToolCallsFromText("Uso o offerQuickReplies às vezes.")).toBeNull();
+  });
+});
 
 describe("extractTicketCodes", () => {
   it("acha os códigos, normaliza e tira repetidos", () => {

@@ -263,3 +263,92 @@ export function offerToOpenTicket(text: string): NoTicketOffer {
   }
   return { text, quickReplies, correction: null };
 }
+
+// ---------- Regra 4: chamada de tool escrita como texto sai da resposta ----------
+
+/** As tools do AGIR (`createTools`). Um destes nomes seguido de "(" no texto é chamada vazada. */
+export const AGENT_TOOL_NAMES = [
+  "searchKnowledgeBase",
+  "listMyTickets",
+  "getMyTicket",
+  "findSimilarTickets",
+  "selectTicket",
+  "showTicketSelector",
+  "offerQuickReplies",
+  "proposeTicketDraft",
+  "proposeTicketUpdate",
+  "proposeReopen",
+  "requestHandoff",
+] as const;
+
+const TOOL_CALL_START = new RegExp(String.raw`\b(${AGENT_TOOL_NAMES.join("|")})\s*\(`, "g");
+
+/** Quando não sobra nada além da chamada, a resposta não fica vazia. */
+export const TOOL_CALL_FALLBACK_TEXT =
+  "Desculpe, me atrapalhei na resposta. Pode me mandar a mensagem de novo?";
+
+/**
+ * Onde termina a chamada cujo "(" está em `openIndex`: logo depois do ")" que o fecha,
+ * contando os parênteses fora de aspas. Sem fechamento, a chamada vai até o fim do texto.
+ */
+function findCallEnd(text: string, openIndex: number): number {
+  let depth = 0;
+  let inString = false;
+  for (let index = openIndex; index < text.length; index++) {
+    const char = text[index];
+    if (inString) {
+      if (char === "\\") index++;
+      else if (char === '"') inString = false;
+    } else if (char === '"') inString = true;
+    else if (char === "(") depth++;
+    else if (char === ")" && --depth === 0) return index + 1;
+  }
+  return text.length;
+}
+
+/** O texto sem as chamadas, arrumado (crases vazias, espaços e linhas em branco a mais). */
+function stripToolCalls(text: string): { text: string; toolNames: string[] } {
+  const toolNames: string[] = [];
+  let kept = "";
+  let cursor = 0;
+  for (const match of text.matchAll(TOOL_CALL_START)) {
+    if (match.index < cursor) continue; // dentro de uma chamada já removida
+    toolNames.push(match[1]!);
+    kept += text.slice(cursor, match.index);
+    cursor = findCallEnd(text, match.index + match[0].length - 1);
+  }
+  kept += text.slice(cursor);
+
+  const tidy = kept
+    .replace(/```\w*\s*```/g, "") // bloco de código que só tinha a chamada
+    .replace(/``/g, "") // crases que só cercavam a chamada
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/ {2,}/g, " ")
+    .trim();
+  return { text: tidy, toolNames };
+}
+
+/**
+ * O modelo às vezes escreve a chamada da tool como texto em vez de chamá-la (achado da T10b:
+ * `offerQuickReplies({"options":[...]})`). A chamada não aconteceu e o trecho só confunde o
+ * funcionário, então sai do texto. Se não sobrar nada, a resposta vira um aviso honesto.
+ */
+export function removeToolCallsFromText(
+  text: string,
+): { text: string; correction: ReplyCorrection } | null {
+  const stripped = stripToolCalls(text);
+  if (stripped.toolNames.length === 0) return null;
+
+  const names = [...new Set(stripped.toolNames)].join(", ");
+  const nothingLeft = stripped.text === "";
+  return {
+    text: nothingLeft ? TOOL_CALL_FALLBACK_TEXT : stripped.text,
+    correction: {
+      rule: "tool_call_as_text",
+      explanation: nothingLeft
+        ? `O modelo escreveu a chamada de ${names} como texto e não sobrou resposta: virou um aviso honesto.`
+        : `O modelo escreveu a chamada de ${names} como texto: o trecho saiu da resposta.`,
+    },
+  };
+}

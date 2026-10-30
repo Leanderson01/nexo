@@ -550,6 +550,25 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
       "Não encontrei esse chamado entre os seus. Se for um problema novo, posso abrir um chamado para você.",
     );
   });
+
+  it("chamada de tool escrita como texto sai da resposta e fica registrada", async () => {
+    const turn = setup({ userText: "Como instalo o Figma?" });
+    turn.understands({ intent: "question", summary: "Quer instalar o Figma." });
+    turn.groq.reply(
+      streamText(
+        MAIN,
+        ["Instale pelo portal de softwares.\n", 'offerQuickReplies({"options":["Sim","Não"]})'],
+        USAGE,
+      ),
+    );
+
+    await turn.run();
+
+    expect(turn.sink.text).toBe("Instale pelo portal de softwares.");
+    expect(turn.store.decisions[0].corrections).toEqual([
+      expect.objectContaining({ rule: "tool_call_as_text" }),
+    ]);
+  });
 });
 
 describe("runTurn: erros (§10)", () => {

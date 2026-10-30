@@ -38,6 +38,7 @@ import {
   extractTicketCodes,
   isNoTicketFound,
   offerToOpenTicket,
+  removeToolCallsFromText,
   resolveDraftRetry,
   retrySucceeded,
   saysNotFound,
@@ -402,6 +403,13 @@ async function answerWithModel(
     });
     replaceModelText(turn, resolved.text);
     turn.corrections.push(resolved.correction);
+  }
+
+  // Regra 4: chamada de tool escrita como texto não chega ao funcionário.
+  const withoutToolCalls = removeToolCallsFromText(modelText(turn));
+  if (withoutToolCalls) {
+    replaceModelText(turn, withoutToolCalls.text);
+    turn.corrections.push(withoutToolCalls.correction);
   }
 
   // As opções da oferta de analista são fixas em código (decisão 22 lê a resposta).

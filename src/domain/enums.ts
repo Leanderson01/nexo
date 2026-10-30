@@ -115,13 +115,15 @@ export type TurnStage = (typeof TURN_STAGES)[number];
  * - `foreign_ticket_code`: citou um código de chamado que não é do funcionário;
  * - `draft_claim_without_draft`: disse que preparou um rascunho sem chamar a tool de proposta;
  * - `critical_without_draft`: caso crítico em que o rascunho não saiu no turno (§6.3);
- * - `no_ticket_found_offer`: não achou o chamado e não ofereceu abrir um (F2).
+ * - `no_ticket_found_offer`: não achou o chamado e não ofereceu abrir um (F2);
+ * - `tool_call_as_text`: escreveu a chamada de uma tool como texto (ex.: `offerQuickReplies({...})`).
  */
 export const REPLY_CORRECTION_RULES = [
   "foreign_ticket_code",
   "draft_claim_without_draft",
   "critical_without_draft",
   "no_ticket_found_offer",
+  "tool_call_as_text",
 ] as const;
 export type ReplyCorrectionRule = (typeof REPLY_CORRECTION_RULES)[number];
 
