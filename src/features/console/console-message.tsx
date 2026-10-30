@@ -5,12 +5,14 @@ import type { FunctionReturnType } from "convex/server";
 import type { ConversationEvent } from "@/domain/enums";
 import { HANDOFF_REASON_LABELS } from "@/domain/labels";
 import type { MessagePart } from "@/domain/message-parts";
+import type { ReceiptStatus } from "@/domain/read-receipts";
 import { formatTime } from "@/features/chat/blocks/block-texts";
 import { QuickReplies } from "@/features/chat/blocks/quick-replies";
 import { LiveActionChips } from "@/features/chat/blocks/reply-header";
 import { toReplySegments } from "@/features/chat/blocks/reply-segments";
 import { TypingBubble } from "@/features/chat/blocks/typing-bubble";
 import { MessagePartView, type PartActions } from "@/features/chat/message-part-view";
+import { ReadReceipt } from "@/features/chat/read-receipt";
 import {
   AgentIcon,
   EndIcon,
@@ -111,18 +113,24 @@ function TextBubble({
   text,
   createdAt,
   author,
+  receipt = null,
   children,
 }: {
   text: string;
   createdAt: number;
   author: "employee" | "agent" | "analyst";
+  /** ✓ das respostas do agent e do analista, vistas pelo funcionário (UX1). */
+  receipt?: ReceiptStatus | null;
   children?: React.ReactNode;
 }) {
   return (
     <div className={classes.bubble} data-author={author}>
       {text !== "" && <span className={classes.bubbleText}>{text}</span>}
       {children && <div className={classes.bubbleExtra}>{children}</div>}
-      <span className={classes.bubbleTime}>{formatTime(createdAt)}</span>
+      <span className={classes.bubbleTime}>
+        {formatTime(createdAt)}
+        {receipt && <ReadReceipt status={receipt} />}
+      </span>
     </div>
   );
 }
@@ -137,7 +145,9 @@ function ReplyParts({
   chosenText: string | null;
 }) {
   const actions: PartActions = { ...READ_ONLY_ACTIONS, chosenText };
-  return toReplySegments(message.parts).map((segment, index) => {
+  const segments = toReplySegments(message.parts);
+  const lastTextIndex = segments.findLastIndex((segment) => segment.kind !== "block");
+  return segments.map((segment, index) => {
     if (segment.kind === "block") {
       return (
         // `disabled` desliga os botões dos cards (rascunho, seletor) sem mexer nos blocos.
@@ -148,7 +158,14 @@ function ReplyParts({
     }
     if (segment.text === "" && !segment.quickReplies) return null;
     return (
-      <TextBubble key={index} text={segment.text} createdAt={message.createdAt} author={author}>
+      <TextBubble
+        key={index}
+        text={segment.text}
+        createdAt={message.createdAt}
+        author={author}
+        // O ✓ vai no último balão de texto da resposta, como o horário.
+        receipt={index === lastTextIndex ? message.receipt : null}
+      >
         {segment.quickReplies && (
           <QuickReplies
             options={segment.quickReplies.options}

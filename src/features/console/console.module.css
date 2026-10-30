@@ -686,6 +686,9 @@
 }
 
 .bubbleTime {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   margin-left: auto;
   font-size: 10px;
   line-height: 18px;

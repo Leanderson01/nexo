@@ -12,7 +12,7 @@ import {
   Text,
   Textarea,
 } from "@mantine/core";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import Link from "next/link";
 import { Fragment, useEffect, useRef, useState, type RefObject } from "react";
@@ -50,7 +50,7 @@ import {
 import { EmployeePanel } from "./employee-panel";
 import { InitialsAvatar } from "./initials-avatar";
 import { StatusLabel } from "./status-label";
-import { useConsoleActions } from "./use-console-actions";
+import { useConsoleActions, useMarkReadMutation } from "./use-console-actions";
 import { useHydrated } from "./use-hydrated";
 
 /** Botões de ação do atendimento: no print, mais justos que o `sm` padrão do tema (18 px). */
@@ -247,7 +247,9 @@ function ConversationHeader({
         error={actions.error}
         onCancel={closeDialog}
         onConfirm={async (note) => {
-          if (await actions.returnToAgent(note)) setDialog(null);
+          // Otimista (UX1): fecha na hora; se o servidor recusar, reabre com o erro.
+          setDialog(null);
+          if (!(await actions.returnToAgent(note))) setDialog("return");
         }}
       />
       <CloseConversationModal
@@ -257,7 +259,8 @@ function ConversationHeader({
         error={actions.error}
         onCancel={closeDialog}
         onConfirm={async () => {
-          if (await actions.close()) setDialog(null);
+          setDialog(null);
+          if (!(await actions.close())) setDialog("close");
         }}
       />
     </header>
@@ -328,12 +331,41 @@ function SummaryField({ label, children }: { label: string; children: React.Reac
 
 // ---------- Rodapé: a ação de cada estado ----------
 
+/**
+ * O rodapé de cada estado. As ações ficam aqui, acima das partes: assumir e devolver trocam o
+ * rodapé na hora (UX1) e, se o servidor recusar, o erro aparece no rodapé que voltou.
+ */
 function ConversationFooter({ conversation }: { conversation: ConsoleConversationData }) {
+  const actions = useConsoleActions(conversation._id);
+
+  return (
+    <footer className={classes.footer}>
+      {actions.error && (
+        <Alert color="red" variant="light" mb="sm" withCloseButton onClose={actions.dismissError}>
+          {actions.error}
+        </Alert>
+      )}
+      <FooterContent conversation={conversation} actions={actions} />
+    </footer>
+  );
+}
+
+type ConsoleActions = ReturnType<typeof useConsoleActions>;
+
+function FooterContent({
+  conversation,
+  actions,
+}: {
+  conversation: ConsoleConversationData;
+  actions: ConsoleActions;
+}) {
   const { status, isMine, employee } = conversation;
 
-  if (status === "waiting_analyst") return <WaitingFooter conversation={conversation} />;
+  if (status === "waiting_analyst") {
+    return <WaitingFooter conversation={conversation} actions={actions} />;
+  }
   if (status === "with_analyst" && isMine) {
-    return <AnalystComposer conversationId={conversation._id} employeeName={employee.name} />;
+    return <AnalystComposer employeeName={employee.name} actions={actions} />;
   }
 
   const note =
@@ -342,28 +374,24 @@ function ConversationFooter({ conversation }: { conversation: ConsoleConversatio
       : status === "agent"
         ? "O Nexo Assist está atendendo. Você acompanha em tempo real."
         : "Conversa encerrada. O funcionário pode iniciar uma nova conversa.";
-  return (
-    <footer className={classes.footer}>
-      <p className={classes.footerNote}>{note}</p>
-    </footer>
-  );
+  return <p className={classes.footerNote}>{note}</p>;
 }
 
 /** "Pedro espera um atendente" com Devolver ao agent e Assumir atendimento (protótipo 05). */
-function WaitingFooter({ conversation }: { conversation: ConsoleConversationData }) {
-  const actions = useConsoleActions(conversation._id);
+function WaitingFooter({
+  conversation,
+  actions,
+}: {
+  conversation: ConsoleConversationData;
+  actions: ConsoleActions;
+}) {
   const [returning, setReturning] = useState(false);
   const now = useNow(30_000);
   const name = conversation.employee.name;
   const waitingSince = conversation.handoff?.at ?? null;
 
   return (
-    <footer className={classes.footer}>
-      {actions.error && !returning && (
-        <Alert color="red" variant="light" mb="sm" withCloseButton onClose={actions.dismissError}>
-          {actions.error}
-        </Alert>
-      )}
+    <>
       <div className={classes.waitingBar}>
         <span className={classes.waitingIcon}>
           <HandIcon size={ICON_SIZE.md} />
@@ -387,7 +415,6 @@ function WaitingFooter({ conversation }: { conversation: ConsoleConversationData
           <Button
             px={ACTION_BUTTON_PADDING}
             leftSection={<HeadsetIcon />}
-            loading={actions.running === "assign"}
             onClick={() => void actions.assign()}
           >
             Assumir atendimento
@@ -406,78 +433,72 @@ function WaitingFooter({ conversation }: { conversation: ConsoleConversationData
       <ReturnToAgentModal
         opened={returning}
         employeeName={name}
-        loading={actions.running === "return"}
-        error={actions.error}
-        onCancel={() => {
-          actions.dismissError();
+        loading={false}
+        error={null}
+        onCancel={() => setReturning(false)}
+        onConfirm={(note) => {
+          // Otimista (UX1): a conversa volta ao agent na hora; o erro, se houver, fica no rodapé.
           setReturning(false);
-        }}
-        onConfirm={async (note) => {
-          if (await actions.returnToAgent(note)) setReturning(false);
+          void actions.returnToAgent(note);
         }}
       />
-    </footer>
+    </>
   );
 }
 
-/** Campo do analista, habilitado só para quem assumiu. Enter envia; Shift+Enter quebra linha. */
+/**
+ * Campo do analista, habilitado só para quem assumiu. Enter envia; Shift+Enter quebra linha.
+ * A mensagem entra no histórico na hora, com o reloginho (UX1); se o servidor recusar, ela
+ * sai e o texto volta para o campo.
+ */
 function AnalystComposer({
-  conversationId,
   employeeName,
+  actions,
 }: {
-  conversationId: string;
   employeeName: string;
+  actions: ConsoleActions;
 }) {
-  const actions = useConsoleActions(conversationId);
   const [text, setText] = useState("");
 
   async function send() {
     const toSend = text.trim();
-    if (toSend === "" || actions.running === "send") return;
+    if (toSend === "") return;
     setText("");
     const sent = await actions.send(toSend);
     if (!sent) setText(toSend);
   }
 
   return (
-    <footer className={classes.footer}>
-      {actions.error && (
-        <Alert color="red" variant="light" mb="sm" withCloseButton onClose={actions.dismissError}>
-          {actions.error}
-        </Alert>
-      )}
-      <div className={classes.composer}>
-        <Textarea
-          className={classes.composerField}
-          variant="filled"
-          classNames={{ input: classes.composerInput }}
-          autosize
-          minRows={1}
-          maxRows={6}
-          placeholder={`Responder para ${firstName(employeeName)}`}
-          aria-label={`Mensagem para ${employeeName}`}
-          value={text}
-          onChange={(event) => setText(event.currentTarget.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              void send();
-            }
-          }}
-        />
-        <ActionIcon
-          size={44}
-          radius="xl"
-          className={classes.sendButton}
-          aria-label="Enviar mensagem"
-          loading={actions.running === "send"}
-          disabled={text.trim() === ""}
-          onClick={() => void send()}
-        >
-          <SendMessageIcon size={ICON_SIZE.lg} />
-        </ActionIcon>
-      </div>
-    </footer>
+    <div className={classes.composer}>
+      <Textarea
+        className={classes.composerField}
+        variant="filled"
+        classNames={{ input: classes.composerInput }}
+        autosize
+        minRows={1}
+        maxRows={6}
+        placeholder={`Responder para ${firstName(employeeName)}`}
+        aria-label={`Mensagem para ${employeeName}`}
+        value={text}
+        onChange={(event) => setText(event.currentTarget.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            void send();
+          }
+        }}
+      />
+      <ActionIcon
+        size={44}
+        radius="xl"
+        className={classes.sendButton}
+        aria-label="Enviar mensagem"
+        disabled={text.trim() === ""}
+        onClick={() => void send()}
+      >
+        <SendMessageIcon size={ICON_SIZE.lg} />
+      </ActionIcon>
+    </div>
   );
 }
 
@@ -593,7 +614,7 @@ function useMarkRead(
   conversation: ConsoleConversationData | null | undefined,
   messages: ConsoleMessage[] | null | undefined,
 ) {
-  const markRead = useMutation(api.console.markRead);
+  const markRead = useMarkReadMutation();
   const lastEmployeeMessageAt =
     messages?.findLast((message) => message.role === "user")?.createdAt ?? 0;
   const readAt = conversation?.analystReadAt ?? 0;

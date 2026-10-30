@@ -13,6 +13,7 @@ import { api } from "../../../convex/_generated/api";
 import classes from "./console.module.css";
 import { ConversationQueue, QueueSkeleton } from "./conversation-queue";
 import { InitialsAvatar } from "./initials-avatar";
+import { useDeliveryAcks } from "./use-delivery-acks";
 import { useFreshConversations } from "./use-fresh-conversations";
 import { useHydrated } from "./use-hydrated";
 import { useQueueAlerts } from "./use-queue-alerts";
@@ -37,6 +38,8 @@ export function ConsoleFrame({ children }: { children: React.ReactNode }) {
   const waitingCount = waiting?.counts.for_you ?? 0;
   const { fresh, markSeen, markAllSeen } = useFreshConversations(waitingIds);
   const { soundOn, toggleSound } = useQueueAlerts(waitingIds, waitingCount);
+  // A fila deste console recebeu as mensagens: o funcionário vê o ✓✓ cinza (UX1).
+  useDeliveryAcks(waiting?.undelivered);
 
   return (
     <div className={classes.shell}>
