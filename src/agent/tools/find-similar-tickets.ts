@@ -21,7 +21,7 @@ const input = z.object({
 });
 type Input = z.infer<typeof input>;
 
-interface SimilarTicket extends TicketForModel {
+export interface SimilarTicket extends TicketForModel {
   suggestedAction: DuplicateAction;
   whatToDo: string;
   resolved: string | null;

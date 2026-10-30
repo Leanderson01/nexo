@@ -24,6 +24,7 @@ import {
   type CodeReply,
 } from "./code-replies";
 import { consultKnowledge, shouldConsultKnowledge } from "./consult-knowledge";
+import { consultSimilar, shouldConsultSimilar } from "./consult-similar";
 import { buildReturnContext, loadContext, type LoadedContext } from "./context-loader";
 import { ACCEPT_HANDOFF_OFFER, decide, DECLINE_HANDOFF_OFFER, type TurnDecision } from "./decide";
 import { resolveFocus, type FocusResult } from "./focus";
@@ -294,6 +295,17 @@ async function answerWithModel(
   const articles = shouldConsultKnowledge(understanding)
     ? await consultKnowledge(session, traceEnvironment)
     : null;
+  const similarTickets = shouldConsultSimilar(understanding, turn.input.userText)
+    ? await consultSimilar(session, traceEnvironment)
+    : null;
+  if (workspace.legacyUnavailable) {
+    await finishWithError(
+      turn,
+      { understanding, decision, stage: "act" },
+      LEGACY_UNAVAILABLE_REPLY,
+    );
+    return;
+  }
   const selectedTicket =
     workspace.employeeTickets?.find(
       (ticket) => ticket.code === context.snapshot.conversation.selectedTicketCode,
@@ -316,6 +328,7 @@ async function answerWithModel(
     guidingActions: decision.guidingActions,
     overdueExplanation: overdueExplanation(decision),
     articles,
+    similarTickets,
     sensitiveNoticeWritten: turn.replyText !== "",
   });
 

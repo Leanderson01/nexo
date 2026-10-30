@@ -1,4 +1,5 @@
 import type { GuidingAction } from "@/agent/policies/run-policies";
+import type { SimilarTicket } from "@/agent/tools/find-similar-tickets";
 import type { ArticleForModel } from "@/agent/tools/search-knowledge-base";
 import type { PendingAction } from "@/domain/pending-action";
 import type { TicketSummary } from "@/domain/ticket";
@@ -28,6 +29,8 @@ export interface TurnBriefingInput {
   overdueExplanation: string | null;
   /** Artigos da central já consultados pelo pipeline; `null` = não consultou. */
   articles: ArticleForModel[] | null;
+  /** Parecidos já procurados pelo pipeline (problema que voltou); `null` = não procurou. */
+  similarTickets?: SimilarTicket[] | null;
   /** O aviso de dado sensível já foi escrito no começo da resposta. */
   sensitiveNoticeWritten: boolean;
 }
@@ -45,6 +48,12 @@ export function buildTurnBriefing(input: TurnBriefingInput): string {
     input.pendingDraft ? section("Rascunho pendente", [describeDraft(input.pendingDraft)]) : null,
     input.articles
       ? section("Central de ajuda (já consultada; siga o whatToDo)", articleLines(input.articles))
+      : null,
+    input.similarTickets
+      ? section(
+          "Chamados parecidos (findSimilarTickets já chamada neste turno)",
+          similarLines(input.similarTickets),
+        )
       : null,
     section("Chamados", ticketLines(input)),
     section("Decisões já tomadas em código (siga)", decisionLines(input)),
@@ -103,6 +112,17 @@ function articleLines(articles: ArticleForModel[]): string[] {
     (article, index) =>
       `${index + 1}. "${article.title}" (${article.applicability}). whatToDo: ${article.whatToDo}\n   Conteúdo: ${article.body}`,
   );
+}
+
+function similarLines(similar: SimilarTicket[]): string[] {
+  if (similar.length === 0) return ["Nenhum parecido: pode propor um chamado novo."];
+  return [
+    ...similar.map(
+      (ticket) =>
+        `- ${ticket.code} · ${ticket.title} · ${ticket.status}${ticket.resolved ? ` (resolvido ${ticket.resolved})` : ""} · sugestão ${ticket.suggestedAction}: ${ticket.whatToDo}`,
+    ),
+    "Se um destes é o mesmo problema (mesma falha no mesmo lugar), siga o whatToDo dele AGORA, em vez de orientar o artigo, e cite o código no texto. Se nenhum for, ignore-os.",
+  ];
 }
 
 function ticketLines(input: TurnBriefingInput): string[] {

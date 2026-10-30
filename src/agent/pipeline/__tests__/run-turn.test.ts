@@ -327,6 +327,27 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
     );
   });
 
+  it("problema que voltou procura os parecidos em código, antes do AGIR", async () => {
+    const turn = setup({
+      userText: "O notebook continua travando.",
+      gateway: new FakeTicketGateway({ tickets: [NOTEBOOK], similar: [NOTEBOOK] }),
+    });
+    turn.understands({
+      intent: "update_ticket",
+      summary: "Notebook continua travando.",
+      ticketSignals: PRINTER_SIGNALS,
+    });
+    turn.groq.reply(streamText(MAIN, ["Você já tem o INC-20311 aberto sobre isso."], USAGE));
+
+    await turn.run();
+
+    const [record] = turn.store.decisions;
+    expect(record.actions.map((action) => action.tool)).toContain("findSimilarTickets");
+    const briefing = JSON.stringify(turn.groq.requests[1].messages);
+    expect(briefing).toContain("Chamados parecidos");
+    expect(briefing).toContain("INC-20311");
+  });
+
   it("se a nova tentativa também só promete, a resposta vira o aviso honesto", async () => {
     const turn = setup({ userText: "A impressora continua sem imprimir." });
     turn.understands({
