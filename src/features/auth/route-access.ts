@@ -23,12 +23,43 @@ function roleOwningPath(pathname: string): PersonRole | null {
   return null;
 }
 
-/** Só aceita caminhos internos ("/chat/123"), nunca "//site.com" ou URLs absolutas. */
+// Origem fictícia só para o `new URL` resolver o caminho; o que importa é ela não mudar.
+const PARSING_ORIGIN = "http://nexo.invalid";
+
+// Controle, espaço (inclusive Unicode) e barra invertida: o navegador remove TAB e quebra de
+// linha e troca "\" por "/", então "/<TAB>/evil.com" e "/\evil.com" viram "//evil.com".
+const UNSAFE_CHARACTER = /[\p{C}\s\\]/u;
+
+/**
+ * Só aceita caminhos internos ("/chat/123"), nunca "//site.com", URLs absolutas ou caminhos
+ * que o navegador transformaria nisso. Devolve o caminho normalizado pelo `URL`.
+ */
 export function safeNextPath(next: string | null | undefined): string | null {
-  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) return null;
+  if (UNSAFE_CHARACTER.test(next)) return null;
+
+  let url: URL;
+  try {
+    url = new URL(next, PARSING_ORIGIN);
+  } catch {
     return null;
   }
-  return next;
+  if (url.origin !== PARSING_ORIGIN || !isPlainPathname(url.pathname)) return null;
+  return url.pathname + url.search + url.hash;
+}
+
+/** O caminho continua seguro mesmo se alguém decodificar "%2F", "%5C" ou "%09" depois. */
+function isPlainPathname(pathname: string): boolean {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return false;
+  }
+  return [pathname, decoded].every(
+    (candidate) =>
+      candidate.startsWith("/") && !candidate.startsWith("//") && !UNSAFE_CHARACTER.test(candidate),
+  );
 }
 
 export function loginPathFor(destination: string): string {
@@ -56,7 +87,7 @@ export function decideRedirect(request: RouteRequest, role: PersonRole | null): 
 
   if (pathname === LOGIN_PATH) {
     const next = safeNextPath(request.next);
-    const nextOwner = next ? roleOwningPath(new URL(next, "http://x").pathname) : null;
+    const nextOwner = next ? roleOwningPath(new URL(next, PARSING_ORIGIN).pathname) : null;
     return next && nextOwner === role ? next : HOME_BY_ROLE[role];
   }
   if (pathname === "/" || (owner !== null && owner !== role)) return HOME_BY_ROLE[role];
