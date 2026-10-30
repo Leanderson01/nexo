@@ -5,6 +5,11 @@ import {
   claimsPreparedDraft,
   DRAFT_CLAIM_FALLBACK_TEXT,
   draftRetryInstruction,
+  EMPTY_REPLY_FALLBACK_TEXT,
+  EMPTY_REPLY_RETRY_INSTRUCTION,
+  isEmptyReply,
+  resolveEmptyReply,
+  TALK_TO_ANALYST_OPTION,
   extractTicketCodes,
   isNoTicketFound,
   draftRetryReason,
@@ -291,5 +296,62 @@ describe("offerToOpenTicket", () => {
       quickReplies: [OPEN_TICKET_OPTION, "Não precisa"],
       correction: null,
     });
+  });
+});
+
+describe("isEmptyReply", () => {
+  it("vale só para resposta sem texto e sem partes", () => {
+    expect(isEmptyReply({ text: "", hasParts: false })).toBe(true);
+    expect(isEmptyReply({ text: " \n\n ", hasParts: false })).toBe(true);
+    expect(isEmptyReply({ text: "", hasParts: true })).toBe(false);
+    expect(isEmptyReply({ text: "Qual o impacto?", hasParts: false })).toBe(false);
+  });
+});
+
+describe("resolveEmptyReply", () => {
+  it("a nova tentativa que respondeu fica, com a correção registrada", () => {
+    const resolved = resolveEmptyReply({
+      retryOk: true,
+      retryText: "Qual o impacto desse problema?",
+      retryHasParts: true,
+    });
+    expect(resolved.fallback).toBeNull();
+    expect(resolved.correction.rule).toBe("empty_reply");
+    expect(resolved.correction.explanation).toContain("nova tentativa do AGIR respondeu");
+  });
+
+  it("nova tentativa só com partes (um card, um seletor) também resolve", () => {
+    const resolved = resolveEmptyReply({ retryOk: true, retryText: "", retryHasParts: true });
+    expect(resolved.fallback).toBeNull();
+  });
+
+  it("nova tentativa vazia vira a resposta honesta, com as opções fixas", () => {
+    const resolved = resolveEmptyReply({ retryOk: true, retryText: "  ", retryHasParts: false });
+    expect(resolved.fallback).toEqual({
+      text: EMPTY_REPLY_FALLBACK_TEXT,
+      quickReplies: [OPEN_TICKET_OPTION, TALK_TO_ANALYST_OPTION],
+    });
+    expect(resolved.correction.rule).toBe("empty_reply");
+    expect(resolved.correction.explanation).toContain("aviso honesto");
+  });
+
+  it("nova tentativa que falhou no meio também vira a resposta honesta", () => {
+    const resolved = resolveEmptyReply({
+      retryOk: false,
+      retryText: "Qual o imp",
+      retryHasParts: false,
+    });
+    expect(resolved.fallback?.text).toBe(EMPTY_REPLY_FALLBACK_TEXT);
+  });
+
+  it("a resposta honesta pede para reformular e oferece chamado ou analista", () => {
+    expect(EMPTY_REPLY_FALLBACK_TEXT).toMatch(/reformular/);
+    expect(EMPTY_REPLY_FALLBACK_TEXT).toMatch(/abrir um chamado/);
+    expect(EMPTY_REPLY_FALLBACK_TEXT).toMatch(/analista/);
+  });
+
+  it("a instrução da nova tentativa pede texto e as opções pela tool", () => {
+    expect(EMPTY_REPLY_RETRY_INSTRUCTION).toContain("## Correção (decidida em código)");
+    expect(EMPTY_REPLY_RETRY_INSTRUCTION).toContain("offerQuickReplies");
   });
 });

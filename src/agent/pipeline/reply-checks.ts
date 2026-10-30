@@ -352,3 +352,60 @@ export function removeToolCallsFromText(
     },
   };
 }
+
+// ---------- Regra 5: resposta sem texto e sem partes não vira balão vazio ----------
+
+/** Opção da resposta honesta da regra 5, ao lado de "Abrir um chamado". */
+export const TALK_TO_ANALYST_OPTION = "Falar com um analista";
+
+/** Quando nem a nova tentativa respondeu: pede para reformular e oferece as saídas. */
+export const EMPTY_REPLY_FALLBACK_TEXT =
+  "Desculpe, não consegui montar a resposta agora. Pode reformular a mensagem? Se preferir, posso abrir um chamado ou chamar um analista.";
+
+/**
+ * Instrução extra da nova tentativa. O gpt-oss às vezes escreve a pergunta e as opções só no
+ * raciocínio e encerra o passo sem texto nem tool (achado do "mouse sem fio parou").
+ */
+export const EMPTY_REPLY_RETRY_INSTRUCTION = `## Correção (decidida em código)
+Na tentativa anterior deste turno você terminou sem escrever nada para o funcionário e sem chamar nenhuma tool que mostre algo a ele. Agora escreva a resposta em texto. Para oferecer opções, chame a tool offerQuickReplies; não deixe a resposta nem as opções só no raciocínio.`;
+
+/** A resposta do AGIR não tem texto nem partes (cards, seletor, rascunho, opções). */
+export function isEmptyReply(input: { text: string; hasParts: boolean }): boolean {
+  return input.text.trim() === "" && !input.hasParts;
+}
+
+/**
+ * Resultado da nova tentativa: `fallback` nulo quando ela respondeu (texto ou partes);
+ * senão, a resposta honesta com as opções fixas em código.
+ */
+export function resolveEmptyReply(input: {
+  retryOk: boolean;
+  retryText: string;
+  retryHasParts: boolean;
+}): {
+  fallback: { text: string; quickReplies: string[] } | null;
+  correction: ReplyCorrection;
+} {
+  const problem = "O AGIR terminou sem texto e sem partes";
+  const answered =
+    input.retryOk && !isEmptyReply({ text: input.retryText, hasParts: input.retryHasParts });
+  if (answered) {
+    return {
+      fallback: null,
+      correction: {
+        rule: "empty_reply",
+        explanation: `${problem}: uma nova tentativa do AGIR respondeu.`,
+      },
+    };
+  }
+  return {
+    fallback: {
+      text: EMPTY_REPLY_FALLBACK_TEXT,
+      quickReplies: [OPEN_TICKET_OPTION, TALK_TO_ANALYST_OPTION],
+    },
+    correction: {
+      rule: "empty_reply",
+      explanation: `${problem}, e a nova tentativa também não respondeu: a resposta virou um aviso honesto.`,
+    },
+  };
+}

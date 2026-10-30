@@ -211,6 +211,7 @@ describe("computeMetrics", () => {
       critical_without_draft: 0,
       no_ticket_found_offer: 1,
       tool_call_as_text: 0,
+      empty_reply: 0,
     });
   });
 });

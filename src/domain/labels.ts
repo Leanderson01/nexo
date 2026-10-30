@@ -100,4 +100,5 @@ export const REPLY_CORRECTION_RULE_LABELS: Record<ReplyCorrectionRule, string> =
   critical_without_draft: "Caso crítico sem rascunho",
   no_ticket_found_offer: "Oferta de abrir chamado quando não achou",
   tool_call_as_text: "Chamada de tool escrita como texto removida",
+  empty_reply: "Resposta vazia",
 };
