@@ -20,9 +20,7 @@ export function confirmationReplyText(
 ): string {
   const deadline = PRIORITY_DEADLINES[ticket.priority].label;
   const when = whenText(computeDueAt(ticket.priority, ticket.lastActivityAt), options.now);
-  const sentences = [
-    `${whatWasDone(kind, ticket.code)} A primeira resposta do suporte vem até ${when} (${deadline}).`,
-  ];
+  const sentences = [`${whatWasDone(kind, ticket.code)} ${deadlineText(kind, when, deadline)}`];
   if (options.criticalHandoff) {
     sentences.push("Por ser um caso crítico, um analista do plantão vai assumir esta conversa.");
   }
@@ -37,6 +35,21 @@ function whatWasDone(kind: PendingActionKind, code: string): string {
       return `Pronto, registrei a informação no ${code}.`;
     case "reopen_ticket":
       return `Pronto, reabri o ${code}.`;
+  }
+}
+
+/**
+ * Só o chamado novo tem "primeira resposta". Na atualização, o prazo segue o do chamado (a
+ * atualização do funcionário não renova a atividade, F3); na reabertura, o atendimento volta.
+ */
+function deadlineText(kind: PendingActionKind, when: string, deadline: string): string {
+  switch (kind) {
+    case "create_ticket":
+      return `A primeira resposta do suporte vem até ${when} (${deadline}).`;
+    case "update_ticket":
+      return `O prazo do chamado continua o mesmo: o suporte responde até ${when} (${deadline}).`;
+    case "reopen_ticket":
+      return `O atendimento recomeça, e o suporte responde até ${when} (${deadline}).`;
   }
 }
 

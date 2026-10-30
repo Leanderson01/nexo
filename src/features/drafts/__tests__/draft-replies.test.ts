@@ -28,7 +28,7 @@ describe("confirmationReplyText", () => {
     );
 
     expect(text).toBe(
-      "Pronto, reabri o INC-20150. A primeira resposta do suporte vem até 02 nov, 11:00 (4 horas úteis).",
+      "Pronto, reabri o INC-20150. O atendimento recomeça, e o suporte responde até 02 nov, 11:00 (4 horas úteis).",
     );
   });
 
