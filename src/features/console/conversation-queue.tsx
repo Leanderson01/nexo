@@ -23,6 +23,7 @@ import {
 } from "./console-texts";
 import { InitialsAvatar } from "./initials-avatar";
 import { StatusLabel } from "./status-label";
+import { useHydrated } from "./use-hydrated";
 
 /** As abas do protótipo; "Encerradas" fica no menu de filtros, para caber na largura da fila. */
 const OPEN_TABS: ConsoleTab[] = ["all", "for_you", "with_agent", "mine"];
@@ -47,11 +48,19 @@ export function ConversationQueue({
   const params = useParams<{ conversationId?: string }>();
   const now = useNow(30_000);
 
-  const queue = useQuery(api.console.listConversations, {
-    tab,
-    reason: reason ?? undefined,
-    search: debouncedSearch.trim() === "" ? undefined : debouncedSearch,
-  });
+  // Até hidratar, a query fica parada: servidor e cliente desenham o mesmo esqueleto (sem
+  // isso, a lista e os contadores das abas vinham do cache só no cliente).
+  const hydrated = useHydrated();
+  const queue = useQuery(
+    api.console.listConversations,
+    hydrated
+      ? {
+          tab,
+          reason: reason ?? undefined,
+          search: debouncedSearch.trim() === "" ? undefined : debouncedSearch,
+        }
+      : "skip",
+  );
 
   function showFresh() {
     setTab("for_you");

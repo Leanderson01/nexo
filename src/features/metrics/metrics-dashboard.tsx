@@ -16,6 +16,7 @@ import {
   REPLY_CORRECTION_RULE_LABELS,
 } from "@/domain/labels";
 import type { DashboardMetrics } from "@/domain/metrics";
+import { useHydrated } from "@/features/console/use-hydrated";
 import { api } from "../../../convex/_generated/api";
 import classes from "./metrics.module.css";
 import {
@@ -34,7 +35,8 @@ import {
  */
 export function MetricsDashboard() {
   const [period, setPeriod] = useState<MetricsPeriod>("7d");
-  const dashboard = useQuery(api.metrics.dashboard, { period });
+  // Até hidratar, a query fica parada: servidor e cliente desenham o mesmo esqueleto.
+  const dashboard = useQuery(api.metrics.dashboard, useHydrated() ? { period } : "skip");
 
   return (
     <div className={classes.page}>

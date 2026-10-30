@@ -14,6 +14,7 @@ import classes from "./console.module.css";
 import { ConversationQueue, QueueSkeleton } from "./conversation-queue";
 import { InitialsAvatar } from "./initials-avatar";
 import { useFreshConversations } from "./use-fresh-conversations";
+import { useHydrated } from "./use-hydrated";
 import { useQueueAlerts } from "./use-queue-alerts";
 
 export const CONSOLE_PATH = "/console";
@@ -30,7 +31,8 @@ function isMetricsPath(pathname: string | null): boolean {
  * largura toda.
  */
 export function ConsoleFrame({ children }: { children: React.ReactNode }) {
-  const waiting = useQuery(api.console.listConversations, { tab: "for_you" });
+  const hydrated = useHydrated();
+  const waiting = useQuery(api.console.listConversations, hydrated ? { tab: "for_you" } : "skip");
   const waitingIds = waiting?.items.map((item) => item._id);
   const waitingCount = waiting?.counts.for_you ?? 0;
   const { fresh, markSeen, markAllSeen } = useFreshConversations(waitingIds);
@@ -116,7 +118,8 @@ function SoundToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
 }
 
 function AccountMenu() {
-  const person = useQuery(api.auth.currentPerson);
+  const hydrated = useHydrated();
+  const person = useQuery(api.auth.currentPerson, hydrated ? {} : "skip");
 
   return (
     <Menu position="right-end" withArrow>

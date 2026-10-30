@@ -51,6 +51,7 @@ import { EmployeePanel } from "./employee-panel";
 import { InitialsAvatar } from "./initials-avatar";
 import { StatusLabel } from "./status-label";
 import { useConsoleActions } from "./use-console-actions";
+import { useHydrated } from "./use-hydrated";
 
 /** Botões de ação do atendimento: no print, mais justos que o `sm` padrão do tema (18 px). */
 const ACTION_BUTTON_PADDING = 14;
@@ -63,8 +64,10 @@ type ConsoleConversationData = NonNullable<FunctionReturnType<typeof api.console
  * funcionário. Tudo em tempo real.
  */
 export function ConsoleConversation({ conversationId }: { conversationId: string }) {
-  const conversation = useQuery(api.console.getConversation, { conversationId });
-  const messages = useQuery(api.console.listMessages, { conversationId });
+  // Até hidratar, as queries ficam paradas (ver `useHydrated`).
+  const args = useHydrated() ? { conversationId } : "skip";
+  const conversation = useQuery(api.console.getConversation, args);
+  const messages = useQuery(api.console.listMessages, args);
   const [panelOpen, setPanelOpen] = useState(true);
   const decisionPanel = useDecisionPanel();
   const now = useNow();
