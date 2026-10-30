@@ -161,7 +161,7 @@ function draftInstruction(transfersOnConfirm: boolean, referenceCode: string | n
  * propunha o rascunho logo depois do "Windows 10"). Não vale quando o funcionário pediu o
  * chamado com todas as letras (`open_ticket`) nem quando o artigo já foi tentado.
  */
-function untriedArticle(session: ToolSession): string | null {
+export function untriedArticle(session: ToolSession): string | null {
   const top = session.workspace.topArticle;
   if (top?.status !== "applies" || session.understanding.intent === "open_ticket") return null;
   return session.facts.articlesTried.includes(top.part.title) ? null : top.part.title;

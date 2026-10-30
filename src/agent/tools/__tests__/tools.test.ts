@@ -287,6 +287,34 @@ describe("proposeTicketUpdate (F3, reclassificação)", () => {
   });
 });
 
+describe("proposeReopen: artigo antes (F1, QA R1)", () => {
+  it("com artigo que vale e ainda não foi tentado, não reabre", async () => {
+    const { session, workspace, store, gateways } = setup({
+      gateway: new FakeTicketGateway({ tickets: [SAP] }),
+      understanding: { intent: "question" },
+      employeeTexts: ["Não consigo entrar no SAP, aparece usuário bloqueado"],
+    });
+    workspace.topArticle = {
+      part: {
+        type: "article",
+        slug: "senha-sap-bloqueada",
+        title: "Senha do SAP bloqueada",
+        excerpt: "",
+      },
+      body: "O desbloqueio é automático em 30 minutos.",
+      status: "applies",
+      appliesTo: [],
+      knownValue: null,
+    };
+    const result = await proposeReopenTool(session).run(
+      { code: SAP.code, reason: "Usuário bloqueado.", evidence: "aparece usuário bloqueado" },
+      gateways,
+    );
+    expect(result).toMatchObject({ ok: false, error: expect.stringContaining("Isso resolveu?") });
+    expect(store.drafts).toHaveLength(0);
+  });
+});
+
 describe("proposeReopen", () => {
   it("reabre só o que foi resolvido há até 7 dias", async () => {
     const gateway = new FakeTicketGateway({ tickets: [SAP, WIFI] });

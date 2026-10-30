@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { canReopen } from "@/domain/ticket-rules";
 
+import { untriedArticle } from "./propose-ticket-draft";
 import type { AgentTool, ToolSession } from "./tool-session";
 import { groundedDraftText } from "./grounded-text";
 import { gatewayFailure } from "./ticket-view";
@@ -34,6 +35,15 @@ export function proposeReopenTool(session: ToolSession): AgentTool<Input, Output
     async run({ code, reason, evidence }, { tickets: gateway }) {
       const { workspace } = session;
       if (workspace.draft) return { ok: false, error: "Já há um rascunho proposto neste turno." };
+      // F1: o artigo que vale e ainda não foi tentado vem antes da reabertura (QA R1: o SAP
+      // bloqueado ia direto para reabrir o INC-20150).
+      const article = untriedArticle(session);
+      if (article) {
+        return {
+          ok: false,
+          error: `O artigo "${article}" vale para o caso e ainda não foi tentado: oriente os passos dele e termine com "Isso resolveu?". Não proponha a reabertura neste turno.`,
+        };
+      }
 
       const found = await gateway.getMine(code.trim().toUpperCase());
       if (!found.ok) {
