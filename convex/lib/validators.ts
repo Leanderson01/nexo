@@ -12,6 +12,7 @@ import {
   INTENTS,
   MESSAGE_ROLES,
   MESSAGE_STATUSES,
+  METRICS_PERIODS,
   PENDING_ACTION_STATUSES,
   PERSON_ROLES,
   POLICY_ACTION_KINDS,
@@ -71,6 +72,7 @@ export const vTurnStage = literals(TURN_STAGES);
 export const vReplyCorrectionRule = literals(REPLY_CORRECTION_RULES);
 export const vGatewayErrorKind = literals(GATEWAY_ERROR_KINDS);
 export const vConsoleTab = literals(CONSOLE_TABS);
+export const vMetricsPeriod = literals(METRICS_PERIODS);
 
 // ---------- Chamados ----------
 

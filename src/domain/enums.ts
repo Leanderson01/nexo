@@ -153,3 +153,7 @@ export type GatewayErrorKind = (typeof GATEWAY_ERROR_KINDS)[number];
  */
 export const CONSOLE_TABS = ["all", "for_you", "with_agent", "mine", "closed"] as const;
 export type ConsoleTab = (typeof CONSOLE_TABS)[number];
+
+/** Períodos do painel de métricas (§7.6): desde a meia-noite de São Paulo, 7 e 30 dias. */
+export const METRICS_PERIODS = ["today", "7d", "30d"] as const;
+export type MetricsPeriod = (typeof METRICS_PERIODS)[number];

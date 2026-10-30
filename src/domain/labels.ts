@@ -4,8 +4,10 @@ import type {
   ConversationStatus,
   HandoffReason,
   Impact,
+  MetricsPeriod,
   OutOfScopeArea,
   Priority,
+  ReplyCorrectionRule,
   TicketCategory,
   TicketKind,
   TicketStatus,
@@ -83,4 +85,18 @@ export const CONSOLE_TAB_LABELS: Record<ConsoleTab, string> = {
   with_agent: "Com o agent",
   mine: "Minhas",
   closed: "Encerradas",
+};
+
+export const METRICS_PERIOD_LABELS: Record<MetricsPeriod, string> = {
+  today: "Hoje",
+  "7d": "7 dias",
+  "30d": "30 dias",
+};
+
+/** O que cada correção em código (decisão 27) consertou, em poucas palavras. */
+export const REPLY_CORRECTION_RULE_LABELS: Record<ReplyCorrectionRule, string> = {
+  foreign_ticket_code: "Código de chamado alheio removido",
+  draft_claim_without_draft: "Disse que preparou rascunho sem preparar",
+  critical_without_draft: "Caso crítico sem rascunho",
+  no_ticket_found_offer: "Oferta de abrir chamado quando não achou",
 };

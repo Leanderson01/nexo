@@ -24,6 +24,7 @@ import type * as lib_guards from "../lib/guards.js";
 import type * as lib_handoff from "../lib/handoff.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as messages from "../messages.js";
+import type * as metrics from "../metrics.js";
 import type * as notifications from "../notifications.js";
 import type * as pendingActions from "../pendingActions.js";
 import type * as retry from "../retry.js";
@@ -61,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   "lib/handoff": typeof lib_handoff;
   "lib/validators": typeof lib_validators;
   messages: typeof messages;
+  metrics: typeof metrics;
   notifications: typeof notifications;
   pendingActions: typeof pendingActions;
   retry: typeof retry;
