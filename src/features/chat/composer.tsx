@@ -15,9 +15,11 @@ interface ComposerProps {
   state: ComposerState;
   employeeMessageCount: number;
   messageLimit: number;
-  isSending: boolean;
-  /** Devolve true se a mensagem foi aceita; só então o campo é limpo. */
-  onSend: (text: string) => Promise<boolean>;
+  /**
+   * Envio otimista (UX1): o campo é limpo na hora e a mensagem aparece na conversa com o
+   * reloginho; se a rota falhar, o erro e o "Tentar de novo" ficam na própria mensagem.
+   */
+  onSend: (text: string) => void;
   onNewConversation: (options: { inheritSummary: boolean }) => void;
   isCreatingConversation: boolean;
   /** Só existe com a conversa em `agent`: "Falar com um analista" no limite e no teto diário. */
@@ -26,9 +28,9 @@ interface ComposerProps {
 
 /** Campo de mensagem com os estados da §7.2 (e o teto diário) e o contador sempre visível. */
 export function Composer(props: ComposerProps) {
-  const { state, isSending } = props;
+  const { state } = props;
   const [text, setText] = useState("");
-  const enabled = canType(state) && !isSending;
+  const enabled = canType(state);
   // O texto falado entra no campo para revisar; nada é enviado sozinho (§11.1).
   const voice = useVoiceRecorder({
     disabled: !enabled,
@@ -37,17 +39,17 @@ export function Composer(props: ComposerProps) {
   const canUseButton = enabled && !isBusy(voice.state);
   const canSend = canUseButton && text.trim() !== "";
 
-  async function submit() {
+  function submit() {
     if (!canSend) return;
-    const accepted = await props.onSend(text);
-    if (accepted) setText("");
+    props.onSend(text);
+    setText("");
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     // Enter envia; Shift+Enter quebra a linha.
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
-      void submit();
+      submit();
     }
   }
 
@@ -76,9 +78,8 @@ export function Composer(props: ComposerProps) {
         <Button
           className={classes.sendButton}
           leftSection={<SendIcon size={ICON_SIZE.sm} />}
-          loading={isSending}
           disabled={!canUseButton}
-          onClick={() => void submit()}
+          onClick={submit}
         >
           Enviar
         </Button>

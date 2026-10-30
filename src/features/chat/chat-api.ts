@@ -10,13 +10,6 @@ export interface ChatApiFailure {
   message: string;
 }
 
-export async function createConversation(options: {
-  inheritSummaryFrom?: string;
-}): Promise<Result<string, ChatApiFailure>> {
-  const result = await postJson<{ conversationId: string }>("/api/conversations", options);
-  return result.ok ? ok(result.value.conversationId) : result;
-}
-
 export async function sendMessage(conversationId: string, text: string) {
   return await postJson<{ userMessageId: string; assistantMessageId: string | null }>(
     `/api/conversations/${encodeURIComponent(conversationId)}/messages`,
@@ -24,10 +17,12 @@ export async function sendMessage(conversationId: string, text: string) {
   );
 }
 
-const UNAVAILABLE: ChatApiFailure = {
-  code: "unavailable",
-  message: CHAT_API_ERRORS.unavailable.message,
-};
+/** O erro com o texto da tela, para quem chama a mutation direto (ex.: criar conversa). */
+export function chatFailure(code: ChatApiErrorCode): ChatApiFailure {
+  return { code, message: CHAT_API_ERRORS[code].message };
+}
+
+const UNAVAILABLE = chatFailure("unavailable");
 
 async function postJson<T>(url: string, body: unknown): Promise<Result<T, ChatApiFailure>> {
   try {

@@ -1,24 +1,24 @@
 "use client";
 
-import { useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { useSignedInQuery } from "@/features/auth/use-signed-in-query";
 import { api } from "../../../convex/_generated/api";
-import { createConversation } from "./chat-api";
+import { useCreateConversation, useRequestAnalyst } from "./use-chat-mutations";
 
 type NewConversationOptions = { inheritSummaryFrom?: string };
 
 /**
- * "Nova conversa": cria pela rota e abre a conversa criada. Com o teto diário de custo atingido
+ * "Nova conversa": cria (aparece no histórico na hora, UX1) e abre a conversa criada. Com o teto diário de custo atingido
  * (§12.3), o agent não responderia: em vez de criar uma conversa que já nasce bloqueada, abre o
  * aviso do teto (`dailyLimitNotice`), que oferece "Falar com um analista".
  */
 export function useNewConversation() {
   const router = useRouter();
   const dailyLimitReached = useSignedInQuery(api.conversations.dailyLimitReached, {}) ?? false;
-  const requestAnalyst = useMutation(api.conversations.requestAnalyst);
+  const createConversation = useCreateConversation();
+  const requestAnalyst = useRequestAnalyst();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** As opções do pedido que esbarrou no teto; null com o aviso fechado. */

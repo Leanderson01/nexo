@@ -35,6 +35,7 @@ export {
   SendHorizontal as SendMessageIcon,
   Check as CheckIcon,
   CheckCheck as ReadReceiptIcon,
+  Clock as SendingIcon, // reloginho da mensagem que ainda não foi salva
   BookOpen as ArticleIcon,
   Ticket as TicketIcon,
   // atendimento

@@ -14,6 +14,7 @@ import classes from "./chat.module.css";
 import { activeNavItem, CHAT_PATH, PROFILE_PATH } from "./chat-navigation";
 import { formatConversationDate } from "./chat-texts";
 import { DailyLimitNotice } from "./daily-limit-notice";
+import { isOptimisticId } from "./optimistic-updates";
 import { useNewConversation } from "./use-new-conversation";
 
 /** Navegação lateral do protótipo + histórico de conversas e "Nova conversa" (decisão 13). */
@@ -107,22 +108,37 @@ function ConversationHistory() {
         ) : conversations.length === 0 ? (
           <div className={classes.historyEmpty}>Suas conversas aparecem aqui.</div>
         ) : (
-          conversations.map((conversation) => (
-            <Link
-              key={conversation._id}
-              href={`/chat/${conversation._id}`}
-              className={classes.historyItem}
-              data-active={params.conversationId === conversation._id || undefined}
-            >
-              <div className={classes.historySubject}>
-                {conversation.subject ?? "Conversa nova"}
-              </div>
-              <div className={classes.historyDate}>
-                {formatConversationDate(conversation.lastMessageAt)}
-                {conversation.status === "closed" && " · encerrada"}
-              </div>
-            </Link>
-          ))
+          conversations.map((conversation) => {
+            const content = (
+              <>
+                <div className={classes.historySubject}>
+                  {conversation.subject ?? "Conversa nova"}
+                </div>
+                <div className={classes.historyDate}>
+                  {formatConversationDate(conversation.lastMessageAt)}
+                  {conversation.status === "closed" && " · encerrada"}
+                </div>
+              </>
+            );
+            // A conversa otimista (UX1) ainda não tem id de verdade: aparece, mas sem link.
+            if (isOptimisticId(conversation._id)) {
+              return (
+                <div key={conversation._id} className={classes.historyItem} aria-busy>
+                  {content}
+                </div>
+              );
+            }
+            return (
+              <Link
+                key={conversation._id}
+                href={`/chat/${conversation._id}`}
+                className={classes.historyItem}
+                data-active={params.conversationId === conversation._id || undefined}
+              >
+                {content}
+              </Link>
+            );
+          })
         )}
       </div>
     </>

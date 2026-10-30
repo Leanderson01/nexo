@@ -1,7 +1,7 @@
 "use client";
 
 import { Alert, Button, Group, Skeleton, Stack, Text } from "@mantine/core";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useEffect, useRef, type RefObject } from "react";
 
@@ -16,7 +16,15 @@ import { Composer } from "./composer";
 import { canType, getComposerState } from "./composer-state";
 import { DailyLimitNotice } from "./daily-limit-notice";
 import { EmptyState } from "./empty-state";
-import { MessageItem, type ChatMessage } from "./message-item";
+import {
+  MessageItem,
+  PendingAgentReply,
+  PendingUserMessage,
+  type ChatMessage,
+} from "./message-item";
+import { countInFlight, isWaitingForAgent } from "./pending-messages";
+import { useEmployeeReceiptAcks } from "./use-employee-receipt-acks";
+import { useRequestAnalyst } from "./use-chat-mutations";
 import { useNewConversation } from "./use-new-conversation";
 import { useSendMessage } from "./use-send-message";
 
@@ -35,15 +43,16 @@ export function ChatConversation({ conversationId }: { conversationId: string | 
   );
   const person = useQuery(api.auth.currentPerson);
 
-  const { send, isSending, failure, dismissFailure } = useSendMessage(conversationId);
+  const sender = useSendMessage(conversationId, messages ?? []);
+  useEmployeeReceiptAcks(conversationId, messages);
   const newConversation = useNewConversation();
-  const requestAnalyst = useMutation(api.conversations.requestAnalyst);
+  const requestAnalyst = useRequestAnalyst();
   // Confirmar, cancelar e editar o rascunho e o "Tentar de novo" do erro (§6.5).
   const blockActions = useBlockActions(conversationId);
   // "Ver detalhes" dos chips abre o painel de decisão daquela resposta (§7.3).
   const decisionPanel = useDecisionPanel();
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const scroller = useStickToBottom(scrollerRef, messages);
+  const scroller = useStickToBottom(scrollerRef, messages, sender.pending.length);
 
   if (conversationId && (conversation === null || messages === null)) {
     return <ConversationNotFound />;
@@ -53,20 +62,25 @@ export function ChatConversation({ conversationId }: { conversationId: string | 
     conversationId !== null && (conversation === undefined || messages === undefined);
   const status = conversation?.status ?? "agent";
   const messageLimit = conversation?.messageLimit ?? newConversationLimit ?? 30;
+  // As mensagens a caminho já contam (UX1): no contador e, indo para o agent, como turno em
+  // andamento, com o "digitando…" na hora.
+  const waitingForAgent = isWaitingForAgent(sender.pending);
+  const employeeMessageCount =
+    (conversation?.employeeMessageCount ?? 0) + countInFlight(sender.pending);
   const composerState = getComposerState({
     status,
-    agentBusy: conversation?.agentBusy ?? false,
-    employeeMessageCount: conversation?.employeeMessageCount ?? 0,
+    agentBusy: (conversation?.agentBusy ?? false) || waitingForAgent,
+    employeeMessageCount,
     messageLimit,
     // Na conversa nova o campo fica livre: o envio salva a mensagem e abre a conversa, que
     // então mostra o aviso com "Falar com um analista".
     dailyLimitReached: conversation?.dailyLimitReached ?? false,
   });
-  const canSend = canType(composerState) && !isSending;
+  const canSend = canType(composerState);
 
-  function sendFromButton(text: string) {
+  function send(text: string) {
     scroller.stickToBottom();
-    void send(text);
+    sender.send(text, composerState === "analyst" ? "analyst" : "agent");
   }
 
   const visibleMessages = messages ?? [];
@@ -80,10 +94,10 @@ export function ChatConversation({ conversationId }: { conversationId: string | 
         <div className={classes.column}>
           {isLoading ? (
             <MessagesSkeleton />
-          ) : visibleMessages.length === 0 ? (
+          ) : visibleMessages.length === 0 && sender.pending.length === 0 ? (
             <EmptyState
               firstName={person?.name.split(" ")[0] ?? null}
-              onSend={sendFromButton}
+              onSend={send}
               disabled={!canSend}
             />
           ) : (
@@ -93,7 +107,7 @@ export function ChatConversation({ conversationId }: { conversationId: string | 
                 message={message}
                 onShowDetails={decisionPanel.open}
                 actions={{
-                  onSend: sendFromButton,
+                  onSend: send,
                   // Opções e seletor só valem na última mensagem (depois do uso, desabilitam).
                   interactive: canSend && message._id === lastMessageId,
                   chosenText: findChosenText(visibleMessages, index),
@@ -103,36 +117,21 @@ export function ChatConversation({ conversationId }: { conversationId: string | 
               />
             ))
           )}
+          {sender.pending.map((pending) => (
+            <PendingUserMessage
+              key={pending.clientId}
+              pending={pending}
+              onRetry={() => {
+                scroller.stickToBottom();
+                sender.retry(pending);
+              }}
+              onDiscard={() => sender.discard(pending)}
+            />
+          ))}
+          {waitingForAgent && <PendingAgentReply />}
         </div>
       </div>
 
-      {failure && (
-        <Group className={classes.composerArea} pb={0}>
-          {/* Limite (ex.: conversas novas do dia) é âmbar e sem "Tentar de novo": não adiantaria. */}
-          <Alert
-            color={failure.retryable ? NOTICE_COLORS.error : NOTICE_COLORS.warning}
-            variant="light"
-            w="100%"
-            withCloseButton
-            onClose={dismissFailure}
-            title="A mensagem não foi enviada"
-          >
-            <Group justify="space-between" gap={8}>
-              <Text size="sm">{failure.message}</Text>
-              {failure.retryable && (
-                <Button
-                  size="xs"
-                  variant="white"
-                  color="red"
-                  onClick={() => sendFromButton(failure.text)}
-                >
-                  Tentar de novo
-                </Button>
-              )}
-            </Group>
-          </Alert>
-        </Group>
-      )}
       {blockActions.notice && (
         <Group className={classes.composerArea} pb={0}>
           <Alert
@@ -154,13 +153,9 @@ export function ChatConversation({ conversationId }: { conversationId: string | 
 
       <Composer
         state={composerState}
-        employeeMessageCount={conversation?.employeeMessageCount ?? 0}
+        employeeMessageCount={employeeMessageCount}
         messageLimit={messageLimit}
-        isSending={isSending}
-        onSend={async (text) => {
-          scroller.stickToBottom();
-          return await send(text);
-        }}
+        onSend={send}
         isCreatingConversation={newConversation.isCreating}
         onNewConversation={({ inheritSummary }) =>
           newConversation.startNewConversation({
@@ -187,13 +182,17 @@ const NOTICE_COLORS = { error: "red", warning: "orange" } as const;
  * Mantém a rolagem no fim enquanto chegam mensagens e pedaços de texto, a menos que a
  * pessoa tenha subido para ler o histórico.
  */
-function useStickToBottom(ref: RefObject<HTMLDivElement | null>, content: unknown) {
+function useStickToBottom(
+  ref: RefObject<HTMLDivElement | null>,
+  content: unknown,
+  pendingCount: number,
+) {
   const shouldStick = useRef(true);
 
   useEffect(() => {
     const element = ref.current;
     if (element && shouldStick.current) element.scrollTop = element.scrollHeight;
-  }, [ref, content]);
+  }, [ref, content, pendingCount]);
 
   return {
     onScroll: () => {

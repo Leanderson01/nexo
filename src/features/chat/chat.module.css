@@ -333,9 +333,38 @@
   }
 }
 
-.userBubble {
+/* Mensagem do funcionário: o balão e, embaixo, o horário com o ✓ (UX1). */
+.userMessage {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
   align-self: flex-end;
   max-width: min(520px, 88%);
+}
+
+.userMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--nexo-color-text-tertiary);
+}
+
+.userMeta[data-tone="error"] {
+  color: var(--mantine-color-red-7);
+}
+
+.userBubble[data-failed] {
+  opacity: 0.6;
+}
+
+.userBubble {
+  align-self: flex-end;
+  max-width: 100%;
   padding: 12px 16px;
   border-radius: var(--nexo-radius-bubble) var(--nexo-radius-bubble) var(--nexo-radius-bubble-tail)
     var(--nexo-radius-bubble);

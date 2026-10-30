@@ -1,0 +1,11 @@
+/* ✓ das mensagens (UX1): cinza terciário até ser lida; azul primário quando lida. */
+.receipt {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--nexo-color-text-tertiary);
+}
+
+.receipt[data-status="read"] {
+  color: var(--nexo-color-primary);
+}

@@ -1,11 +1,14 @@
 "use client";
 
+import { Button } from "@mantine/core";
 import type { FunctionReturnType } from "convex/server";
 
 import type { MessagePart } from "@/domain/message-parts";
+import type { ReceiptStatus } from "@/domain/read-receipts";
 import { ListenButton } from "@/features/voice/listen-button";
 import { speakableText } from "@/features/voice/speech";
 import type { api } from "../../../convex/_generated/api";
+import { formatTime } from "./blocks/block-texts";
 import { QuickReplies } from "./blocks/quick-replies";
 import { ReplyBubble } from "./blocks/reply-bubble";
 import { LiveActionChips, ReplyHeader } from "./blocks/reply-header";
@@ -14,6 +17,8 @@ import { TypingBubble } from "./blocks/typing-bubble";
 import classes from "./chat.module.css";
 import { analystLevelLabel } from "./chat-texts";
 import { MessagePartView, type PartActions } from "./message-part-view";
+import type { PendingMessage } from "./pending-messages";
+import { ReadReceipt } from "./read-receipt";
 
 export type ChatMessage = NonNullable<FunctionReturnType<typeof api.messages.list>>[number];
 
@@ -30,7 +35,13 @@ export function MessageItem({
 }) {
   switch (message.role) {
     case "user":
-      return <UserMessage parts={message.parts} />;
+      return (
+        <UserMessage
+          text={joinText(message.parts)}
+          createdAt={message.createdAt}
+          receipt={message.receipt}
+        />
+      );
     case "assistant":
       return <AssistantMessage message={message} actions={actions} onShowDetails={onShowDetails} />;
     case "analyst":
@@ -40,9 +51,75 @@ export function MessageItem({
   }
 }
 
-function UserMessage({ parts }: { parts: MessagePart[] }) {
-  const text = parts.map((part) => (part.type === "text" ? part.text : "")).join("");
-  return <div className={classes.userBubble}>{text}</div>;
+function joinText(parts: MessagePart[]): string {
+  return parts.map((part) => (part.type === "text" ? part.text : "")).join("");
+}
+
+/** Balão do funcionário com o horário e o ✓ embaixo (UX1); sem ✓ nas mensagens antigas. */
+function UserMessage({
+  text,
+  createdAt,
+  receipt,
+}: {
+  text: string;
+  createdAt: number;
+  receipt: ReceiptStatus | null;
+}) {
+  return (
+    <div className={classes.userMessage}>
+      <div className={classes.userBubble}>{text}</div>
+      <div className={classes.userMeta}>
+        {formatTime(createdAt)}
+        {receipt && <ReadReceipt status={receipt} />}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A mensagem otimista (UX1): com o reloginho enquanto a rota não responde; se falhar, o erro
+ * com "Tentar de novo" (quando adianta) e "Descartar".
+ */
+export function PendingUserMessage({
+  pending,
+  onRetry,
+  onDiscard,
+}: {
+  pending: PendingMessage;
+  onRetry: () => void;
+  onDiscard: () => void;
+}) {
+  if (!pending.failure) {
+    return <UserMessage text={pending.text} createdAt={pending.sentAt} receipt="sending" />;
+  }
+  return (
+    <div className={classes.userMessage}>
+      <div className={classes.userBubble} data-failed>
+        {pending.text}
+      </div>
+      <div className={classes.userMeta} data-tone="error" role="alert">
+        <span>Não enviada. {pending.failure.message}</span>
+        {pending.failure.retryable && (
+          <Button size="compact-xs" variant="subtle" color="red" onClick={onRetry}>
+            Tentar de novo
+          </Button>
+        )}
+        <Button size="compact-xs" variant="subtle" color="gray" onClick={onDiscard}>
+          Descartar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** O "digitando…" do agent na hora do envio, antes de a resposta em streaming existir. */
+export function PendingAgentReply() {
+  return (
+    <div className={classes.reply}>
+      <ReplyHeader author="Nexo Assist" />
+      <TypingBubble />
+    </div>
+  );
 }
 
 function AssistantMessage({
