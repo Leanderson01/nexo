@@ -64,7 +64,7 @@ npm run dev
 ### F2 — Consultar chamado
 
 - [ ] **Mariana**: "E o meu chamado do notebook?" → card do **INC-20311 vencido**, explica o prazo (Média,
-      3 dias úteis) e oferece analista com opções. No painel: `OverdueTicketPolicy` **disparou**.
+      3 dias úteis) e oferece analista com opções. No painel: "Chamado vencido" **disparou**.
 - [ ] Aceitar "Sim, chamar um analista" → banner de transferência; a conversa fica "Aguardando analista";
       motivo **vencido** no console.
 - [ ] **Mariana** (conversa nova): "Como está o INC-20388?" (é do Pedro) → "não encontrei esse chamado entre
@@ -86,7 +86,7 @@ npm run dev
 ### F5 — Falar com analista e casos críticos
 
 - [ ] Qualquer funcionário: "Quero falar com uma pessoa" → transfere na hora (motivo **pedido**), sem tools
-      (painel: `ExplicitHandoffPolicy` disparou, "o modelo principal não foi chamado").
+      (painel: "Pedido de analista" disparou, "o modelo principal não foi chamado").
 - [ ] **Rafael**: "O sistema de vendas caiu para o time todo, ninguém consegue trabalhar" → rascunho com
       prioridade **Crítica**; confirmar → cria o chamado e **transfere automaticamente**.
 - [ ] Repetir o crítico e **cancelar** o rascunho → transfere mesmo assim.
