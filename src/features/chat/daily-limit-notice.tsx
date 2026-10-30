@@ -32,8 +32,8 @@ export function DailyLimitNotice({
     >
       <Text size="sm">{DAILY_LIMIT_TEXT}</Text>
       <Text size="sm" c="dimmed" mt="xs">
-        Escreva seu pedido na conversa nova e toque em “Falar com um analista”: ele vai
-        para a fila do atendimento junto com a sua mensagem.
+        Escreva seu pedido na conversa nova e toque em “Falar com um analista”: ele vai para a fila
+        do atendimento junto com a sua mensagem.
       </Text>
       <Group justify="flex-end" gap="xs" mt="md">
         <Button variant="default" size="xs" onClick={onClose} disabled={isCreating}>
