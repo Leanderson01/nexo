@@ -15,6 +15,7 @@ import type * as conversationBlocks from "../conversationBlocks.js";
 import type * as conversations from "../conversations.js";
 import type * as decisionPanel from "../decisionPanel.js";
 import type * as decisions from "../decisions.js";
+import type * as evalsSupport from "../evalsSupport.js";
 import type * as http from "../http.js";
 import type * as knowledge_articles from "../knowledge/articles.js";
 import type * as knowledge_ranking from "../knowledge/ranking.js";
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   conversations: typeof conversations;
   decisionPanel: typeof decisionPanel;
   decisions: typeof decisions;
+  evalsSupport: typeof evalsSupport;
   http: typeof http;
   "knowledge/articles": typeof knowledge_articles;
   "knowledge/ranking": typeof knowledge_ranking;
