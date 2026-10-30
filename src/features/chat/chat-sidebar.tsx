@@ -3,18 +3,21 @@
 import { Avatar, Button, Group, NavLink, Skeleton, Stack, Text } from "@mantine/core";
 import { useQuery } from "convex/react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 
 import { NexoMark } from "@/features/auth/login/icons";
 import { SignOutButton } from "@/features/auth/sign-out-button";
 import { api } from "../../../convex/_generated/api";
 import classes from "./chat.module.css";
+import { activeNavItem, CHAT_PATH, PROFILE_PATH } from "./chat-navigation";
 import { formatConversationDate } from "./chat-texts";
 import { ChatBubbleIcon, PlusIcon, UserIcon } from "./icons";
 import { useNewConversation } from "./use-new-conversation";
 
 /** Navegação lateral do protótipo + histórico de conversas e "Nova conversa" (decisão 13). */
 export function ChatSidebar() {
+  const activeItem = activeNavItem(usePathname());
+
   return (
     <nav className={classes.sidebar} aria-label="Navegação">
       <div className={classes.brand}>
@@ -26,13 +29,18 @@ export function ChatSidebar() {
 
       <NavLink
         component={Link}
-        href="/chat"
+        href={CHAT_PATH}
         label="Atendimento"
         leftSection={<ChatBubbleIcon size={15} />}
-        active
+        active={activeItem === "attendance"}
       />
-      {/* A tela "Meu perfil" é da T20. */}
-      <NavLink label="Meu perfil" leftSection={<UserIcon size={15} />} disabled />
+      <NavLink
+        component={Link}
+        href={PROFILE_PATH}
+        label="Meu perfil"
+        leftSection={<UserIcon size={15} />}
+        active={activeItem === "profile"}
+      />
 
       <ConversationHistory />
       <CurrentPerson />
