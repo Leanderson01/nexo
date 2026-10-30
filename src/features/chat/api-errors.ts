@@ -20,6 +20,11 @@ export const CHAT_API_ERRORS: Record<ChatApiErrorCode, { status: number; message
     message: "Esta conversa chegou ao limite de mensagens. Comece uma nova conversa.",
   },
   empty: { status: 400, message: "Escreva alguma coisa antes de enviar." },
+  conversation_limit_reached: {
+    status: 429,
+    message:
+      "Você chegou ao limite de conversas novas de hoje. Continue uma conversa do histórico ou volte amanhã.",
+  },
   invalid_body: { status: 400, message: "Não entendemos o pedido. Recarregue a página." },
   unauthorized: { status: 401, message: "Sua sessão expirou. Entre novamente." },
   unavailable: {

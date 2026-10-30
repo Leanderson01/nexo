@@ -8,6 +8,7 @@ import { mutation, query, type QueryCtx } from "./_generated/server";
 import { findOwnedConversation } from "./conversations";
 import { requireAgentServer, requireEmployee } from "./lib/guards";
 import { TURN_TIMEOUT_MS } from "./messages";
+import { isDailyCostLimitReached } from "./usage";
 
 // "Tentar de novo" (§5.6, §10): repete o que falhou por último na conversa. Duas origens:
 //   - turno do agent (LLM ou legado fora do ar durante o turno): novo turno com o último
@@ -35,12 +36,17 @@ export type RetryPlan =
   | { kind: "turn"; assistantMessageId: Id<"messages">; userText: string }
   | { kind: "confirm"; pendingActionId: Id<"pendingActions"> };
 
-export type StartRetryError = "not_found" | "not_agent" | "busy" | "nothing_to_retry";
+export type StartRetryError =
+  "not_found" | "not_agent" | "busy" | "nothing_to_retry" | "daily_limit_reached";
 
 /**
  * Prepara a repetição numa transação só: a falha deixa de ser "repetível" (o botão some,
  * e um clique duplo não repete duas vezes) e, se for um turno, já nasce a nova resposta em
  * `streaming` com `agentBusy` e o timeout, como em `sendUserMessage`.
+ *
+ * Repetir um turno respeita o teto diário de custo (§12.3), como uma mensagem nova: atingido,
+ * recusa antes de mexer na falha, e o "Tentar de novo" continua lá para amanhã. Repetir a
+ * confirmação do rascunho não usa o modelo e não passa pelo teto.
  */
 export const start = mutation({
   args: { secret: v.string(), employeeId: v.id("people"), conversationId: v.string() },
@@ -56,17 +62,20 @@ export const start = mutation({
 
     const failed = await lastMessageFrom(ctx, conversation._id, "assistant");
     if (!failed || !isRetryableFailure(failed)) return err("nothing_to_retry");
-    await ctx.db.patch(failed._id, { parts: failed.parts.map(withoutRetry) });
 
     if (failed.failedPendingActionId) {
+      await ctx.db.patch(failed._id, { parts: failed.parts.map(withoutRetry) });
       return ok({ kind: "confirm", pendingActionId: failed.failedPendingActionId });
     }
+
+    const now = Date.now();
+    if (await isDailyCostLimitReached(ctx, now)) return err("daily_limit_reached");
+    await ctx.db.patch(failed._id, { parts: failed.parts.map(withoutRetry) });
 
     const userMessage = await lastMessageFrom(ctx, conversation._id, "user");
     const userText = userMessage ? textOf(userMessage) : "";
     if (userText === "") return err("nothing_to_retry");
 
-    const now = Date.now();
     const assistantMessageId = await ctx.db.insert("messages", {
       conversationId: conversation._id,
       role: "assistant",

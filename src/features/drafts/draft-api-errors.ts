@@ -32,6 +32,11 @@ export const DRAFT_API_ERRORS: Record<DraftApiErrorCode, { status: number; messa
   },
   not_agent: { status: 409, message: "A conversa está com um analista agora." },
   nothing_to_retry: { status: 409, message: "Não há nada para tentar de novo." },
+  daily_limit_reached: {
+    status: 429,
+    message:
+      "O Nexo Assist atingiu o limite de uso de hoje. Você pode falar com um analista ou tentar amanhã.",
+  },
   ticketing_unavailable: {
     status: 503,
     message: "O sistema de chamados está instável. O rascunho continua aqui.",

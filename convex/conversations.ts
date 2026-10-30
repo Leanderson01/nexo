@@ -5,6 +5,11 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { requireEmployee } from "./lib/guards";
 import { transferToAnalyst, type TransferError } from "./lib/handoff";
+import {
+  countConversationsCreatedToday,
+  isDailyCostLimitReached,
+  readConversationsPerDayLimit,
+} from "./usage";
 
 // Conversas do funcionário (§5.9, §7.2, §9). Toda leitura passa por `requireEmployee` e
 // pelo dono: conversa alheia, inexistente ou com id malformado dão o mesmo "não encontrada".
@@ -72,6 +77,8 @@ export const get = query({
       agentBusy: conversation.agentBusy,
       employeeMessageCount: conversation.employeeMessageCount,
       messageLimit: readMessageLimit(),
+      /** Teto diário de custo atingido (§12.3): o agent não responde até a meia-noite. */
+      dailyLimitReached: await isDailyCostLimitReached(ctx, Date.now()),
       analyst: analyst ? { name: analyst.name, level: analyst.level ?? null } : null,
       lastMessageAt: conversation.lastMessageAt,
     };
@@ -89,11 +96,12 @@ export const messageLimit = query({
 
 // ---------- Escritas do funcionário ----------
 
-export type CreateConversationError = "not_found";
+export type CreateConversationError = "not_found" | "conversation_limit_reached";
 
 /**
  * Abre uma conversa em `agent`. Com `inheritSummaryFrom`, herda o resumo acumulado da
  * anterior ("Nova conversa (com resumo desta)", quando o limite de 30 foi atingido).
+ * Cada funcionário abre no máximo `MAX_CONVERSATIONS_PER_DAY` conversas por dia (§12.3).
  */
 export const create = mutation({
   args: { inheritSummaryFrom: v.optional(v.string()) },
@@ -102,6 +110,9 @@ export const create = mutation({
     { inheritSummaryFrom },
   ): Promise<Result<{ conversationId: Id<"conversations"> }, CreateConversationError>> => {
     const employee = await requireEmployee(ctx);
+    const now = Date.now();
+    const createdToday = await countConversationsCreatedToday(ctx, employee._id, now);
+    if (createdToday >= readConversationsPerDayLimit()) return err("conversation_limit_reached");
 
     let rollingSummary: string | undefined;
     if (inheritSummaryFrom !== undefined) {
@@ -117,7 +128,7 @@ export const create = mutation({
       employeeMessageCount: 0,
       agentBusy: false,
       clarificationAttempts: 0,
-      lastMessageAt: Date.now(),
+      lastMessageAt: now,
     });
     return ok({ conversationId });
   },
@@ -125,12 +136,15 @@ export const create = mutation({
 
 export type RequestAnalystError = "not_found" | TransferError;
 
-const LIMIT_HANDOFF_SUMMARY =
+const MESSAGE_LIMIT_HANDOFF_SUMMARY =
   "O funcionário atingiu o limite de mensagens da conversa e pediu para falar com um analista.";
+const DAILY_LIMIT_HANDOFF_SUMMARY =
+  "O Nexo Assist atingiu o limite de uso do dia e o funcionário pediu para falar com um analista. Leia as últimas mensagens dele.";
 
 /**
- * "Falar com um analista" no campo bloqueado pelo limite (§7.2): transfere sem passar pelo
- * agent. Os outros pedidos de transferência chegam como mensagem e quem decide é o agent.
+ * "Falar com um analista" no campo bloqueado pelo limite de mensagens ou pelo teto diário de
+ * custo (§7.2, §12.3): transfere sem passar pelo agent. Os outros pedidos de transferência
+ * chegam como mensagem e quem decide é o agent.
  */
 export const requestAnalyst = mutation({
   args: { conversationId: v.string() },
@@ -141,8 +155,14 @@ export const requestAnalyst = mutation({
 
     return await transferToAnalyst(ctx, conversation, {
       reason: "requested",
-      summary: conversation.rollingSummary ?? LIMIT_HANDOFF_SUMMARY,
+      summary: conversation.rollingSummary ?? limitHandoffSummary(conversation),
       ticketCode: conversation.selectedTicketCode,
     });
   },
 });
+
+function limitHandoffSummary(conversation: Doc<"conversations">): string {
+  return conversation.employeeMessageCount >= readMessageLimit()
+    ? MESSAGE_LIMIT_HANDOFF_SUMMARY
+    : DAILY_LIMIT_HANDOFF_SUMMARY;
+}

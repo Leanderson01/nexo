@@ -15,6 +15,7 @@ import {
 import { findOwnedConversation, readMessageLimit } from "./conversations";
 import { requireAgentServer, requireEmployee } from "./lib/guards";
 import { vMessagePart } from "./lib/validators";
+import { isDailyCostLimitReached } from "./usage";
 
 // Mensagens do chat e o ciclo de um turno do agent (§5.7):
 //   sendUserMessage → mensagem do assistente em `streaming` + agentBusy + timeout agendado
@@ -75,6 +76,10 @@ export interface SentUserMessage {
 /**
  * Salva a mensagem do funcionário. Só em `agent` prepara o turno: cria a resposta vazia em
  * `streaming`, marca `agentBusy` e agenda o timeout. Com analista, só salva (§5.5).
+ *
+ * Teto diário de custo atingido (§12.3): a mensagem é salva do mesmo jeito, mas o turno não
+ * começa (`assistantMessageId` null). O campo mostra o aviso com "Falar com um analista", e o
+ * analista que assumir lê a mensagem: nada do que o funcionário escreveu se perde.
  */
 export const sendUserMessage = mutation({
   args: { conversationId: v.string(), text: v.string() },
@@ -103,7 +108,8 @@ export const sendUserMessage = mutation({
       createdAt: now,
     });
 
-    const agentShouldAnswer = conversation.status === "agent";
+    const agentShouldAnswer =
+      conversation.status === "agent" && !(await isDailyCostLimitReached(ctx, now));
     await ctx.db.patch(conversation._id, {
       employeeMessageCount: conversation.employeeMessageCount + 1,
       lastMessageAt: now,
