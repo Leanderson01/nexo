@@ -40,6 +40,7 @@ import {
   resolveDraftRetry,
   saysNotFound,
 } from "./reply-checks";
+import { applyShortAnswerRules, describePickedReply, findPickedReply } from "./short-answers";
 import { summarizeConversation } from "./rolling-summary";
 import {
   createConvexMessageSink,
@@ -171,7 +172,7 @@ async function runPipeline(
   const understood = await understand({
     model: deps.llm.models.fast,
     history: context.history,
-    stateNote: describeState(context),
+    stateNote: describeState(context, input.userText),
   });
   addUsages(turn, deps.llm.fastModel, understood.usage);
   if (!understood.ok) {
@@ -183,7 +184,12 @@ async function runPipeline(
     );
     return;
   }
-  const understanding = understood.understanding;
+  // Resposta curta a uma pergunta do assistente: regras em código (short-answers.ts).
+  const understanding = applyShortAnswerRules(
+    understood.understanding,
+    context.snapshot.recentMessages,
+    input.userText,
+  );
 
   // Chamado em foco (decisão 2) e DECIDIR
   const session = toolSession(turn, understanding);
@@ -628,9 +634,10 @@ function toolSession(turn: Turn, understanding: Understanding): ToolSession {
   };
 }
 
-/** O estado que o ENTENDER precisa ver (§6.2): rascunho pendente, foco e oferta pendente. */
-function describeState(context: LoadedContext): string {
+/** O estado que o ENTENDER precisa ver (§6.2): rascunho pendente, foco, oferta e opção escolhida. */
+function describeState(context: LoadedContext, userText: string): string {
   const { conversation, pendingDraft } = context.snapshot;
+  const picked = findPickedReply(context.snapshot.recentMessages, userText);
   return [
     pendingDraft
       ? `Há um rascunho pendente (D-${pendingDraft.draftNumber}, ${pendingDraft.action.kind}).`
@@ -640,6 +647,7 @@ function describeState(context: LoadedContext): string {
       : "Nenhum chamado em foco.",
     conversation.pendingHandoffOffer ? "O assistente acabou de oferecer chamar um analista." : null,
     context.rollingSummary ? `Resumo da conversa: ${context.rollingSummary}` : null,
+    picked ? describePickedReply(picked) : null,
   ]
     .filter((line) => line !== null)
     .join("\n");
