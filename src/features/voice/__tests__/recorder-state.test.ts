@@ -4,6 +4,7 @@ import { pickRecordingMimeType, toAcceptedAudioType } from "../audio-format";
 import { SILENCE_DBFS, isSilentRecording, meterLevel, rmsDbfs } from "../audio-level";
 import {
   IDLE,
+  MICROPHONE_MESSAGES,
   appendTranscript,
   canStart,
   formatElapsed,
@@ -106,9 +107,30 @@ describe("estado do gravador", () => {
   test("traduz o erro do microfone pelo nome da DOMException", () => {
     const named = (name: string) => Object.assign(new Error(name), { name });
     expect(microphoneProblemOf(named("NotAllowedError"))).toBe("permission_denied");
+    expect(microphoneProblemOf(named("PermissionDeniedError"))).toBe("permission_denied");
+    expect(microphoneProblemOf(named("SecurityError"))).toBe("permission_denied");
     expect(microphoneProblemOf(named("NotFoundError"))).toBe("no_microphone");
-    expect(microphoneProblemOf(named("NotReadableError"))).toBe("unsupported");
-    expect(microphoneProblemOf("qualquer coisa")).toBe("unsupported");
+    expect(microphoneProblemOf(named("DevicesNotFoundError"))).toBe("no_microphone");
+    expect(microphoneProblemOf(named("OverconstrainedError"))).toBe("no_microphone");
+    expect(microphoneProblemOf(named("NotSupportedError"))).toBe("no_microphone");
+    expect(microphoneProblemOf(named("NotReadableError"))).toBe("microphone_busy");
+    expect(microphoneProblemOf(named("TrackStartError"))).toBe("microphone_busy");
+    expect(microphoneProblemOf(named("AbortError"))).toBe("microphone_busy");
+    expect(microphoneProblemOf(new TypeError("sem mediaDevices"))).toBe("unsupported");
+    expect(microphoneProblemOf(named("ErroQueNinguemConhece"))).toBe("microphone_failed");
+    expect(microphoneProblemOf("qualquer coisa")).toBe("microphone_failed");
+    expect(microphoneProblemOf(null)).toBe("microphone_failed");
+  });
+
+  test("a DOMException conta mesmo sem herdar de Error", () => {
+    expect(microphoneProblemOf({ name: "NotSupportedError", message: "" })).toBe("no_microphone");
+  });
+
+  test("sem microfone no headless a mensagem não culpa o navegador", () => {
+    const named = (name: string) => Object.assign(new Error(name), { name });
+    expect(MICROPHONE_MESSAGES[microphoneProblemOf(named("NotSupportedError"))]).toBe(
+      "Não encontramos um microfone. Conecte um ou digite sua mensagem.",
+    );
   });
 });
 

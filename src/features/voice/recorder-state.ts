@@ -117,13 +117,22 @@ export function appendTranscript(current: string, transcript: string): string {
 
 /** Falhas do lado do navegador, antes de o áudio chegar ao servidor. */
 export type MicrophoneProblem =
-  "unsupported" | "permission_denied" | "no_microphone" | "empty" | "silent";
+  | "unsupported"
+  | "permission_denied"
+  | "no_microphone"
+  | "microphone_busy"
+  | "microphone_failed"
+  | "empty"
+  | "silent";
 
 export const MICROPHONE_MESSAGES: Record<MicrophoneProblem, string> = {
   unsupported: "Seu navegador não grava áudio. Digite sua mensagem.",
   permission_denied:
     "O navegador bloqueou o microfone. Libere o acesso nas permissões do site ou digite sua mensagem.",
   no_microphone: "Não encontramos um microfone. Conecte um ou digite sua mensagem.",
+  microphone_busy:
+    "O microfone não respondeu: talvez outro programa esteja usando. Feche-o e tente de novo, ou digite sua mensagem.",
+  microphone_failed: "Não conseguimos usar o microfone. Tente de novo ou digite sua mensagem.",
   empty: NOT_UNDERSTOOD_MESSAGE,
   silent:
     "Não captamos sua voz. Confira se o microfone certo está selecionado no navegador e tente de novo.",
@@ -133,10 +142,35 @@ export const MICROPHONE_MESSAGES: Record<MicrophoneProblem, string> = {
 export const SILENCE_WARNING =
   "Não estamos ouvindo sua voz. Confira se o microfone certo está selecionado no navegador.";
 
+/**
+ * Erros do `getUserMedia` pelo `name` da DOMException. Os nomes antigos do Chrome
+ * (`PermissionDeniedError`, `DevicesNotFoundError`, `TrackStartError`) contam também.
+ * `NotSupportedError` aparece quando não há dispositivo de áudio utilizável (o Chrome headless,
+ * por exemplo): para a pessoa, é "sem microfone", não "navegador sem suporte".
+ */
+const PROBLEM_BY_ERROR_NAME: Record<string, MicrophoneProblem> = {
+  NotAllowedError: "permission_denied",
+  PermissionDeniedError: "permission_denied",
+  SecurityError: "permission_denied",
+  NotFoundError: "no_microphone",
+  DevicesNotFoundError: "no_microphone",
+  OverconstrainedError: "no_microphone",
+  NotSupportedError: "no_microphone",
+  NotReadableError: "microphone_busy",
+  TrackStartError: "microphone_busy",
+  AbortError: "microphone_busy",
+  // O `getUserMedia` lança TypeError fora de HTTPS ou sem `navigator.mediaDevices`.
+  TypeError: "unsupported",
+};
+
 /** Traduz o erro do `getUserMedia` (DOMException pelo `name`). */
 export function microphoneProblemOf(error: unknown): MicrophoneProblem {
-  const name = error instanceof Error ? error.name : "";
-  if (name === "NotAllowedError" || name === "SecurityError") return "permission_denied";
-  if (name === "NotFoundError" || name === "OverconstrainedError") return "no_microphone";
-  return "unsupported";
+  const name = errorName(error);
+  return (name && PROBLEM_BY_ERROR_NAME[name]) || "microphone_failed";
+}
+
+/** Nem todo ambiente faz a DOMException herdar de Error: lê o `name` de qualquer objeto. */
+function errorName(error: unknown): string | null {
+  if (typeof error !== "object" || error === null || !("name" in error)) return null;
+  return typeof error.name === "string" ? error.name : null;
 }
