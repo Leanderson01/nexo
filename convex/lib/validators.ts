@@ -2,6 +2,7 @@ import { v, type Infer, type VLiteral, type VUnion } from "convex/values";
 
 import {
   CONFIDENCE_LEVELS,
+  CONSOLE_TABS,
   CONVERSATION_EVENTS,
   CONVERSATION_STATUSES,
   DECISION_OUTCOMES,
@@ -67,6 +68,7 @@ export const vDecisionOutcome = literals(DECISION_OUTCOMES);
 export const vPolicyActionKind = literals(POLICY_ACTION_KINDS);
 export const vTurnStage = literals(TURN_STAGES);
 export const vGatewayErrorKind = literals(GATEWAY_ERROR_KINDS);
+export const vConsoleTab = literals(CONSOLE_TABS);
 
 // ---------- Chamados ----------
 

@@ -9,6 +9,8 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as console from "../console.js";
+import type * as conversationBlocks from "../conversationBlocks.js";
 import type * as conversations from "../conversations.js";
 import type * as decisionPanel from "../decisionPanel.js";
 import type * as decisions from "../decisions.js";
@@ -39,6 +41,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  console: typeof console;
+  conversationBlocks: typeof conversationBlocks;
   conversations: typeof conversations;
   decisionPanel: typeof decisionPanel;
   decisions: typeof decisions;

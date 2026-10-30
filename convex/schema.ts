@@ -51,6 +51,11 @@ export default defineSchema({
     rollingSummary: v.optional(v.string()),
     /** Nota do analista ao devolver a conversa; o agent lê no próximo turno. */
     returnNote: v.optional(v.string()),
+    /**
+     * Até quando a equipe de analistas leu as mensagens do funcionário (T12): o que chegou
+     * depois conta como não lido na fila do console.
+     */
+    analystReadAt: v.optional(v.number()),
     /** Assunto para o histórico do chat: o começo da primeira mensagem do funcionário (T5). */
     subject: v.optional(v.string()),
     employeeMessageCount: v.number(),
