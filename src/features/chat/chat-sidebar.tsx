@@ -134,7 +134,8 @@ function CurrentPerson() {
 
   return (
     <div className={classes.sidebarFooter}>
-      <div className={classes.person}>
+      {/* A pessoa leva ao "Meu perfil"; o "Sair" abaixo é que encerra a sessão. */}
+      <Link href={PROFILE_PATH} className={classes.person} aria-label="Abrir meu perfil">
         <Avatar size={34} radius="xl" classNames={{ placeholder: classes.avatar }}>
           {person ? initials(person.name) : null}
         </Avatar>
@@ -142,7 +143,7 @@ function CurrentPerson() {
           <div className={classes.personName}>{person?.name ?? " "}</div>
           <div className={classes.personEmail}>{person?.email ?? " "}</div>
         </div>
-      </div>
+      </Link>
       <SignOutButton
         variant="subtle"
         color="gray"
