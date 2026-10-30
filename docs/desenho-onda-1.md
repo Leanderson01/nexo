@@ -371,3 +371,28 @@ language: "pt" } } })` (compila, não testado).
   com `fail(..., retryable: true)`; o retry usa o texto da última mensagem `user`.
 - Pendências pequenas: corrida rara (rascunho vira `superseded` entre a gravação no legado e o
   `completeConfirm`) só gera log; o aviso de erro do chat ainda é o `Alert` azul.
+
+### T12: console do analista
+
+- Regras puras da fila em `src/domain/console-queue.ts` (abas `all`, `for_you`, `with_agent`, `mine`,
+  `closed`; contadores; ordem: com analista primeiro, críticas na frente, depois maior espera).
+- `convex/console.ts` (tudo com `requireAnalyst`): `listConversations({ tab, reason?, search? })`,
+  `getConversation` (inclui o resumo da transferência: artigos sugeridos, perguntas de esclarecimento,
+  chamados citados, confiança do último turno), `listMessages`, `markRead`, `assign`,
+  `sendAnalystMessage` (só quem assumiu; texto mascarado), `returnToAgent(note?)` (de `with_analyst` ou
+  `waiting_analyst`) e `close`. Ações devolvem `Result` (`not_found | invalid_transition | not_assigned |
+empty`) e gravam evento `system` com o nome e o nível do analista.
+- **Não lidas:** mensagens do funcionário depois de `max(conversations.analystReadAt, handoff.at)`, só em
+  `waiting_analyst`/`with_analyst`; `markRead` ao abrir e a cada mensagem nova; quem acompanha em leitura
+  não zera o contador de quem atende.
+- **Blocos no console:** `convex/conversationBlocks.ts` (`ticket`, `tickets`, `pendingAction`,
+  `actionLabels`, escopadas pela conversa com `canReadConversation`, só chamados do funcionário daquela
+  conversa) e `<ConversationBlockReads conversationId>` em `src/features/chat/blocks/block-reads.tsx`; no
+  chat continua valendo a leitura do funcionário. No console os blocos são só leitura.
+- `ticketing.queries.employeeTicket`: detalhe com histórico para o analista.
+- **Para a T10:** ao devolver, a conversa volta a `agent` com `returnNote` (ou sem) e mensagens
+  `role: "analyst"` no histórico; **a T10 lê a nota no próximo turno e limpa** (o console não limpa).
+  O `handoff` fica gravado como histórico e `clarificationAttempts` não é zerado.
+- Diferenças do protótipo: presença/"online" fora (decisão 12); "Encerradas" no menu de filtros; painel do
+  funcionário some abaixo de 1100 px; card de resumo recolhível; "Encerrar" para conversa com o agent fica
+  no menu ⋮. A busca cobre nome, assunto e o código do chamado da conversa.

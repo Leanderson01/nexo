@@ -29,7 +29,7 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 | T14a | Cenários de eval (escrita)          | 1    | T0                 | feito        | `c8241e0`..`52d8f64` |
 | T10  | Pipeline do agent                   | 2    | T3, T4, T5, T6, T9 | em andamento | `task/T10-pipeline`  |
 | T11  | Rascunho fora do LLM                | 2    | T3, T5, T7         | feito        | `42a6d52`..`aed0cca` |
-| T12  | Console do analista                 | 2    | T2, T5, T7, T8     | em andamento | `task/T12-console`   |
+| T12  | Console do analista                 | 2    | T2, T5, T7, T8     | feito        | `8f281e2`..`839589f` |
 | T15  | Voz                                 | 2    | T5                 | a fazer      |                      |
 | T20  | Tela "Meu perfil" (só no protótipo) | 1    | T2                 | feito        | `acdd166`..`7ea35be` |
 | T14b | Runner de evals                     | 3    | T10, T11           | a fazer      |                      |
