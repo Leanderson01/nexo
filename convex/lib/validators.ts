@@ -10,6 +10,7 @@ import {
   HANDOFF_REASONS,
   IMPACTS,
   INTENTS,
+  MESSAGE_RECEIVERS,
   MESSAGE_ROLES,
   MESSAGE_STATUSES,
   METRICS_PERIODS,
@@ -61,6 +62,7 @@ export const vConversationEvent = literals(CONVERSATION_EVENTS);
 export const vHandoffReason = literals(HANDOFF_REASONS);
 export const vMessageRole = literals(MESSAGE_ROLES);
 export const vMessageStatus = literals(MESSAGE_STATUSES);
+export const vMessageReceiver = literals(MESSAGE_RECEIVERS);
 export const vPendingActionStatus = literals(PENDING_ACTION_STATUSES);
 export const vIntent = literals(INTENTS);
 export const vConfidenceLevel = literals(CONFIDENCE_LEVELS);

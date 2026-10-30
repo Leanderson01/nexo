@@ -10,6 +10,7 @@ import {
   vHandoff,
   vHandoffOffer,
   vMessagePart,
+  vMessageReceiver,
   vMessageRole,
   vMessageStatus,
   vPendingAction,
@@ -57,6 +58,16 @@ export default defineSchema({
      * depois conta como não lido na fila do console.
      */
     analystReadAt: v.optional(v.number()),
+    /**
+     * Confirmação de leitura (UX1, src/domain/read-receipts.ts): até quando as mensagens
+     * chegaram a cada receptor e foram lidas por ele. A leitura do analista é o
+     * `analystReadAt` acima.
+     */
+    agentDeliveredAt: v.optional(v.number()),
+    agentReadAt: v.optional(v.number()),
+    analystDeliveredAt: v.optional(v.number()),
+    employeeDeliveredAt: v.optional(v.number()),
+    employeeReadAt: v.optional(v.number()),
     /** Assunto para o histórico do chat: o começo da primeira mensagem do funcionário (T5). */
     subject: v.optional(v.string()),
     /**
@@ -87,6 +98,8 @@ export default defineSchema({
      * novo, em vez de repetir o turno do agent (T11).
      */
     failedPendingActionId: v.optional(v.id("pendingActions")),
+    /** Só nas mensagens do funcionário: quem as recebe, para a confirmação de leitura (UX1). */
+    receiver: v.optional(vMessageReceiver),
     createdAt: v.number(),
   }).index("by_conversation_createdAt", ["conversationId", "createdAt"]),
 

@@ -2,6 +2,7 @@ import { v } from "convex/values";
 
 import type { MessagePart } from "../src/domain/message-parts";
 import type { MessageRole } from "../src/domain/enums";
+import { advanceMark } from "../src/domain/read-receipts";
 import { err, ok, type Result } from "../src/domain/result";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
@@ -120,6 +121,53 @@ async function loadPendingDraft(ctx: QueryCtx, conversation: Doc<"conversations"
   const draft = await ctx.db.get(conversation.pendingActionId);
   if (!draft || draft.status !== "pending") return null;
   return { id: draft._id as string, draftNumber: draft.draftNumber, action: draft.action };
+}
+
+// ---------- Confirmação de leitura do agent (UX1) ----------
+// O pipeline marca as mensagens do funcionário que o turno atende: tudo o que foi para o
+// agent antes da resposta em andamento (com `agentBusy`, é a mensagem que abriu o turno).
+
+/** "Chegou": o turno carregou o contexto com a mensagem. */
+export const markUserMessageDelivered = mutation({
+  args: { secret: v.string(), assistantMessageId: v.id("messages") },
+  handler: async (ctx, { secret, assistantMessageId }): Promise<void> => {
+    requireAgentServer(secret);
+    const turn = await findTurnMark(ctx, assistantMessageId);
+    if (!turn) return;
+
+    const deliveredAt = advanceMark(turn.conversation.agentDeliveredAt, turn.upTo, Date.now());
+    if (deliveredAt !== null) {
+      await ctx.db.patch(turn.conversation._id, { agentDeliveredAt: deliveredAt });
+    }
+  },
+});
+
+/** "Leu": o ENTENDER terminou de interpretar a mensagem. */
+export const markUserMessageRead = mutation({
+  args: { secret: v.string(), assistantMessageId: v.id("messages") },
+  handler: async (ctx, { secret, assistantMessageId }): Promise<void> => {
+    requireAgentServer(secret);
+    const turn = await findTurnMark(ctx, assistantMessageId);
+    if (!turn) return;
+
+    const now = Date.now();
+    const readAt = advanceMark(turn.conversation.agentReadAt, turn.upTo, now);
+    if (readAt === null) return;
+    const deliveredAt = advanceMark(turn.conversation.agentDeliveredAt, turn.upTo, now);
+    await ctx.db.patch(turn.conversation._id, {
+      agentReadAt: readAt,
+      ...(deliveredAt === null ? {} : { agentDeliveredAt: deliveredAt }),
+    });
+  },
+});
+
+/** A conversa do turno e a marca: logo antes da resposta, que nasce 1 ms depois da mensagem. */
+async function findTurnMark(ctx: MutationCtx, assistantMessageId: Id<"messages">) {
+  const assistantMessage = await ctx.db.get(assistantMessageId);
+  if (!assistantMessage || assistantMessage.role !== "assistant") return null;
+  const conversation = await ctx.db.get(assistantMessage.conversationId);
+  if (!conversation) return null;
+  return { conversation, upTo: assistantMessage.createdAt - 1 };
 }
 
 // ---------- Rascunho ----------

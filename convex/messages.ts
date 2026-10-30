@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 
 import type { MessagePart } from "../src/domain/message-parts";
+import { advanceMark, messageReceipt } from "../src/domain/read-receipts";
 import { err, ok, type Result } from "../src/domain/result";
 import { maskSensitiveData } from "../src/domain/sensitive-data";
 import { internal } from "./_generated/api";
@@ -44,7 +45,12 @@ export const list = query({
       .withIndex("by_conversation_createdAt", (q) => q.eq("conversationId", conversation._id))
       .order("asc")
       .collect();
-    return await Promise.all(messages.map((message) => withAnalystAuthor(ctx, message)));
+    return await Promise.all(
+      messages.map(async (message) => ({
+        ...(await withAnalystAuthor(ctx, message)),
+        receipt: messageReceipt(message, conversation),
+      })),
+    );
   },
 });
 
@@ -99,17 +105,19 @@ export const sendUserMessage = mutation({
     const { text: savedText, masked } = maskSensitiveData(trimmed);
 
     const now = Date.now();
+    const agentShouldAnswer =
+      conversation.status === "agent" && !(await isDailyCostLimitReached(ctx, now));
     const userMessageId = await ctx.db.insert("messages", {
       conversationId: conversation._id,
       role: "user",
       authorId: employee._id,
       parts: [{ type: "text", text: savedText }],
       status: "complete",
+      // Sem turno (com analista ou no teto diário), quem lê é o analista que atender.
+      receiver: agentShouldAnswer ? "agent" : "analyst",
       createdAt: now,
     });
 
-    const agentShouldAnswer =
-      conversation.status === "agent" && !(await isDailyCostLimitReached(ctx, now));
     await ctx.db.patch(conversation._id, {
       employeeMessageCount: conversation.employeeMessageCount + 1,
       lastMessageAt: now,
@@ -153,6 +161,44 @@ async function startAgentTurn(
   await ctx.scheduler.runAfter(TURN_TIMEOUT_MS, internal.messages.expireTurn, { messageId });
   return messageId;
 }
+
+// ---------- Confirmação de leitura do funcionário (UX1) ----------
+// O chat confirma as respostas do agent e do analista até `upTo` (o instante da última que
+// ele recebeu). Só o dono da conversa confirma; repetir não escreve nada.
+
+/** "Chegou": o chat do funcionário recebeu as mensagens até `upTo`. */
+export const markDelivered = mutation({
+  args: { conversationId: v.string(), upTo: v.number() },
+  handler: async (ctx, { conversationId, upTo }): Promise<void> => {
+    const employee = await requireEmployee(ctx);
+    const conversation = await findOwnedConversation(ctx, employee._id, conversationId);
+    if (!conversation) return;
+
+    const deliveredAt = advanceMark(conversation.employeeDeliveredAt, upTo, Date.now());
+    if (deliveredAt !== null)
+      await ctx.db.patch(conversation._id, { employeeDeliveredAt: deliveredAt });
+  },
+});
+
+/** "Leu": a conversa está aberta, com a aba visível, e mostra as mensagens até `upTo`. */
+export const markRead = mutation({
+  args: { conversationId: v.string(), upTo: v.number() },
+  handler: async (ctx, { conversationId, upTo }): Promise<void> => {
+    const employee = await requireEmployee(ctx);
+    const conversation = await findOwnedConversation(ctx, employee._id, conversationId);
+    if (!conversation) return;
+
+    const now = Date.now();
+    const readAt = advanceMark(conversation.employeeReadAt, upTo, now);
+    if (readAt === null) return;
+    // Quem leu também recebeu.
+    const deliveredAt = advanceMark(conversation.employeeDeliveredAt, upTo, now);
+    await ctx.db.patch(conversation._id, {
+      employeeReadAt: readAt,
+      ...(deliveredAt === null ? {} : { employeeDeliveredAt: deliveredAt }),
+    });
+  },
+});
 
 // ---------- Escritas do agent (só o servidor do Next, com o segredo) ----------
 // Todas devolvem `true` se escreveram e `false` se a mensagem já não está em `streaming`

@@ -9,6 +9,7 @@ import {
 import { transition, TRANSITION_EVENTS } from "../src/domain/conversation-fsm";
 import type { ConversationStatus, HandoffReason } from "../src/domain/enums";
 import type { MessagePart } from "../src/domain/message-parts";
+import { advanceMark, messageReceipt } from "../src/domain/read-receipts";
 import { err, ok, type Result } from "../src/domain/result";
 import { maskSensitiveData } from "../src/domain/sensitive-data";
 import type { SlaTicket } from "../src/domain/sla";
@@ -72,9 +73,48 @@ export const listConversations = query({
       .filter((item) => searchText === "" || matchesSearch(item, searchText))
       .sort((a, b) => compareQueueEntries(toQueueEntry(a), toQueueEntry(b)));
 
-    return { items: visible, counts: countByTab(items.map(toQueueEntry)) };
+    const undelivered = await Promise.all(
+      conversations.map((conversation) => findUndelivered(ctx, conversation, analyst)),
+    );
+    return {
+      items: visible,
+      counts: countByTab(items.map(toQueueEntry)),
+      undelivered: undelivered.filter((entry) => entry !== null),
+    };
   },
 });
+
+/** Mensagens do funcionário que ainda não chegaram a este analista: o console confirma. */
+export interface UndeliveredMessages {
+  conversationId: Id<"conversations">;
+  /** O instante da mais recente; o console confirma tudo até ela. */
+  upTo: number;
+}
+
+/**
+ * Se a conversa tem mensagem para o analista que ainda não chegou e este analista pode
+ * atendê-la, até onde confirmar a entrega (UX1). Com outro analista atendendo, não é para ele.
+ */
+async function findUndelivered(
+  ctx: QueryCtx,
+  conversation: Doc<"conversations">,
+  analyst: Doc<"people">,
+): Promise<UndeliveredMessages | null> {
+  if (!canAttend(conversation, analyst)) return null;
+  const confirmedUpTo = Math.max(
+    conversation.analystDeliveredAt ?? 0,
+    conversation.analystReadAt ?? 0,
+  );
+  const newer = await ctx.db
+    .query("messages")
+    .withIndex("by_conversation_createdAt", (q) =>
+      q.eq("conversationId", conversation._id).gt("createdAt", confirmedUpTo),
+    )
+    .order("desc")
+    .collect();
+  const latest = newer.find((message) => message.role === "user" && message.receiver === "analyst");
+  return latest ? { conversationId: conversation._id, upTo: latest.createdAt } : null;
+}
 
 async function loadQueueConversations(ctx: QueryCtx): Promise<Doc<"conversations">[]> {
   const byStatus = (status: ConversationStatus) =>
@@ -310,6 +350,7 @@ export const listMessages = query({
         return {
           ...message,
           analyst: author ? { name: author.name, level: author.level ?? null } : null,
+          receipt: messageReceipt(message, conversation),
         };
       }),
     );
@@ -329,12 +370,37 @@ export const markRead = mutation({
     const conversation = await findConversation(ctx, conversationId);
     if (!conversation) return;
 
-    const canAttend =
-      conversation.status === "waiting_analyst" ||
-      (conversation.status === "with_analyst" && conversation.assignedAnalystId === analyst._id);
-    if (canAttend) await ctx.db.patch(conversation._id, { analystReadAt: Date.now() });
+    if (canAttend(conversation, analyst)) {
+      await ctx.db.patch(conversation._id, { analystReadAt: Date.now() });
+    }
   },
 });
+
+/**
+ * "Chegou" das mensagens do funcionário para o analista (UX1): a fila do console recebeu as
+ * mensagens até `upTo`. Só quem pode atender confirma (como em `markRead`); repetir não escreve.
+ */
+export const markDelivered = mutation({
+  args: { conversationId: v.string(), upTo: v.number() },
+  handler: async (ctx, { conversationId, upTo }): Promise<void> => {
+    const analyst = await requireAnalyst(ctx);
+    const conversation = await findConversation(ctx, conversationId);
+    if (!conversation || !canAttend(conversation, analyst)) return;
+
+    const deliveredAt = advanceMark(conversation.analystDeliveredAt, upTo, Date.now());
+    if (deliveredAt !== null) {
+      await ctx.db.patch(conversation._id, { analystDeliveredAt: deliveredAt });
+    }
+  },
+});
+
+/** Quem pode atender: em `waiting_analyst`, qualquer analista; em `with_analyst`, quem assumiu. */
+function canAttend(conversation: Doc<"conversations">, analyst: Doc<"people">): boolean {
+  return (
+    conversation.status === "waiting_analyst" ||
+    (conversation.status === "with_analyst" && conversation.assignedAnalystId === analyst._id)
+  );
+}
 
 // ---------- Ações do analista ----------
 

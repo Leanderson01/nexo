@@ -69,6 +69,10 @@ export type MessageRole = (typeof MESSAGE_ROLES)[number];
 export const MESSAGE_STATUSES = ["streaming", "complete", "error"] as const;
 export type MessageStatus = (typeof MESSAGE_STATUSES)[number];
 
+/** Quem recebe a mensagem do funcionário, para a confirmação de leitura (read-receipts.ts). */
+export const MESSAGE_RECEIVERS = ["agent", "analyst"] as const;
+export type MessageReceiver = (typeof MESSAGE_RECEIVERS)[number];
+
 export const PENDING_ACTION_KINDS = ["create_ticket", "update_ticket", "reopen_ticket"] as const;
 export type PendingActionKind = (typeof PENDING_ACTION_KINDS)[number];
 
