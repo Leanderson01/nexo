@@ -24,6 +24,7 @@ import {
   TICKET_UPDATE_AUTHORS,
   TOOL_CALL_STATUSES,
   TURN_STAGES,
+  REPLY_CORRECTION_RULES,
 } from "../../src/domain/enums";
 import type { DecisionRecord } from "../../src/domain/decision-record";
 import type { Handoff, HandoffOffer } from "../../src/domain/conversation";
@@ -67,6 +68,7 @@ export const vToolCallStatus = literals(TOOL_CALL_STATUSES);
 export const vDecisionOutcome = literals(DECISION_OUTCOMES);
 export const vPolicyActionKind = literals(POLICY_ACTION_KINDS);
 export const vTurnStage = literals(TURN_STAGES);
+export const vReplyCorrectionRule = literals(REPLY_CORRECTION_RULES);
 export const vGatewayErrorKind = literals(GATEWAY_ERROR_KINDS);
 export const vConsoleTab = literals(CONSOLE_TABS);
 
@@ -218,6 +220,9 @@ export const decisionRecordFields = {
   outcome: vDecisionOutcome,
   shortCircuit: v.optional(v.boolean()),
   errorStage: v.optional(vTurnStage),
+  corrections: v.optional(
+    v.array(v.object({ rule: vReplyCorrectionRule, explanation: v.string() })),
+  ),
   usage: v.object({
     models: v.array(v.string()),
     inputTokens: v.number(),

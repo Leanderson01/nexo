@@ -181,6 +181,30 @@ describe("turno do agent", () => {
     expect(conversation?.agentBusy).toBe(false);
   });
 
+  test("finalize com text troca o texto transmitido pela correção", async () => {
+    const { t, mariana, conversationId } = await setup();
+    const { assistantMessageId } = await sendOk(mariana, conversationId, "oi");
+    const messageId = assistantMessageId!;
+
+    await t.mutation(api.messages.appendDelta, {
+      secret: AGENT_SECRET,
+      messageId,
+      delta: "Preparei uma atualização.",
+    });
+    await t.mutation(api.messages.finalize, {
+      secret: AGENT_SECRET,
+      messageId,
+      parts: [{ type: "draft", pendingActionId: "p1" }],
+      text: "Confira a atualização no card.",
+    });
+
+    const message = await t.run((ctx) => ctx.db.get(messageId));
+    expect(message?.parts).toEqual([
+      { type: "text", text: "Confira a atualização no card." },
+      { type: "draft", pendingActionId: "p1" },
+    ]);
+  });
+
   test("fail grava o erro amigável e libera a conversa", async () => {
     const { t, mariana, conversationId } = await setup();
     const { assistantMessageId } = await sendOk(mariana, conversationId, "oi");

@@ -228,7 +228,8 @@ export class RecordingSink implements AgentMessageSink {
     return true;
   }
 
-  async finalize(parts: MessagePart[], decisionId?: Id<"decisions">) {
+  async finalize(parts: MessagePart[], decisionId?: Id<"decisions">, text?: string) {
+    if (text !== undefined) this.text = text;
     this.finalParts = parts;
     this.decisionId = decisionId;
     return true;

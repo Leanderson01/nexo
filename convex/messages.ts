@@ -171,21 +171,26 @@ export const appendDelta = mutation({
   },
 });
 
-/** Conclui o turno: as partes estruturadas entram depois do texto já transmitido. */
+/**
+ * Conclui o turno: as partes estruturadas entram depois do texto já transmitido. Com `text`,
+ * o texto transmitido é trocado por ele (correção feita em código depois do AGIR, decisão 25).
+ */
 export const finalize = mutation({
   args: {
     secret: v.string(),
     messageId: v.id("messages"),
     parts: v.array(vMessagePart),
     decisionId: v.optional(v.id("decisions")),
+    text: v.optional(v.string()),
   },
-  handler: async (ctx, { secret, messageId, parts, decisionId }): Promise<boolean> => {
+  handler: async (ctx, { secret, messageId, parts, decisionId, text }): Promise<boolean> => {
     requireAgentServer(secret);
     const message = await findStreamingMessage(ctx, messageId);
     if (!message) return false;
 
+    const streamed = text === undefined ? message.parts : replaceText(message.parts, text);
     await ctx.db.patch(message._id, {
-      parts: [...message.parts, ...parts],
+      parts: [...streamed, ...parts],
       status: "complete",
       decisionId,
     });
@@ -244,6 +249,15 @@ async function endAgentTurn(ctx: MutationCtx, conversationId: Id<"conversations"
 }
 
 /** Soma o pedaço ao último bloco de texto, ou abre um novo se o último não for texto. */
+/** Troca as partes de texto por um texto só, no lugar da primeira; as outras partes ficam. */
+function replaceText(parts: MessagePart[], text: string): MessagePart[] {
+  const firstText = parts.findIndex((part) => part.type === "text");
+  const others = parts.filter((part) => part.type !== "text");
+  if (text === "") return others;
+  const at = firstText === -1 ? 0 : firstText;
+  return [...others.slice(0, at), { type: "text", text }, ...others.slice(at)];
+}
+
 function appendText(parts: MessagePart[], delta: string): MessagePart[] {
   const last = parts.at(-1);
   if (last?.type === "text") {

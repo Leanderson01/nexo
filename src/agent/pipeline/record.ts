@@ -1,6 +1,11 @@
 import { confidenceLevel } from "@/agent/policies/low-confidence-policy";
 import type { DecisiveAction, GuidingAction } from "@/agent/policies/run-policies";
-import type { DecisionRecord, PolicyEvaluation, ToolCallTrace } from "@/domain/decision-record";
+import type {
+  DecisionRecord,
+  PolicyEvaluation,
+  ReplyCorrection,
+  ToolCallTrace,
+} from "@/domain/decision-record";
 import type { DecisionOutcome, PendingActionKind, TurnStage } from "@/domain/enums";
 import {
   CONFIDENCE_LEVEL_LABELS,
@@ -29,6 +34,8 @@ export interface RecordInput {
   draftKind: PendingActionKind | null;
   errorStage: TurnStage | null;
   usage: UsageTotals;
+  /** Correções feitas em código na resposta do AGIR (decisão 25). */
+  corrections?: ReplyCorrection[];
 }
 
 export function buildDecisionRecord(input: RecordInput): DecisionRecord {
@@ -52,6 +59,7 @@ export function buildDecisionRecord(input: RecordInput): DecisionRecord {
     outcome: input.outcome,
     shortCircuit: input.shortCircuit,
     ...(input.errorStage && { errorStage: input.errorStage }),
+    ...(input.corrections && input.corrections.length > 0 && { corrections: input.corrections }),
     usage: {
       models: input.usage.models,
       inputTokens: input.usage.inputTokens,
@@ -66,9 +74,19 @@ export function buildDecisionRecord(input: RecordInput): DecisionRecord {
 
 /** 2 a 3 frases: o que entendeu, o que as políticas decidiram e o que o turno fez. */
 export function buildRationale(input: RecordInput): string {
-  return [understoodSentence(input.understanding), policySentence(input), actionSentence(input)]
+  return [
+    understoodSentence(input.understanding),
+    policySentence(input),
+    actionSentence(input),
+    correctionSentence(input.corrections ?? []),
+  ]
     .filter((sentence) => sentence !== "")
     .join(" ");
+}
+
+function correctionSentence(corrections: ReplyCorrection[]): string {
+  if (corrections.length === 0) return "";
+  return `Corrigido em código: ${corrections.map((item) => lowercaseFirst(item.explanation)).join(" ")}`;
 }
 
 function understoodSentence(understanding: Understanding | null): string {

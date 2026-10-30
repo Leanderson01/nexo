@@ -6,6 +6,7 @@ import type {
   PolicyActionKind,
   PolicyOutcome,
   Priority,
+  ReplyCorrectionRule,
   ToolCallStatus,
   TurnStage,
 } from "./enums";
@@ -48,6 +49,13 @@ export interface TurnUsage {
   latencyMs: number;
 }
 
+/** Correção feita em código na resposta do AGIR (decisão 25). */
+export interface ReplyCorrection {
+  rule: ReplyCorrectionRule;
+  /** O que estava errado e o que o código fez, em uma frase. */
+  explanation: string;
+}
+
 export interface DecisionRecord {
   /** Nulo quando o turno falhou antes de entender a mensagem. */
   understanding: {
@@ -67,6 +75,8 @@ export interface DecisionRecord {
   shortCircuit?: boolean;
   /** Em turno com `outcome: "error"`, a etapa onde parou. Decisão 23. */
   errorStage?: TurnStage;
+  /** Correções feitas em código na resposta do modelo, quando houve. Decisão 25. */
+  corrections?: ReplyCorrection[];
   usage: TurnUsage;
   createdAt: number;
 }

@@ -41,6 +41,7 @@ function toDecisionRecord(decision: Doc<"decisions">): DecisionRecord {
     outcome: decision.outcome,
     ...(decision.shortCircuit !== undefined ? { shortCircuit: decision.shortCircuit } : {}),
     ...(decision.errorStage ? { errorStage: decision.errorStage } : {}),
+    ...(decision.corrections ? { corrections: decision.corrections } : {}),
     usage: decision.usage,
     createdAt: decision.createdAt,
   };

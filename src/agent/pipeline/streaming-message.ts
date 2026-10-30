@@ -14,7 +14,8 @@ export const STREAM_FLUSH_INTERVAL_MS = 150;
 /** As três escritas do agent sobre uma mensagem, já com o segredo e o id. */
 export interface AgentMessageSink {
   appendDelta(delta: string): Promise<boolean>;
-  finalize(parts: MessagePart[], decisionId?: Id<"decisions">): Promise<boolean>;
+  /** `text`, quando vem, substitui o texto já transmitido (correção em código, decisão 25). */
+  finalize(parts: MessagePart[], decisionId?: Id<"decisions">, text?: string): Promise<boolean>;
   fail(message: string, retryable: boolean): Promise<boolean>;
 }
 
@@ -26,8 +27,8 @@ export function createConvexMessageSink(options: {
   const { convex, agentSecret: secret, messageId } = options;
   return {
     appendDelta: (delta) => convex.mutation(api.messages.appendDelta, { secret, messageId, delta }),
-    finalize: (parts, decisionId) =>
-      convex.mutation(api.messages.finalize, { secret, messageId, parts, decisionId }),
+    finalize: (parts, decisionId, text) =>
+      convex.mutation(api.messages.finalize, { secret, messageId, parts, decisionId, text }),
     fail: (message, retryable) =>
       convex.mutation(api.messages.fail, { secret, messageId, message, retryable }),
   };
@@ -68,12 +69,20 @@ export class StreamingMessage {
     if (!written) this.isStopped = true;
   }
 
-  /** Grava o resto do texto e conclui com as partes estruturadas. */
-  async finish(parts: MessagePart[] = [], decisionId?: Id<"decisions">): Promise<void> {
-    await this.flush();
+  /**
+   * Grava o resto do texto e conclui com as partes estruturadas. Com `replacementText`, o texto
+   * transmitido até aqui é trocado por ele (o resto pendente é descartado).
+   */
+  async finish(
+    parts: MessagePart[] = [],
+    decisionId?: Id<"decisions">,
+    replacementText?: string,
+  ): Promise<void> {
+    if (replacementText === undefined) await this.flush();
+    else this.pendingText = "";
     if (this.isStopped) return;
     this.isStopped = true;
-    await this.sink.finalize(parts, decisionId);
+    await this.sink.finalize(parts, decisionId, replacementText);
   }
 
   /** Conclui com erro amigável; o texto já gravado fica na mensagem. */
