@@ -51,10 +51,6 @@ export class TurnWorkspace {
     this.quickReplies = labels;
   }
 
-  hasQuickReplies(): boolean {
-    return this.quickReplies !== null;
-  }
-
   /** As opções rápidas atuais, para a conferência depois do AGIR. */
   quickReplyLabels(): string[] | null {
     return this.quickReplies ? [...this.quickReplies] : null;

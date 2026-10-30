@@ -11,6 +11,7 @@ import {
 import { readLlmConfig } from "@/agent/llm/models";
 import { createLlmModels } from "@/agent/llm/provider";
 import { makeUnderstanding } from "@/agent/policies/__tests__/fixtures";
+import type { ArticleMatch } from "@/agent/gateways/knowledge-gateway";
 import type { Understanding } from "@/domain/understanding";
 
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -45,6 +46,7 @@ function setup(options: {
   userText: string;
   snapshot?: Partial<TurnSnapshot>;
   gateway?: FakeTicketGateway;
+  articles?: ArticleMatch[];
 }) {
   const groq = createFakeGroqFetch();
   const config = readLlmConfig({
@@ -63,7 +65,7 @@ function setup(options: {
     gatewaysFor: () => ({
       openForTool: (onAttempt) => ({
         tickets: gateway.forCall(onAttempt),
-        knowledge: fakeKnowledge(),
+        knowledge: fakeKnowledge(options.articles),
       }),
       tickets: gateway.forCall(() => {}),
     }),
@@ -324,6 +326,58 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
     // A nova tentativa recebe a instrução da correção no contexto do turno.
     expect(JSON.stringify(turn.groq.requests[2].messages)).toContain(
       "Correção (decidida em código)",
+    );
+  });
+
+  it('"Isso resolveu?" depois do artigo tem sempre as opções Sim e Não', async () => {
+    const turn = setup({
+      userText: "Windows 10",
+      articles: [
+        {
+          slug: "vpn-erro-809",
+          title: "VPN com erro 809",
+          body: "Reinstale o cliente de VPN. Vale apenas para Windows 10.",
+          tags: ["vpn"],
+          conditions: [{ field: "os", appliesTo: ["Windows 10"] }],
+          excerpt: "Reinstale o cliente de VPN.",
+        },
+      ],
+    });
+    turn.understands({
+      intent: "question",
+      summary: "VPN com erro 809 no Windows 10.",
+      entities: {
+        system: "VPN",
+        errorCode: "809",
+        os: "Windows 10",
+        device: null,
+        ticketRef: null,
+      },
+    });
+    turn.groq.reply(
+      streamToolCall(
+        MAIN,
+        {
+          id: "call_1",
+          name: "offerQuickReplies",
+          arguments: { options: ["Já tentei", "Ainda não"] },
+        },
+        USAGE,
+      ),
+    );
+    turn.groq.reply(streamText(MAIN, ["Reinstale o cliente de VPN. Isso resolveu?"], USAGE));
+
+    await turn.run();
+
+    expect(turn.sink.finalParts).toContainEqual({
+      type: "quickReplies",
+      options: [
+        { label: "Sim", value: "Sim" },
+        { label: "Não", value: "Não" },
+      ],
+    });
+    expect(turn.sink.finalParts).toContainEqual(
+      expect.objectContaining({ type: "article", slug: "vpn-erro-809" }),
     );
   });
 

@@ -373,7 +373,11 @@ async function answerWithModel(
   // As opções da oferta de analista são fixas em código (decisão 22 lê a resposta).
   if (overdueOffer) workspace.offerQuickReplies([ACCEPT_HANDOFF_OFFER, DECLINE_HANDOFF_OFFER]);
   const basedOnArticle = workspace.applicableArticle !== null && /resolveu/i.test(turn.replyText);
-  if (basedOnArticle && !workspace.hasQuickReplies()) workspace.offerQuickReplies(["Sim", "Não"]);
+  // "Isso resolveu?" tem as opções Sim e Não (§6.4), fixas em código: o modelo às vezes troca
+  // por outras ("Já tentei"). A pergunta da condição do artigo mantém as opções dela.
+  if (basedOnArticle && !overdueOffer && !workspace.askedArticleCondition) {
+    workspace.offerQuickReplies(["Sim", "Não"]);
+  }
 
   await checkCitedTicketCodes(turn, session, traceEnvironment);
   await offerToOpenWhenNoTicket(turn, understanding, focus);

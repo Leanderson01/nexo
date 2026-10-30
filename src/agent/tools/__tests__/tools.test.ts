@@ -224,7 +224,7 @@ describe("searchKnowledgeBase", () => {
 
     expect(output).toMatchObject({ ok: true, articles: [{ applicability: "does_not_apply" }] });
     expect(workspace.applicableArticle).toBeNull();
-    expect(workspace.hasQuickReplies()).toBe(false);
+    expect(workspace.quickReplyLabels()).toBeNull();
   });
 
   it("com Windows 10, guarda o artigo para o card", async () => {
