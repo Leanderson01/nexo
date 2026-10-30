@@ -3,6 +3,9 @@
 import { Button, Group, Loader, Paper, Text, Textarea } from "@mantine/core";
 import { useState, type KeyboardEvent } from "react";
 
+import { appendTranscript, isBusy } from "@/features/voice/recorder-state";
+import { useVoiceRecorder } from "@/features/voice/use-voice-recorder";
+import { VoiceButton, VoiceNotice } from "@/features/voice/voice-controls";
 import classes from "./chat.module.css";
 import { canType, getCounterTone, type ComposerState } from "./composer-state";
 import { ArrowUpIcon } from "./icons";
@@ -25,9 +28,15 @@ export function Composer(props: ComposerProps) {
   const { state, isSending } = props;
   const [text, setText] = useState("");
   const enabled = canType(state) && !isSending;
+  // O texto falado entra no campo para revisar; nada é enviado sozinho (§11.1).
+  const voice = useVoiceRecorder({
+    disabled: !enabled,
+    onTranscribed: (spoken) => setText((current) => appendTranscript(current, spoken)),
+  });
+  const canSend = enabled && !isBusy(voice.state) && text.trim() !== "";
 
   async function submit() {
-    if (!enabled || text.trim() === "") return;
+    if (!canSend) return;
     const accepted = await props.onSend(text);
     if (accepted) setText("");
   }
@@ -43,6 +52,7 @@ export function Composer(props: ComposerProps) {
   return (
     <div className={classes.composerArea}>
       <ComposerNotice {...props} />
+      <VoiceNotice voice={voice} />
       <Paper withBorder radius="md" p={6}>
         <Group gap={6} align="flex-end" wrap="nowrap">
           <Textarea
@@ -61,10 +71,11 @@ export function Composer(props: ComposerProps) {
             onChange={(event) => setText(event.currentTarget.value)}
             onKeyDown={handleKeyDown}
           />
+          <VoiceButton voice={voice} disabled={!enabled} />
           <Button
             leftSection={<ArrowUpIcon size={14} />}
             loading={isSending}
-            disabled={!enabled || text.trim() === ""}
+            disabled={!canSend}
             onClick={() => void submit()}
           >
             Enviar
