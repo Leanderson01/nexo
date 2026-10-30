@@ -8,3 +8,13 @@ export interface Handoff {
   ticketCode?: TicketCode;
   at: number;
 }
+
+/**
+ * Oferta de analista feita pelo agent e ainda sem resposta (decisão 22). Hoje só a
+ * OverdueTicketPolicy oferece; se o funcionário aceitar no turno seguinte, a transferência sai
+ * com este motivo.
+ */
+export interface HandoffOffer {
+  reason: HandoffReason;
+  ticketCode?: TicketCode;
+}

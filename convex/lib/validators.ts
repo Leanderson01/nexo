@@ -26,7 +26,7 @@ import {
   TURN_STAGES,
 } from "../../src/domain/enums";
 import type { DecisionRecord } from "../../src/domain/decision-record";
-import type { Handoff } from "../../src/domain/conversation";
+import type { Handoff, HandoffOffer } from "../../src/domain/conversation";
 import type { MessagePart } from "../../src/domain/message-parts";
 import type { PendingAction } from "../../src/domain/pending-action";
 import type { NewTicket, TicketFieldChanges } from "../../src/domain/ticket";
@@ -111,6 +111,13 @@ export const vHandoff = v.object({
   at: v.number(),
 });
 assertTypesMatch<Equals<Infer<typeof vHandoff>, Handoff>>();
+
+/** Oferta de analista ainda sem resposta (T10, decisão 22). */
+export const vHandoffOffer = v.object({
+  reason: vHandoffReason,
+  ticketCode: v.optional(v.string()),
+});
+assertTypesMatch<Equals<Infer<typeof vHandoffOffer>, HandoffOffer>>();
 
 export const vPendingAction = v.union(
   v.object({ kind: v.literal("create_ticket"), ticket: vNewTicket }),

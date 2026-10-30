@@ -8,6 +8,7 @@ import {
   vArticleCondition,
   vConversationStatus,
   vHandoff,
+  vHandoffOffer,
   vMessagePart,
   vMessageRole,
   vMessageStatus,
@@ -58,6 +59,13 @@ export default defineSchema({
     analystReadAt: v.optional(v.number()),
     /** Assunto para o histórico do chat: o começo da primeira mensagem do funcionário (T5). */
     subject: v.optional(v.string()),
+    /**
+     * Oferta de analista feita no turno anterior e ainda sem resposta (T10, decisão 22): se o
+     * funcionário aceitar, a transferência sai com este motivo (`overdue`), não `requested`.
+     */
+    pendingHandoffOffer: v.optional(vHandoffOffer),
+    /** Quantas mensagens já entraram no `rollingSummary` (T10, resumo a cada 10 mensagens). */
+    summarizedMessageCount: v.optional(v.number()),
     employeeMessageCount: v.number(),
     agentBusy: v.boolean(),
     clarificationAttempts: v.number(),
