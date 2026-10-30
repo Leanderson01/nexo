@@ -10,6 +10,11 @@ export const HOME_BY_ROLE: Record<PersonRole, string> = {
   analyst: "/console",
 };
 
+/** Páginas internas de desenvolvimento (`/dev/*`): em produção, respondem 404. */
+export function isDevOnlyPath(pathname: string): boolean {
+  return pathname === "/dev" || pathname.startsWith("/dev/");
+}
+
 /** Páginas que o proxy decide; o resto (API, arquivos) passa direto. */
 export function isRoutedPage(pathname: string): boolean {
   return pathname === "/" || pathname === LOGIN_PATH || roleOwningPath(pathname) !== null;

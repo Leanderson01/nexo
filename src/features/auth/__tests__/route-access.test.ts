@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { decideRedirect, isRoutedPage, safeNextPath } from "../route-access";
+import { decideRedirect, isDevOnlyPath, isRoutedPage, safeNextPath } from "../route-access";
 
 function request(pathWithSearch: string, next: string | null = null) {
   const pathname = pathWithSearch.split("?")[0];
@@ -119,5 +119,15 @@ describe("isRoutedPage", () => {
     expect(isRoutedPage("/chat/1")).toBe(true);
     expect(isRoutedPage("/chatbot")).toBe(false);
     expect(isRoutedPage("/api/conversations")).toBe(false);
+  });
+});
+
+describe("isDevOnlyPath", () => {
+  test("só as páginas de /dev", () => {
+    expect(isDevOnlyPath("/dev")).toBe(true);
+    expect(isDevOnlyPath("/dev/blocos")).toBe(true);
+    expect(isDevOnlyPath("/dev/painel")).toBe(true);
+    expect(isDevOnlyPath("/devolucao")).toBe(false);
+    expect(isDevOnlyPath("/chat")).toBe(false);
   });
 });
