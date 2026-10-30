@@ -19,13 +19,19 @@ import { useState, type FormEvent } from "react";
 import { ArrowRightIcon, EyeIcon, EyeOffIcon, MailIcon, PasswordIcon } from "@/shared/icons";
 import { describeSignInError, normalizeEmail, validateCorporateEmail } from "../email-validation";
 import { saveRememberMePreference } from "../remember-me";
-import { safeNextPath } from "../route-access";
+import { isRoutedPage, safeNextPath } from "../route-access";
 import { DemoAccounts } from "./demo-accounts-list";
 import classes from "./login.module.css";
 
-/** O `?next=` que o proxy pôs na URL, se for um caminho interno. */
+/**
+ * O `?next=` que o proxy pôs na URL, se for uma página interna que o proxy conhece. Caminho
+ * estranho ("/@evil.com") vira null e o login segue para "/", que o proxy manda para a área do
+ * papel — o mesmo que acontece quando a pessoa já está logada.
+ */
 function readNextPathFromUrl(): string | null {
-  return safeNextPath(new URLSearchParams(window.location.search).get("next"));
+  const next = safeNextPath(new URLSearchParams(window.location.search).get("next"));
+  if (!next) return null;
+  return isRoutedPage(new URL(next, window.location.origin).pathname) ? next : null;
 }
 
 export function LoginForm() {

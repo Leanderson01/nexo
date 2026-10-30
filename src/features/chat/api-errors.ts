@@ -5,7 +5,12 @@ import type { SendUserMessageError } from "../../../convex/messages";
 // status HTTP e o texto que a tela mostra. A mesma tabela serve à rota e ao cliente.
 
 export type ChatApiErrorCode =
-  SendUserMessageError | CreateConversationError | "unauthorized" | "invalid_body" | "unavailable";
+  | SendUserMessageError
+  | CreateConversationError
+  | "unauthorized"
+  | "forbidden"
+  | "invalid_body"
+  | "unavailable";
 
 export interface ChatApiErrorBody {
   error: { code: ChatApiErrorCode; message: string };
@@ -27,6 +32,7 @@ export const CHAT_API_ERRORS: Record<ChatApiErrorCode, { status: number; message
   },
   invalid_body: { status: 400, message: "Não entendemos o pedido. Recarregue a página." },
   unauthorized: { status: 401, message: "Sua sessão expirou. Entre novamente." },
+  forbidden: { status: 403, message: "O chat é só para funcionários." },
   unavailable: {
     status: 503,
     message: "Não conseguimos falar com o servidor agora. Tente de novo em instantes.",
@@ -42,6 +48,7 @@ const NOT_RETRYABLE: readonly ChatApiErrorCode[] = [
   "limit_reached",
   "closed",
   "busy",
+  "forbidden",
 ];
 
 export function isRetryableChatError(code: ChatApiErrorCode): boolean {

@@ -26,6 +26,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   const convex = await createConvexClientForCurrentUser();
   if (!convex) return chatApiError("unauthorized");
+  // Analista logado: recusa clara (403) em vez do erro do guard virar 503.
+  const person = await convex.query(api.auth.currentPerson, {}).catch(() => null);
+  if (person?.role === "analyst") return chatApiError("forbidden");
 
   const body = sendMessageBody.safeParse(await request.json().catch(() => null));
   if (!body.success) return chatApiError("invalid_body");
