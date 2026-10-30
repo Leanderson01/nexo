@@ -17,7 +17,12 @@ import type { Understanding } from "@/domain/understanding";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import type { TurnSnapshot } from "../agent-store";
 import { ACCEPT_HANDOFF_OFFER, DECLINE_HANDOFF_OFFER } from "../decide";
-import { DRAFT_CLAIM_FALLBACK_TEXT, OPEN_TICKET_OPTION } from "../reply-checks";
+import {
+  DRAFT_CLAIM_FALLBACK_TEXT,
+  EMPTY_REPLY_FALLBACK_TEXT,
+  OPEN_TICKET_OPTION,
+  TALK_TO_ANALYST_OPTION,
+} from "../reply-checks";
 import { runTurn, type RunTurnInput } from "../run-turn";
 import type { TurnDependencies } from "../turn-dependencies";
 import {
@@ -567,6 +572,60 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
     expect(turn.sink.text).toBe("Instale pelo portal de softwares.");
     expect(turn.store.decisions[0].corrections).toEqual([
       expect.objectContaining({ rule: "tool_call_as_text" }),
+    ]);
+  });
+
+  const MOUSE = "Meu mouse sem fio parou de funcionar. Pode abrir um chamado?";
+  const MOUSE_SIGNALS = { ...PRINTER_SIGNALS, impact: null } as const;
+
+  it("resposta sem texto e sem partes ganha nova tentativa, que responde em streaming", async () => {
+    const turn = setup({ userText: MOUSE });
+    turn.understands({
+      intent: "open_ticket",
+      summary: "Mouse sem fio parou.",
+      ticketSignals: MOUSE_SIGNALS,
+    });
+    turn.groq.reply(streamText(MAIN, [], USAGE)); // o modelo encerra sem texto nem tool
+    turn.groq.reply(streamText(MAIN, ["Qual o impacto desse problema?"], USAGE));
+
+    await turn.run();
+
+    expect(turn.groq.requests).toHaveLength(3); // ENTENDER, AGIR e a nova tentativa
+    expect(JSON.stringify(turn.groq.requests[2].messages)).toContain(
+      "terminou sem escrever nada para o funcionário",
+    );
+    expect(turn.sink.text).toBe("Qual o impacto desse problema?");
+    expect(turn.store.decisions[0].corrections).toEqual([
+      expect.objectContaining({ rule: "empty_reply" }),
+    ]);
+    expect(turn.store.decisions[0].outcome).not.toBe("error");
+  });
+
+  it("se a nova tentativa também vier vazia, a resposta vira o aviso honesto com opções", async () => {
+    const turn = setup({ userText: MOUSE });
+    turn.understands({
+      intent: "open_ticket",
+      summary: "Mouse sem fio parou.",
+      ticketSignals: MOUSE_SIGNALS,
+    });
+    turn.groq.reply(streamText(MAIN, [], USAGE));
+    turn.groq.reply(streamText(MAIN, [], USAGE));
+
+    await turn.run();
+
+    expect(turn.groq.requests).toHaveLength(3);
+    expect(turn.sink.text).toBe(EMPTY_REPLY_FALLBACK_TEXT);
+    expect(turn.sink.finalParts).toEqual([
+      {
+        type: "quickReplies",
+        options: [OPEN_TICKET_OPTION, TALK_TO_ANALYST_OPTION].map((label) => ({
+          label,
+          value: label,
+        })),
+      },
+    ]);
+    expect(turn.store.decisions[0].corrections).toEqual([
+      expect.objectContaining({ rule: "empty_reply" }),
     ]);
   });
 });

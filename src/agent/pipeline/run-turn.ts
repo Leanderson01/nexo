@@ -35,11 +35,14 @@ import {
   checkTicketCodes,
   draftRetryInstruction,
   draftRetryReason,
+  EMPTY_REPLY_RETRY_INSTRUCTION,
   extractTicketCodes,
+  isEmptyReply,
   isNoTicketFound,
   offerToOpenTicket,
   removeToolCallsFromText,
   resolveDraftRetry,
+  resolveEmptyReply,
   retrySucceeded,
   saysNotFound,
 } from "./reply-checks";
@@ -362,6 +365,25 @@ async function answerWithModel(
   if (!(await actSucceeded(turn, acted, { understanding, decision }))) return;
 
   // Conferências em código depois do AGIR (decisão 25).
+  // Regra 5: sem texto e sem partes, uma nova tentativa (em streaming, nada foi mostrado) e,
+  // falhando, um aviso honesto; nunca um balão vazio.
+  if (isEmptyReply({ text: modelText(turn), hasParts: hasStructuredParts(workspace) })) {
+    const retried = await runAct(EMPTY_REPLY_RETRY_INSTRUCTION, (piece) => write(turn, piece));
+    if (retried.usage) addUsages(turn, turn.deps.llm.mainModel, [retried.usage]);
+    if (workspace.legacyUnavailable) replaceModelText(turn, "");
+    if (!(await actSucceeded(turn, retried, { understanding, decision }, false))) return;
+    const resolved = resolveEmptyReply({
+      retryOk: retried.ok,
+      retryText: modelText(turn),
+      retryHasParts: hasStructuredParts(workspace),
+    });
+    if (resolved.fallback) {
+      replaceModelText(turn, resolved.fallback.text);
+      workspace.offerQuickReplies(resolved.fallback.quickReplies);
+    }
+    turn.corrections.push(resolved.correction);
+  }
+
   const retryReason = draftRetryReason({
     text: modelText(turn),
     draftProposed: workspace.draft !== null,
@@ -519,6 +541,11 @@ async function offerToOpenWhenNoTicket(
   } else {
     replaceModelText(turn, offer.text);
   }
+}
+
+/** A resposta já tem alguma parte (card, seletor, rascunho ou opções). O artigo só entra com texto. */
+function hasStructuredParts(workspace: TurnWorkspace): boolean {
+  return workspace.structuredParts({ includeArticle: false }).length > 0;
 }
 
 /** A resposta pode mostrar card de chamado, de artigo ou seletor ("confira o card" sobre eles). */
