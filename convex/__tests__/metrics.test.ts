@@ -234,6 +234,44 @@ describe("metrics.dashboard", () => {
     expect(metrics.correctionsByRule.draft_claim_without_draft).toBe(1);
   });
 
+  test("transferências por motivo contam cada transferência do histórico", async () => {
+    const t = await emptySetup();
+    const rafael = await personId(t, RAFAEL);
+    const handoffPart = (reason: HandoffReason): MessagePart[] => [
+      { type: "handoff", reason, outOfHours: false },
+      { type: "event", kind: "transferred" },
+    ];
+
+    // Pedido do funcionário, devolvida ao agent e transferida de novo por baixa confiança.
+    await insertConversation(t, rafael, {
+      handoff: "low_confidence",
+      messages: [
+        { role: "user", parts: text("quero um analista") },
+        { role: "system", parts: handoffPart("requested") },
+        { role: "system", parts: [{ type: "event", kind: "returned_to_agent" }] },
+        { role: "assistant", parts: text("Pode detalhar?"), decision: decisionRecord({}) },
+        { role: "system", parts: handoffPart("low_confidence") },
+      ],
+    });
+    // Crítico, uma vez só.
+    await insertConversation(t, rafael, {
+      handoff: "critical",
+      messages: [{ role: "system", parts: handoffPart("critical") }],
+    });
+
+    const ana = await loginAs(t, ANA);
+    const { metrics } = await ana.query(api.metrics.dashboard, { period: "today" });
+
+    expect(metrics.handoffs.total).toBe(3);
+    expect(metrics.handoffs.conversations).toBe(2);
+    expect(metrics.handoffs.byReason).toEqual({
+      requested: 1,
+      critical: 1,
+      overdue: 0,
+      low_confidence: 1,
+    });
+  });
+
   test("o período conta pela criação da conversa", async () => {
     const t = await emptySetup();
     const rafael = await personId(t, RAFAEL);

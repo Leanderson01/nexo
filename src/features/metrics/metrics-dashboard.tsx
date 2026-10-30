@@ -16,6 +16,7 @@ import {
   REPLY_CORRECTION_RULE_LABELS,
 } from "@/domain/labels";
 import type { DashboardMetrics } from "@/domain/metrics";
+import { HANDOFF_REASON_TONES, type StatusTone } from "@/features/console/console-texts";
 import { useHydrated } from "@/features/console/use-hydrated";
 import { api } from "../../../convex/_generated/api";
 import classes from "./metrics.module.css";
@@ -104,7 +105,7 @@ function DashboardBody({ metrics }: { metrics: DashboardMetrics }) {
         <StatTile
           label="Transferências"
           value={String(metrics.handoffs.total)}
-          note={`${percentText(metrics.handoffs.total / metrics.conversations)} das conversas`}
+          note={`em ${countText(metrics.handoffs.conversations, "conversa", "conversas")} · ${percentText(metrics.handoffs.conversations / metrics.conversations)} do total`}
         />
         <StatTile
           label="Confiança média"
@@ -129,6 +130,8 @@ function DashboardBody({ metrics }: { metrics: DashboardMetrics }) {
           rows={HANDOFF_REASONS.map((reason) => ({
             label: HANDOFF_REASON_LABELS[reason],
             value: metrics.handoffs.byReason[reason],
+            // A mesma cor do motivo na fila e no card de resumo (§7.4).
+            tone: HANDOFF_REASON_TONES[reason],
           }))}
         />
         <BarList
@@ -160,8 +163,15 @@ function StatTile({ label, value, note }: { label: string; value: string; note: 
   );
 }
 
+interface BarRow {
+  label: string;
+  value: number;
+  /** Cor da barra (tom de status do console); sem tom, a primária. */
+  tone?: StatusTone;
+}
+
 /** Barras horizontais de uma série só, com o rótulo e o número escritos ao lado. */
-function BarList({ title, rows }: { title: string; rows: { label: string; value: number }[] }) {
+function BarList({ title, rows }: { title: string; rows: BarRow[] }) {
   const max = Math.max(0, ...rows.map((row) => row.value));
   return (
     <section className={classes.card} aria-label={title}>
@@ -172,7 +182,11 @@ function BarList({ title, rows }: { title: string; rows: { label: string; value:
             <span className={classes.barLabel}>{row.label}</span>
             <span className={classes.barTrack} aria-hidden>
               {row.value > 0 && (
-                <span className={classes.bar} style={{ width: `${barWidth(row.value, max)}%` }} />
+                <span
+                  className={classes.bar}
+                  data-tone={row.tone}
+                  style={{ width: `${barWidth(row.value, max)}%` }}
+                />
               )}
             </span>
             <span className={classes.barValue}>{row.value}</span>

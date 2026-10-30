@@ -3,6 +3,7 @@ import {
   confirmedArticle,
   periodStart,
   resolvedWithoutQueue,
+  transferReasons,
   type DashboardMetrics,
   type MetricsConversation,
 } from "../src/domain/metrics";
@@ -88,13 +89,15 @@ async function toMetricsConversation(
   };
 
   // O "Sim" ao artigo só muda o resultado de quem foi para a fila (transferiu ou criou
-  // chamado): só nesses casos vale ler as mensagens.
+  // chamado), e só quem transferiu tem transferências a contar: só nesses casos vale ler as
+  // mensagens. Cada transferência deixou uma parte `handoff` no histórico.
   if (!resolvedWithoutQueue(row)) {
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation_createdAt", (q) => q.eq("conversationId", conversation._id))
       .collect();
     row.articleConfirmed = confirmedArticle(messages);
+    row.transfers = transferReasons(messages);
   }
   return row;
 }

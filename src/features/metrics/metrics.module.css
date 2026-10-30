@@ -24,6 +24,13 @@
   padding: 0 20px;
   border-bottom: 1px solid var(--nexo-color-border);
   background: var(--nexo-color-surface);
+
+  /* No celular o título e o seletor de período ficam um embaixo do outro. */
+  @media (max-width: 640px) {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 10px 12px;
+  }
 }
 
 .title {
@@ -44,6 +51,10 @@
   min-height: 0;
   overflow-y: auto;
   padding: 24px 24px 32px;
+
+  @media (max-width: 640px) {
+    padding: 12px 12px 24px;
+  }
 }
 
 .content {
@@ -58,6 +69,11 @@
 
   @media (max-width: 900px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 560px) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
   }
 }
 
@@ -95,7 +111,7 @@
 
 .charts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
   gap: 16px;
   margin-top: 16px;
 }
@@ -120,7 +136,7 @@
 
 .barRow {
   display: grid;
-  grid-template-columns: minmax(120px, 42%) 1fr 28px;
+  grid-template-columns: minmax(96px, 42%) minmax(0, 1fr) 28px;
   gap: 12px;
   align-items: center;
   font-size: 13px;
@@ -142,6 +158,35 @@
   min-width: 4px;
   border-radius: var(--nexo-radius-pill);
   background: var(--nexo-color-primary);
+
+  /* Transferências por motivo: a cor do motivo na fila (as variáveis vêm do .shell do console). */
+  &[data-tone] {
+    background: var(--nexo-color-status-neutral-dot);
+  }
+
+  &[data-tone="danger"] {
+    background: var(--nexo-color-status-danger-dot);
+  }
+
+  &[data-tone="warning"] {
+    background: var(--nexo-color-status-warning-dot);
+  }
+
+  &[data-tone="violet"] {
+    background: var(--nexo-color-status-violet-dot);
+  }
+
+  &[data-tone="orange"] {
+    background: var(--nexo-color-status-orange-dot);
+  }
+
+  &[data-tone="progress"] {
+    background: var(--nexo-color-status-progress-dot);
+  }
+
+  &[data-tone="success"] {
+    background: var(--nexo-color-status-success-dot);
+  }
 }
 
 .barValue {

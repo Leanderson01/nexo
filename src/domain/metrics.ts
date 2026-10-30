@@ -56,8 +56,14 @@ export interface MetricsDraft {
 }
 
 export interface MetricsConversation {
-  /** Motivo da transferência; null se a conversa nunca foi para um analista. */
+  /** Motivo da última transferência; null se a conversa nunca foi para um analista. */
   handoffReason: HandoffReason | null;
+  /**
+   * O motivo de cada transferência da conversa, em ordem (uma conversa devolvida ao agent pode
+   * ser transferida de novo). Vem das partes `handoff` do histórico (`transferReasons`); vazio
+   * ou ausente com `handoffReason` preenchido, conta a última uma vez.
+   */
+  transfers?: HandoffReason[];
   decisions: MetricsDecision[];
   drafts: MetricsDraft[];
   /** O funcionário respondeu "Sim" ao "Isso resolveu?" de um artigo (ver `confirmedArticle`). */
@@ -88,6 +94,22 @@ export function confirmedArticle(messages: MetricsMessage[]): boolean {
     }
   }
   return false;
+}
+
+/**
+ * O motivo de cada transferência registrada no histórico: toda transferência grava uma parte
+ * `handoff` com o motivo (convex/lib/handoff.ts).
+ */
+export function transferReasons(messages: MetricsMessage[]): HandoffReason[] {
+  return messages.flatMap((message) =>
+    message.parts.flatMap((part) => (part.type === "handoff" ? [part.reason] : [])),
+  );
+}
+
+/** As transferências que contam para a conversa; sem histórico delas, a última, uma vez. */
+function conversationTransfers(conversation: MetricsConversation): HandoffReason[] {
+  if (conversation.transfers && conversation.transfers.length > 0) return conversation.transfers;
+  return conversation.handoffReason === null ? [] : [conversation.handoffReason];
 }
 
 function startsWithYes(parts: MessagePart[]): boolean {
@@ -139,7 +161,11 @@ export interface DashboardMetrics {
   resolvedWithoutQueue: { count: number; rate: number | null };
   /** Rascunhos que contam (não substituídos) e, deles, os que atualizam ou reabrem. */
   drafts: { total: number; duplicatesAvoided: number; ticketsCreated: number };
-  handoffs: { total: number; byReason: Record<HandoffReason, number> };
+  /**
+   * Cada transferência conta (uma conversa transferida duas vezes soma 2 em `total` e no
+   * motivo de cada uma); `conversations` é quantas conversas foram transferidas ao menos uma vez.
+   */
+  handoffs: { total: number; conversations: number; byReason: Record<HandoffReason, number> };
   /** Turnos do agent no período (linhas de `decisions`). */
   turns: number;
   /** Média de 0 a 1 dos turnos que entenderam a mensagem; null sem nenhum. */
@@ -191,12 +217,16 @@ function countHandoffs(conversations: MetricsConversation[]): DashboardMetrics["
     number
   >;
   let total = 0;
-  for (const { handoffReason } of conversations) {
-    if (handoffReason === null) continue;
-    byReason[handoffReason] += 1;
-    total += 1;
+  let transferred = 0;
+  for (const conversation of conversations) {
+    const transfers = conversationTransfers(conversation);
+    if (transfers.length > 0) transferred += 1;
+    for (const reason of transfers) {
+      byReason[reason] += 1;
+      total += 1;
+    }
   }
-  return { total, byReason };
+  return { total, conversations: transferred, byReason };
 }
 
 function countCorrections(decisions: MetricsDecision[]): Record<ReplyCorrectionRule, number> {

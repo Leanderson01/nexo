@@ -5,6 +5,7 @@ import {
   confirmedArticle,
   periodStart,
   resolvedWithoutQueue,
+  transferReasons,
   type MetricsConversation,
   type MetricsDecision,
   type MetricsMessage,
@@ -122,6 +123,7 @@ describe("computeMetrics", () => {
     expect(metrics.averageResponseMs).toBeNull();
     expect(metrics.handoffs).toEqual({
       total: 0,
+      conversations: 0,
       byReason: { requested: 0, critical: 0, overdue: 0, low_confidence: 0 },
     });
     expect(metrics.correctionsByRule.foreign_ticket_code).toBe(0);
@@ -214,5 +216,48 @@ describe("computeMetrics", () => {
       empty_reply: 0,
       quick_replies_as_text: 0,
     });
+  });
+});
+
+describe("transferências por motivo: cada transferência conta", () => {
+  const transfer = (reason: "requested" | "critical" | "overdue" | "low_confidence") =>
+    ({
+      role: "system",
+      parts: [
+        { type: "handoff", reason, outOfHours: false },
+        { type: "event", kind: "transferred" },
+      ],
+    }) satisfies MetricsMessage;
+
+  test("transferReasons lê o motivo de cada parte handoff, em ordem", () => {
+    expect(
+      transferReasons([
+        user("quero falar com alguém"),
+        transfer("requested"),
+        { role: "system", parts: [{ type: "event", kind: "returned_to_agent" }] },
+        transfer("low_confidence"),
+      ]),
+    ).toEqual(["requested", "low_confidence"]);
+  });
+
+  test("conversa transferida, devolvida e transferida de novo soma as duas", () => {
+    const metrics = computeMetrics([
+      conversation({ handoffReason: "low_confidence", transfers: ["requested", "low_confidence"] }),
+      conversation({ handoffReason: "critical", transfers: ["critical"] }),
+    ]);
+    expect(metrics.handoffs.total).toBe(3);
+    expect(metrics.handoffs.conversations).toBe(2);
+    expect(metrics.handoffs.byReason).toEqual({
+      requested: 1,
+      critical: 1,
+      overdue: 0,
+      low_confidence: 1,
+    });
+  });
+
+  test("sem histórico de transferências, conta o último motivo uma vez", () => {
+    const metrics = computeMetrics([conversation({ handoffReason: "overdue", transfers: [] })]);
+    expect(metrics.handoffs.total).toBe(1);
+    expect(metrics.handoffs.byReason.overdue).toBe(1);
   });
 });
