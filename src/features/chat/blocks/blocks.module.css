@@ -67,9 +67,11 @@
 
 .cardKicker {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 4px 12px;
+  white-space: nowrap;
   font-size: 12px;
   line-height: 1.4;
   color: var(--nexo-color-text-secondary);

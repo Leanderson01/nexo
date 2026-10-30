@@ -312,7 +312,11 @@
   min-height: 100%;
   max-width: 860px;
   margin: 0 auto;
-  padding: 24px 24px 16px;
+  padding: 16px 16px 16px;
+
+  @media (min-width: $mantine-breakpoint-sm) {
+    padding: 24px 24px 16px;
+  }
 }
 
 .userBubble {
@@ -408,7 +412,11 @@
   width: 100%;
   max-width: 860px;
   margin: 0 auto;
-  padding: 0 24px 6px;
+  padding: 0 16px 6px;
+
+  @media (min-width: $mantine-breakpoint-sm) {
+    padding: 0 24px 6px;
+  }
 }
 
 .composerBox {
