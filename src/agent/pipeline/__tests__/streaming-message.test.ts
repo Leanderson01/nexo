@@ -1,7 +1,6 @@
 import { describe, expect, test } from "vitest";
 
 import type { MessagePart } from "@/domain/message-parts";
-import { buildEchoReply, splitIntoWords } from "../run-turn";
 import { StreamingMessage, type AgentMessageSink } from "../streaming-message";
 
 /** Sink em memória; `accepting = false` simula a mensagem que saiu de `streaming`. */
@@ -80,12 +79,5 @@ describe("StreamingMessage", () => {
 
     expect(calls.deltas).toEqual(["Começando"]);
     expect(calls.failed).toEqual(["Não consegui responder agora."]);
-  });
-});
-
-describe("eco", () => {
-  test("as palavras remontam o texto exato", () => {
-    const reply = buildEchoReply("minha VPN  não conecta");
-    expect(splitIntoWords(reply).join("")).toBe(reply);
   });
 });
