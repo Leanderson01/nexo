@@ -248,6 +248,7 @@ export const getConversation = query({
       isMine,
       agentBusy: conversation.agentBusy,
       returnNote: conversation.returnNote ?? null,
+      analystReadAt: conversation.analystReadAt ?? null,
       closedAt: conversation.closedAt ?? null,
       summary: await buildTransferSummary(ctx, conversation),
     };

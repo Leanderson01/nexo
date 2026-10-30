@@ -1,6 +1,6 @@
-import { ProvisionalArea } from "@/features/auth/provisional-area";
+import { NoConversationSelected } from "@/features/console/no-conversation-selected";
 
-// PROVISÓRIO (T2): placeholder para testar o redirecionamento. O T12 substitui.
+/** `/console`: a fila na lateral e, aqui, o convite para abrir uma conversa. */
 export default function ConsolePage() {
-  return <ProvisionalArea areaName="Console do analista" />;
+  return <NoConversationSelected />;
 }
