@@ -22,7 +22,10 @@ export async function getCurrentPerson(ctx: QueryCtx): Promise<Doc<"people"> | n
     .unique();
 }
 
-/** Qualquer pessoa logada (funcionário ou analista), ex.: a busca na central de ajuda. */
+/**
+ * Qualquer pessoa logada, funcionário ou analista (ex.: busca na central de ajuda, painel de
+ * decisão). Lança sem sessão válida.
+ */
 export async function requirePerson(ctx: QueryCtx): Promise<Doc<"people">> {
   const userId = await getAuthUserId(ctx);
   if (!userId) throw new ConvexError("Sessão expirada. Entre novamente.");
@@ -42,6 +45,18 @@ export async function requireAnalyst(ctx: QueryCtx): Promise<Doc<"people">> {
   const person = await requirePerson(ctx);
   if (person.role !== "analyst") throw new ConvexError("Acesso restrito a analistas.");
   return person;
+}
+
+/**
+ * Quem pode ler uma conversa e o que pende dela (mensagens, painel de decisão): o funcionário
+ * dono ou qualquer analista (§5.10, §7.4).
+ */
+export function canReadConversation(
+  person: Doc<"people">,
+  conversation: Doc<"conversations">,
+): boolean {
+  if (person.role === "analyst") return true;
+  return conversation.employeeId === person._id;
 }
 
 /** Protege as funções de escrita do agent: só o servidor do Next conhece o segredo. */

@@ -10,6 +10,7 @@
 
 import type * as auth from "../auth.js";
 import type * as conversations from "../conversations.js";
+import type * as decisionPanel from "../decisionPanel.js";
 import type * as http from "../http.js";
 import type * as knowledge_articles from "../knowledge/articles.js";
 import type * as knowledge_ranking from "../knowledge/ranking.js";
@@ -35,6 +36,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   conversations: typeof conversations;
+  decisionPanel: typeof decisionPanel;
   http: typeof http;
   "knowledge/articles": typeof knowledge_articles;
   "knowledge/ranking": typeof knowledge_ranking;
