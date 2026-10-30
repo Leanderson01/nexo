@@ -11,7 +11,7 @@ const SATURDAY = 6;
 const SUNDAY = 0;
 
 /** Data e hora de parede em São Paulo. `month` vai de 1 a 12. */
-interface LocalDateTime {
+export interface LocalDateTime {
   year: number;
   month: number;
   day: number;
@@ -31,7 +31,7 @@ const localFormatter = new Intl.DateTimeFormat("en-US", {
   second: "numeric",
 });
 
-function toLocal(timestamp: number): LocalDateTime {
+export function toLocal(timestamp: number): LocalDateTime {
   const parts = localFormatter.formatToParts(new Date(timestamp));
   const read = (type: Intl.DateTimeFormatPartTypes) =>
     Number(parts.find((part) => part.type === type)?.value);
@@ -46,7 +46,7 @@ function toLocal(timestamp: number): LocalDateTime {
 }
 
 /** Converte uma hora de parede de São Paulo para timestamp. */
-function fromLocal(year: number, month: number, day: number, hour: number): number {
+export function fromLocal(year: number, month: number, day: number, hour: number): number {
   const wallClockAsUtc = Date.UTC(year, month - 1, day, hour);
   // Descobre a diferença entre o fuso e o UTC naquele instante e desconta.
   const offset = wallClockAsUtc - localAsUtc(toLocal(wallClockAsUtc));

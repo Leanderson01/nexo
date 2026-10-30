@@ -33,6 +33,7 @@ import type * as ticketing_queries from "../ticketing/queries.js";
 import type * as ticketing_reads from "../ticketing/reads.js";
 import type * as ticketing_service from "../ticketing/service.js";
 import type * as ticketing_similarity from "../ticketing/similarity.js";
+import type * as usage from "../usage.js";
 
 import type {
   ApiFromModules,
@@ -66,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   "ticketing/reads": typeof ticketing_reads;
   "ticketing/service": typeof ticketing_service;
   "ticketing/similarity": typeof ticketing_similarity;
+  usage: typeof usage;
 }>;
 
 /**

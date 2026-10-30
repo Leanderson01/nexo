@@ -7,6 +7,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { requireAgentServer } from "./lib/guards";
 import { transferToAnalyst, type TransferError } from "./lib/handoff";
+import { recordTurnUsage } from "./usage";
 import {
   decisionRecordFields,
   vHandoffOffer,
@@ -224,7 +225,10 @@ export const saveTurnState = mutation({
 
 // ---------- Registro de decisão ----------
 
-/** Grava o `DecisionRecord` do turno (§6.6); o `finalize` liga o id à mensagem. */
+/**
+ * Grava o `DecisionRecord` do turno (§6.6); o `finalize` liga o id à mensagem. Os tokens e o
+ * custo do turno entram no uso do dia, que alimenta o teto diário (§12.3).
+ */
 export const recordDecision = mutation({
   args: {
     secret: v.string(),
@@ -234,6 +238,7 @@ export const recordDecision = mutation({
   },
   handler: async (ctx, { secret, conversationId, messageId, record }) => {
     requireAgentServer(secret);
+    await recordTurnUsage(ctx, record.usage, Date.now());
     return await ctx.db.insert("decisions", { conversationId, messageId, ...record });
   },
 });
