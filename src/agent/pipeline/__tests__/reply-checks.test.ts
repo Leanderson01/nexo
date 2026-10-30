@@ -34,7 +34,8 @@ describe("removeToolCallsFromText", () => {
     );
     expect(result?.text).toBe("Isso resolveu?");
     expect(result?.correction.rule).toBe("tool_call_as_text");
-    expect(result?.correction.explanation).toContain("offerQuickReplies");
+    expect(result?.correction.explanation).toContain("comando interno");
+    expect(result?.correction.explanation).not.toContain("offerQuickReplies");
   });
 
   it("tira chamada no meio, em crases, e com parênteses dentro das aspas", () => {
@@ -42,7 +43,7 @@ describe("removeToolCallsFromText", () => {
       'Vou ver. `listMyTickets({"onlyOpen":true})` Achei dois. proposeReopen({"note":"(de novo)"}) Confira.',
     );
     expect(result?.text).toBe("Vou ver. Achei dois. Confira.");
-    expect(result?.correction.explanation).toContain("listMyTickets, proposeReopen");
+    expect(result?.correction.explanation).not.toMatch(/listMyTickets|proposeReopen/);
   });
 
   it("tira o bloco de código que só tinha a chamada", () => {
@@ -69,7 +70,7 @@ describe("removeToolCallsFromText", () => {
     );
     expect(result?.text).toBe("Qual o impacto?");
     expect(result?.quickReplies).toEqual(["Só eu", "Minha equipe"]);
-    expect(result?.correction.explanation).toContain("viraram opções rápidas");
+    expect(result?.correction.explanation).toContain("viraram botões");
   });
 
   it("não devolve opções quando a tool já anexou as dela ou quando só havia a chamada", () => {
@@ -358,7 +359,7 @@ describe("resolveEmptyReply", () => {
     });
     expect(resolved.fallback).toBeNull();
     expect(resolved.correction.rule).toBe("empty_reply");
-    expect(resolved.correction.explanation).toContain("nova tentativa do AGIR respondeu");
+    expect(resolved.correction.explanation).toContain("o agent tentou de novo e respondeu");
   });
 
   it("nova tentativa só com partes (um card, um seletor) também resolve", () => {
@@ -600,7 +601,7 @@ describe("quickRepliesRetryInstruction / resolveQuickRepliesRetry", () => {
     });
     expect(resolved.text).toBe("Qual o impacto do problema?");
     expect(resolved.correction.rule).toBe("quick_replies_as_text");
-    expect(resolved.correction.explanation).toContain("nova tentativa do AGIR chamou");
+    expect(resolved.correction.explanation).toContain("tentou de novo e mostrou as opções");
   });
 
   it("nova tentativa que só chamou a tool mantém o texto da primeira sem o anúncio", () => {
@@ -611,7 +612,7 @@ describe("quickRepliesRetryInstruction / resolveQuickRepliesRetry", () => {
         retryQuickReplies: ["Só eu", "Minha equipe"],
       });
       expect(resolved.text).toBe("Qual o impacto?");
-      expect(resolved.correction.explanation).toContain("nova tentativa do AGIR chamou");
+      expect(resolved.correction.explanation).toContain("tentou de novo e mostrou as opções");
     }
   });
 
@@ -622,6 +623,6 @@ describe("quickRepliesRetryInstruction / resolveQuickRepliesRetry", () => {
       retryQuickReplies: null,
     });
     expect(resolved.text).toBe("Qual o impacto?");
-    expect(resolved.correction.explanation).toContain("também não chamou");
+    expect(resolved.correction.explanation).toContain("nem a nova tentativa mostrou");
   });
 });

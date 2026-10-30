@@ -102,6 +102,11 @@ describe("verifyUnderstanding e continueIntake", () => {
       "unsupported_signal",
       "unsupported_signal",
     ]);
+    // Linguagem simples para o analista (R3): sem nomes de etapas nem seções da spec.
+    expect(verified.corrections.map((item) => item.explanation)).toEqual([
+      "O modelo indicou que a equipe é afetada e o trabalho está parado, sem alternativa, mas isso não foi dito na conversa; a informação foi descartada e o agent pergunta.",
+      'O modelo indicou o sistema operacional "Windows 10", mas o funcionário não o informou; a informação foi descartada.',
+    ]);
   });
 
   it("a resposta a uma pergunta da abertura continua a abertura", () => {

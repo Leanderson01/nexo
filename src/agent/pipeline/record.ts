@@ -84,9 +84,15 @@ export function buildRationale(input: RecordInput): string {
     .join(" ");
 }
 
+/** Cada correção como frase, com a primeira letra maiúscula e ponto no fim. */
 function correctionSentence(corrections: ReplyCorrection[]): string {
   if (corrections.length === 0) return "";
-  return `Corrigido em código: ${corrections.map((item) => lowercaseFirst(item.explanation)).join(" ")}`;
+  return `Corrigido em código: ${corrections.map((item) => asSentence(item.explanation)).join(" ")}`;
+}
+
+function asSentence(text: string): string {
+  const trimmed = withPeriod(text);
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 }
 
 function understoodSentence(understanding: Understanding | null): string {
@@ -121,7 +127,7 @@ function actionSentence(input: RecordInput): string {
         ? `Respondeu depois de: ${unique(input.traces.map((trace) => trace.label)).join(", ")}.`
         : "Respondeu sem consultar outros sistemas.";
     case "error":
-      return `O turno parou na etapa ${STAGE_TEXT[input.errorStage ?? "act"]} e mostrou a opção de tentar de novo.`;
+      return `O turno parou ${STAGE_TEXT[input.errorStage ?? "act"]} e mostrou a opção de tentar de novo.`;
   }
 }
 
@@ -132,10 +138,10 @@ const DRAFT_KIND_TEXT: Record<PendingActionKind, string> = {
 };
 
 const STAGE_TEXT: Record<TurnStage, string> = {
-  understand: "ENTENDER (modelo indisponível)",
-  decide: "DECIDIR (sistema de chamados indisponível)",
-  act: "AGIR",
-  record: "REGISTRAR",
+  understand: "ao entender a mensagem (modelo indisponível)",
+  decide: "ao aplicar as regras (sistema de chamados indisponível)",
+  act: "ao preparar a resposta",
+  record: "ao registrar o turno",
 };
 
 /**

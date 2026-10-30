@@ -179,8 +179,8 @@ export function retrySucceeded(input: {
 }
 
 const RETRY_PROBLEM: Record<DraftRetryReason, string> = {
-  claim: "O texto dizia que o rascunho estava pronto sem chamar a tool de proposta",
-  critical: "Caso crítico sem o rascunho que a regra de caso crítico exige neste turno",
+  claim: "O texto dizia que o rascunho estava pronto, mas ele não tinha sido criado",
+  critical: "Caso crítico sem o rascunho, que a regra de caso crítico exige já neste turno",
   duplicate: "O texto perguntava sobre o chamado aberto parecido em vez de propor a atualização",
 };
 
@@ -201,8 +201,8 @@ export function resolveDraftRetry(input: {
       correction: {
         rule,
         explanation: input.draftProposed
-          ? `${problem}: uma nova tentativa do AGIR propôs o rascunho.`
-          : `${problem}: a nova tentativa do AGIR respondeu sem prometer o card.`,
+          ? `${problem}: o agent tentou de novo e propôs o rascunho.`
+          : `${problem}: o agent tentou de novo e respondeu sem prometer o card.`,
       },
     };
   }
@@ -280,7 +280,7 @@ export function offerToOpenTicket(text: string): NoTicketOffer {
       correction: {
         rule: "no_ticket_found_offer",
         explanation:
-          "Nenhum chamado do funcionário combina com o pedido, e o texto não dizia isso: virou a resposta de F2 (não encontrou e oferece abrir um chamado).",
+          "Nenhum chamado do funcionário combina com o pedido, e o texto não dizia isso: a resposta passou a dizer que não encontrou e a oferecer abrir um chamado.",
       },
     };
   }
@@ -291,7 +291,7 @@ export function offerToOpenTicket(text: string): NoTicketOffer {
       correction: {
         rule: "no_ticket_found_offer",
         explanation:
-          "Nenhum chamado do funcionário combina com o pedido, e o texto não oferecia abrir um: a oferta de F2 foi acrescentada.",
+          "Nenhum chamado do funcionário combina com o pedido, e o texto não oferecia abrir um: a oferta de abrir um chamado foi acrescentada.",
       },
     };
   }
@@ -396,7 +396,6 @@ export function removeToolCallsFromText(
   const stripped = stripToolCalls(text);
   if (stripped.toolNames.length === 0) return null;
 
-  const names = [...new Set(stripped.toolNames)].join(", ");
   const nothingLeft = stripped.text === "";
   const quickReplies = nothingLeft || hasQuickReplies ? null : stripped.offeredOptions;
   return {
@@ -405,10 +404,10 @@ export function removeToolCallsFromText(
     correction: {
       rule: "tool_call_as_text",
       explanation: nothingLeft
-        ? `O modelo escreveu a chamada de ${names} como texto e não sobrou resposta: virou um aviso honesto.`
+        ? "O modelo escreveu um comando interno no texto e não sobrou resposta: virou um aviso honesto."
         : quickReplies
-          ? `O modelo escreveu a chamada de ${names} como texto: o trecho saiu da resposta e as opções escritas viraram opções rápidas.`
-          : `O modelo escreveu a chamada de ${names} como texto: o trecho saiu da resposta.`,
+          ? "O modelo escreveu um comando interno no texto: o trecho saiu da resposta e as opções escritas viraram botões."
+          : "O modelo escreveu um comando interno no texto: o trecho saiu da resposta.",
     },
   };
 }
@@ -446,7 +445,7 @@ export function resolveEmptyReply(input: {
   fallback: { text: string; quickReplies: string[] } | null;
   correction: ReplyCorrection;
 } {
-  const problem = "O AGIR terminou sem texto e sem partes";
+  const problem = "O modelo terminou sem texto e sem nada para mostrar";
   const answered =
     input.retryOk && !isEmptyReply({ text: input.retryText, hasParts: input.retryHasParts });
   if (answered) {
@@ -454,7 +453,7 @@ export function resolveEmptyReply(input: {
       fallback: null,
       correction: {
         rule: "empty_reply",
-        explanation: `${problem}: uma nova tentativa do AGIR respondeu.`,
+        explanation: `${problem}: o agent tentou de novo e respondeu.`,
       },
     };
   }
@@ -677,7 +676,7 @@ function takeEchoedOptions(text: string, toolLabels: string[], found: Found[]): 
     const labels = splitInlineOptions(inner).filter((label) => label !== "");
     const echoed = labels.length >= 2 && labels.every((label) => known.has(label.toLowerCase()));
     if (!echoed) return whole;
-    found.push({ labels: [], format: "opções da tool repetidas no texto" });
+    found.push({ labels: [], format: "opções dos botões repetidas no texto" });
     return "";
   });
 }
@@ -776,7 +775,7 @@ export function resolveQuickRepliesRetry(input: {
       text: retryText ?? first.text,
       correction: {
         ...first.correction,
-        explanation: `${first.correction.explanation.replace(/\.$/, "")}; uma nova tentativa do AGIR chamou offerQuickReplies.`,
+        explanation: `${first.correction.explanation.replace(/\.$/, "")}; o agent tentou de novo e mostrou as opções como botões.`,
       },
     };
   }
@@ -784,7 +783,7 @@ export function resolveQuickRepliesRetry(input: {
     text: first.text,
     correction: {
       ...first.correction,
-      explanation: `${first.correction.explanation.replace(/\.$/, "")}; a nova tentativa do AGIR também não chamou offerQuickReplies.`,
+      explanation: `${first.correction.explanation.replace(/\.$/, "")}; nem a nova tentativa mostrou as opções como botões.`,
     },
   };
 }

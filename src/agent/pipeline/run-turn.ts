@@ -103,7 +103,7 @@ import {
   nextMissingSignal,
   updateQuestionText,
 } from "@/domain/intake-questions";
-import type { SaidSignals } from "@/domain/signal-evidence";
+import { SIGNAL_QUESTION_LABELS, type SaidSignals } from "@/domain/signal-evidence";
 import { problemStatement } from "@/domain/ticket-description";
 
 // Um turno do agent (§6.1), disparado pela rota de mensagens depois do 202 (`after()`, §5.7):
@@ -377,7 +377,7 @@ async function answerArticleResolved(
   turn.corrections.push(
     correction(
       "article_resolved",
-      'O funcionário respondeu "Sim" a "Isso resolveu?": o assunto foi encerrado em código, sem rascunho nem reabertura (F1).',
+      'O funcionário respondeu "Sim" a "Isso resolveu?": o assunto foi encerrado, sem rascunho nem reabertura.',
     ),
   );
   await complete(turn, {
@@ -657,7 +657,7 @@ async function answerWithModel(
     turn.corrections.push(
       correction(
         "invented_description",
-        `O rascunho trazia ${workspace.correctedDescriptionFields.join(", ")} sem apoio na fala do funcionário; ficou o que ele disse (§11.2: passar a limpo não é completar).`,
+        `Parte do rascunho (${workspace.correctedDescriptionFields.join(", ")}) não se apoiava no que o funcionário disse; no lugar, ficaram as palavras dele.`,
       ),
     );
   }
@@ -685,7 +685,7 @@ async function answerWithModel(
       correction(
         "return_note",
         usedReturnNote
-          ? "A resposta não usou a nota do analista; uma nova tentativa do AGIR respondeu com base nela."
+          ? "A resposta não usou a nota do analista; o agent tentou de novo e respondeu com base nela."
           : "A resposta não usou a nota do analista nem na nova tentativa; a nota fica para o próximo turno.",
       ),
     );
@@ -770,7 +770,7 @@ async function conductReply(
     turn.corrections.push(
       correction(
         "intake_question",
-        `O ENTENDER trouxe ${signal} sem confirmação na fala, e o sinal mudaria a prioridade do ${code}: a pergunta "${question.question}" e as opções saíram em código no lugar de "${text.trim().slice(0, 160)}".`,
+        `O modelo indicou ${SIGNAL_QUESTION_LABELS[signal]} sem que isso tivesse sido dito, e isso mudaria a prioridade do ${code}: o agent perguntou "${question.question}", com opções, no lugar de "${text.trim().slice(0, 160)}".`,
       ),
     );
     return false;
@@ -830,7 +830,7 @@ async function conductReply(
       turn.corrections.push(
         correction(
           "intake_question",
-          `Falta saber ${next.signal} para abrir o chamado: a pergunta "${next.question}" e as opções saíram em código no lugar de "${text.trim().slice(0, 160)}".`,
+          `Faltava saber ${SIGNAL_QUESTION_LABELS[next.signal]} para abrir o chamado: o agent perguntou "${next.question}", com opções, no lugar de "${text.trim().slice(0, 160)}".`,
         ),
       );
       explainInapplicableArticle(turn);
@@ -852,8 +852,8 @@ async function conductReply(
         correction(
           "intake_question",
           workspace.draft !== null
-            ? "Os sinais já estavam completos e o AGIR perguntou de novo; uma nova tentativa propôs o rascunho."
-            : "Os sinais já estavam completos e o AGIR perguntou de novo; nem a nova tentativa propôs o rascunho.",
+            ? "O funcionário já tinha dito quem é afetado, se dá para trabalhar e se há compromisso hoje, mas o modelo perguntou de novo; o agent tentou outra vez e propôs o rascunho."
+            : "O funcionário já tinha dito quem é afetado, se dá para trabalhar e se há compromisso hoje, mas o modelo perguntou de novo; nem a nova tentativa propôs o rascunho.",
         ),
       );
       if (workspace.draft !== null) {
@@ -1004,7 +1004,9 @@ function tidyMarkdown(turn: Turn): void {
   const clean = stripMarkdown(text);
   if (clean === text) return;
   replaceModelText(turn, clean);
-  turn.corrections.push(correction("markdown_removed", "O texto tinha markdown cru e foi limpo."));
+  turn.corrections.push(
+    correction("markdown_removed", "O texto tinha marcações de formatação cruas e foi limpo."),
+  );
 }
 
 /**

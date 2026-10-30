@@ -1,5 +1,10 @@
 import type { ReplyCorrection } from "@/domain/decision-record";
-import { verifySignals, type SaidSignals, type SignalName } from "@/domain/signal-evidence";
+import {
+  describeSignalValue,
+  verifySignals,
+  type SaidSignals,
+  type SignalName,
+} from "@/domain/signal-evidence";
 import { categoryFromSpeech, kindFromSpeech } from "@/domain/ticket-classification";
 import { saidOperatingSystem } from "@/domain/ticket-description";
 import type { Understanding } from "@/domain/understanding";
@@ -12,12 +17,6 @@ import type { SignalQuotes } from "./understanding-schema";
 // o funcionário disse ou escolheu numa opção (QA de ponta a ponta: "o Wi-Fi da sala 3 caiu"
 // virava Crítico com "equipe parada"; "sem compromisso hoje" virava compromisso). O que não se
 // sustenta vira nulo: a prioridade não é derivada e o agent pergunta o que falta.
-
-const SIGNAL_LABELS: Record<SignalName, string> = {
-  impact: "impacto",
-  blocked: "bloqueio",
-  deadlineToday: "compromisso hoje",
-};
 
 export function verifyUnderstanding(
   understanding: Understanding,
@@ -41,17 +40,20 @@ export function verifyUnderstanding(
   const corrections: ReplyCorrection[] = [];
   if (verified.dropped.length > 0) {
     const dropped = verified.dropped
-      .map(({ signal, value }) => `${SIGNAL_LABELS[signal]} = ${value}`)
-      .join(", ");
+      .flatMap(({ signal }) => {
+        const value = claimed[signal];
+        return value === null ? [] : [describeSignalValue(signal, value)];
+      })
+      .join(" e ");
     corrections.push({
       rule: "unsupported_signal",
-      explanation: `O ENTENDER trouxe ${dropped} sem nada na fala do funcionário que sustente; o sinal foi descartado e o agent pergunta (§3.5: só vale o que ele disse).`,
+      explanation: `O modelo indicou que ${dropped}, mas isso não foi dito na conversa; a informação foi descartada e o agent pergunta.`,
     });
   }
   if (understanding.entities.os !== null && os === null) {
     corrections.push({
       rule: "unsupported_signal",
-      explanation: `O ENTENDER trouxe o sistema operacional "${understanding.entities.os}", que o funcionário não informou; foi descartado.`,
+      explanation: `O modelo indicou o sistema operacional "${understanding.entities.os}", mas o funcionário não o informou; a informação foi descartada.`,
     });
   }
 

@@ -366,6 +366,35 @@ describe("buildDecisionRecord", () => {
       'Entendeu, com confiança alta: quer um analista. A regra "Pedido de analista" decidiu transferir (pedido do funcionário), sem chamar o modelo principal. Transferiu a conversa para um analista com o resumo do caso.',
     );
   });
+
+  it("as correções em código saem como frases, com a primeira letra maiúscula", () => {
+    const record = buildDecisionRecord({
+      now: NOW,
+      latencyMs: 100,
+      understanding: makeUnderstanding({ summary: "Impressora sem imprimir" }),
+      evaluations: [],
+      decisiveAction: null,
+      guidingActions: [],
+      traces: [],
+      derivedPriority: null,
+      outcome: "answered",
+      shortCircuit: false,
+      draftKind: null,
+      errorStage: null,
+      usage: emptyUsage(),
+      corrections: [
+        {
+          rule: "unsupported_signal",
+          explanation: "o modelo indicou que dá para seguir trabalhando",
+        },
+        { rule: "one_question", explanation: "A resposta fazia mais de uma pergunta." },
+      ],
+    });
+    expect(record.rationale).toContain(
+      "Corrigido em código: O modelo indicou que dá para seguir trabalhando. A resposta fazia mais de uma pergunta.",
+    );
+    expect(record.rationale).not.toMatch(/ENTENDER|AGIR|§/);
+  });
 });
 
 describe("detalhes do texto do modelo", () => {

@@ -800,7 +800,7 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
     expect(turn.store.decisions[0].corrections).toEqual([
       expect.objectContaining({
         rule: "quick_replies_as_text",
-        explanation: expect.stringContaining("nova tentativa do AGIR chamou"),
+        explanation: expect.stringContaining("tentou de novo e mostrou as opções"),
       }),
     ]);
   });

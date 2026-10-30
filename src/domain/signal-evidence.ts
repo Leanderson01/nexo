@@ -9,6 +9,24 @@ import type { Impact } from "./enums";
 
 export type SignalName = "impact" | "blocked" | "deadlineToday";
 
+/** O que cada sinal pergunta, em linguagem simples ("quem é afetado"). */
+export const SIGNAL_QUESTION_LABELS: Record<SignalName, string> = {
+  impact: "quem é afetado",
+  blocked: "se dá para trabalhar de outro jeito",
+  deadlineToday: "se há compromisso hoje",
+};
+
+/** O valor de um sinal como frase para o analista: "só o funcionário é afetado". */
+export function describeSignalValue(signal: SignalName, value: Impact | boolean): string {
+  if (value === "team") return "a equipe é afetada";
+  if (value === "company") return "a empresa toda é afetada";
+  if (value === "individual") return "só o funcionário é afetado";
+  if (signal === "blocked") {
+    return value ? "o trabalho está parado, sem alternativa" : "dá para seguir trabalhando";
+  }
+  return value ? "há compromisso hoje que depende disso" : "não há compromisso hoje";
+}
+
 /** Os três sinais da §3.5, cada um nulo quando o funcionário não disse. */
 export interface SaidSignals {
   impact: Impact | null;
