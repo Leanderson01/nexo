@@ -59,7 +59,9 @@ export function TicketSelector({
                     {TICKET_STATUS_LABELS[ticket.status]}
                   </DotLabel>
                 </span>
-                <span className={classes.selectorMeta}>{formatShortDate(ticket.createdAt)}</span>
+                <span className={`${classes.selectorMeta} ${classes.selectorDate}`}>
+                  {formatShortDate(ticket.createdAt)}
+                </span>
               </>
             )}
           </button>

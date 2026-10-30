@@ -43,3 +43,16 @@ export function findChosenText(messages: MessageLike[], index: number): string |
   if (!nextUserMessage) return null;
   return nextUserMessage.parts.map((part) => (part.type === "text" ? part.text : "")).join("");
 }
+
+/**
+ * Separa a pergunta final do texto de um balão com opções rápidas, para ela aparecer em
+ * destaque como no protótipo 02 ("Quem está sendo afetado?"). Só vale quando a pergunta é o
+ * último parágrafo e tem uma linha; sem isso, o texto fica inteiro e `question` vem null.
+ */
+export function splitFinalQuestion(text: string): { body: string; question: string | null } {
+  const breakAt = text.trimEnd().lastIndexOf("\n\n");
+  if (breakAt === -1) return { body: text, question: null };
+  const question = text.slice(breakAt).trim();
+  if (!question.endsWith("?") || question.includes("\n")) return { body: text, question: null };
+  return { body: text.slice(0, breakAt).trimEnd(), question };
+}

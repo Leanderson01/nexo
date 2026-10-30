@@ -58,7 +58,7 @@ export function TicketCard({ ticket, now }: { ticket: TicketCardData; now: numbe
           </Field>
           <Field label="Aberto em">{formatDateTime(ticket.createdAt)}</Field>
           <Field label="Última atualização">
-            <span style={{ color: `var(--mantine-color-${slaColor}-7)` }}>
+            <span style={{ color: `var(--mantine-color-${slaColor}-8)` }}>
               {relativeTimeText(ticket.lastActivityAt, now)}
             </span>{" "}
             <span className={classes.fieldNote}>· {formatSlaBadge(ticket, now)}</span>

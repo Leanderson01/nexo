@@ -117,22 +117,17 @@ export function DraftCard({
 
       {isPending && !isEditing && (
         <div className={classes.cardFooter}>
-          <Button size="xs" loading={busy === "confirm"} disabled={busy !== null} onClick={confirm}>
+          <Button loading={busy === "confirm"} disabled={busy !== null} onClick={confirm}>
             Confirmar
             <ShortcutHint />
           </Button>
-          <Button
-            size="xs"
-            variant="default"
-            disabled={busy !== null}
-            onClick={() => setIsEditing(true)}
-          >
+          <Button variant="default" disabled={busy !== null} onClick={() => setIsEditing(true)}>
             Editar
           </Button>
           <Button
-            size="xs"
             variant="subtle"
             color="gray"
+            className={classes.cancelButton}
             loading={busy === "cancel"}
             disabled={busy !== null}
             onClick={() => run("cancel", () => callbacks.onCancel(draft.id))}

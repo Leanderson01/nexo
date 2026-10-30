@@ -1,4 +1,5 @@
-/* Blocos de mensagem do chat (docs/prototipo/02-chat-rascunho.png e 03-chat-consulta.png). */
+/* Blocos de mensagem do chat (docs/prototipo/02-chat-rascunho.png e 03-chat-consulta.png).
+   Medidas em px reais (print × 1,62); cores das variáveis --nexo-*. */
 
 /* ---------- Linha do autor com os chips de ação ---------- */
 
@@ -9,18 +10,22 @@
   column-gap: 12px;
   row-gap: 2px;
   font-size: 12px;
+  line-height: 16px;
+
+  /* Mais perto do balão do que os blocos entre si (print 02: ~4 px). */
+  margin-bottom: -2px;
 }
 
 .replyAuthor {
   font-weight: 600;
-  color: #1e2430;
+  color: var(--nexo-color-text);
 }
 
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--mantine-color-gray-6);
+  color: var(--nexo-color-text-tertiary);
 }
 
 .detailsLink {
@@ -28,7 +33,7 @@
   border: 0;
   background: none;
   font: inherit;
-  color: var(--mantine-color-blue-7);
+  color: var(--nexo-color-primary);
   cursor: pointer;
 
   &:hover {
@@ -38,9 +43,9 @@
 
 .levelBadge {
   padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--mantine-color-green-0);
-  color: var(--mantine-color-green-8);
+  border-radius: var(--nexo-radius-bubble-tail);
+  background: var(--nexo-color-tag-team);
+  color: var(--nexo-color-tag-team-text);
   font-size: 11px;
   font-weight: 600;
 }
@@ -49,15 +54,15 @@
 
 .card {
   width: 100%;
-  border: 1px solid var(--mantine-color-gray-3);
-  border-radius: 8px;
-  background: var(--mantine-color-white);
-  box-shadow: 0 1px 3px rgb(30 36 48 / 6%);
+  border: 1px solid var(--nexo-color-border);
+  border-radius: var(--nexo-radius-card);
+  background: var(--nexo-color-surface);
+  box-shadow: var(--nexo-shadow-card);
   overflow: hidden;
 }
 
 .cardBody {
-  padding: 12px 14px;
+  padding: 16px 18px;
 }
 
 .cardKicker {
@@ -66,62 +71,65 @@
   justify-content: space-between;
   gap: 12px;
   font-size: 12px;
-  color: var(--mantine-color-gray-6);
+  line-height: 1.4;
+  color: var(--nexo-color-text-secondary);
 }
 
 .kickerTrail {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .kickerSeparator {
   width: 3px;
   height: 3px;
   border-radius: 50%;
-  background: var(--mantine-color-gray-4);
+  background: var(--nexo-color-border-strong);
 }
 
 .cardTitle {
-  margin: 6px 0 4px;
-  font-size: 16px;
+  margin: 5px 0 6px;
+  font-size: 18px;
   font-weight: 600;
   line-height: 1.35;
-  color: #1e2430;
+  letter-spacing: -0.01em;
+  color: var(--nexo-color-text);
 }
 
 .cardText {
   margin: 0;
   font-size: 13px;
   line-height: 1.5;
-  color: var(--mantine-color-gray-7);
+  color: var(--nexo-color-text-secondary);
   white-space: pre-wrap;
 }
 
 .fieldGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 12px;
-  margin-top: 12px;
+  gap: 12px 24px;
+  margin-top: 13px;
   padding-top: 12px;
-  border-top: 1px solid var(--mantine-color-gray-2);
+  border-top: 1px solid var(--nexo-color-border);
 }
 
 .fieldLabel {
   font-size: 12px;
-  color: var(--mantine-color-gray-6);
+  line-height: 1.4;
+  color: var(--nexo-color-text-secondary);
 }
 
 .fieldValue {
-  font-size: 13px;
-  font-weight: 500;
-  color: #1e2430;
+  margin-top: 1px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--nexo-color-text);
 }
 
 .fieldNote {
   font-size: 12px;
-  font-weight: 400;
-  color: var(--mantine-color-gray-6);
+  color: var(--nexo-color-text-secondary);
 }
 
 /* Bolinha colorida antes de status e prioridade. */
@@ -129,6 +137,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+
+  /* Sem isto a bolinha vira a linha de base e o texto desce em relação aos vizinhos. */
+  vertical-align: top;
 }
 
 .dot {
@@ -143,14 +154,15 @@
 
 .articleIcon {
   display: inline-flex;
-  color: var(--mantine-color-blue-7);
+  color: var(--nexo-color-primary);
 }
 
 .articleTitle {
-  margin: 6px 0 2px;
-  font-size: 14px;
+  margin: 8px 0 4px;
+  font-size: 15px;
   font-weight: 600;
-  color: #1e2430;
+  line-height: 1.4;
+  color: var(--nexo-color-text);
 }
 
 /* ---------- Rascunho ---------- */
@@ -159,9 +171,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
-  border-top: 1px solid var(--mantine-color-gray-2);
-  background: var(--mantine-color-gray-0);
+  padding: 8px;
+  border-top: 1px solid var(--nexo-color-border);
+  background: var(--nexo-color-surface-subtle);
+}
+
+.cancelButton {
+  color: var(--nexo-color-text-nav);
+  font-weight: 400;
 }
 
 .finalCard {
@@ -171,14 +188,14 @@
 .finalCard .cardTitle,
 .finalCard .cardText,
 .finalCard .fieldValue {
-  color: var(--mantine-color-gray-6);
+  color: var(--nexo-color-text-secondary);
 }
 
 .shortcut {
-  margin-left: 6px;
-  padding: 0 4px;
-  border-radius: 3px;
-  background: rgb(255 255 255 / 20%);
+  margin-left: 8px;
+  padding: 1px 5px;
+  border-radius: var(--nexo-radius-bubble-tail);
+  background: rgb(255 255 255 / 18%);
   font-size: 11px;
   font-weight: 500;
 }
@@ -188,16 +205,17 @@
 .selectorRow {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
-  padding: 10px 14px;
+  min-height: 45px;
+  padding: 8px 16px;
   border: 0;
-  border-top: 1px solid var(--mantine-color-gray-2);
+  border-top: 1px solid var(--nexo-color-border);
   background: none;
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   text-align: left;
-  color: #1e2430;
+  color: var(--nexo-color-text);
   cursor: pointer;
 
   &:first-child {
@@ -205,29 +223,29 @@
   }
 
   &:hover:not(:disabled) {
-    background: var(--mantine-color-gray-0);
+    background: var(--nexo-color-surface-subtle);
   }
 
   &:disabled {
     cursor: default;
   }
 
+  /* No print a linha escolhida tem um azul mais claro que o do item ativo. */
   &[data-chosen] {
-    background: var(--mantine-color-blue-0);
+    background: color-mix(in srgb, var(--nexo-color-primary-subtle) 55%, var(--nexo-color-surface));
   }
 }
 
 .selectorCode {
   flex-shrink: 0;
   font-size: 12px;
-  color: var(--mantine-color-gray-6);
+  color: var(--nexo-color-text-secondary);
 }
 
 .selectorTitle {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-weight: 500;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -235,7 +253,13 @@
 .selectorMeta {
   flex-shrink: 0;
   font-size: 12px;
-  color: var(--mantine-color-gray-6);
+  color: var(--nexo-color-text-secondary);
+}
+
+.selectorDate {
+  min-width: 36px;
+  margin-left: 10px;
+  text-align: right;
 }
 
 /* ---------- Opções rápidas ---------- */
@@ -244,32 +268,33 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .quickReply {
-  padding: 5px 12px;
-  border: 1px solid var(--mantine-color-gray-3);
-  border-radius: 6px;
-  background: var(--mantine-color-white);
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--nexo-color-border);
+  border-radius: var(--nexo-radius-control);
+  background: var(--nexo-color-surface);
   font: inherit;
   font-size: 13px;
-  color: #1e2430;
+  color: var(--nexo-color-text-nav);
   cursor: pointer;
 
   &:hover:not(:disabled) {
-    border-color: var(--mantine-color-gray-5);
+    border-color: var(--nexo-color-border-strong);
+    background: var(--nexo-color-surface-subtle);
   }
 
   &:disabled {
     cursor: default;
-    color: var(--mantine-color-gray-7);
   }
 
   &[data-chosen] {
-    border-color: var(--mantine-color-blue-4);
-    background: var(--mantine-color-blue-0);
-    color: var(--mantine-color-blue-7);
+    border-color: var(--nexo-color-primary-border);
+    background: var(--nexo-color-primary-subtle);
+    color: var(--nexo-color-primary);
   }
 }
 
@@ -281,14 +306,14 @@
   gap: 12px;
   width: 100%;
   font-size: 12px;
-  color: var(--mantine-color-gray-6);
+  color: var(--nexo-color-text-secondary);
 
   &::before,
   &::after {
     content: "";
     flex: 1;
     height: 1px;
-    background: var(--mantine-color-gray-2);
+    background: var(--nexo-color-border);
   }
 }
 

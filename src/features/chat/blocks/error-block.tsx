@@ -11,7 +11,7 @@ export function ErrorBlock({
   onRetry: () => void;
 }) {
   return (
-    <Alert color="red" variant="light" p="sm" w="100%">
+    <Alert color="red" variant="light" radius="lg" p="sm" w="100%">
       <Group justify="space-between" gap={8} wrap="nowrap">
         <Text size="sm" c="dark.7">
           {message}

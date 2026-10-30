@@ -14,7 +14,7 @@ import {
   relativeTimeText,
   ticketChoiceText,
 } from "../block-texts";
-import { findChosenText, toReplySegments } from "../reply-segments";
+import { findChosenText, splitFinalQuestion, toReplySegments } from "../reply-segments";
 
 /** Hora de parede em São Paulo (UTC-3, sem horário de verão). */
 function saoPaulo(month: number, day: number, hour: number, minute = 0): number {
@@ -130,5 +130,19 @@ describe("seletor e opções rápidas", () => {
     ];
     expect(findChosenText(messages, 0)).toBe("Só eu");
     expect(findChosenText(messages, 2)).toBeNull();
+  });
+
+  test("a pergunta do último parágrafo sai do texto para ficar em destaque", () => {
+    expect(splitFinalQuestion("Vou abrir um chamado.\n\nQuem está sendo afetado?")).toEqual({
+      body: "Vou abrir um chamado.",
+      question: "Quem está sendo afetado?",
+    });
+  });
+
+  test("sem parágrafo próprio, ou se não for pergunta, o texto fica inteiro", () => {
+    const sameParagraph = "Está vencido. Quer que eu chame um analista?";
+    expect(splitFinalQuestion(sameParagraph)).toEqual({ body: sameParagraph, question: null });
+    const noQuestion = "Vou abrir um chamado.\n\nConfira antes de eu criar:";
+    expect(splitFinalQuestion(noQuestion)).toEqual({ body: noQuestion, question: null });
   });
 });
