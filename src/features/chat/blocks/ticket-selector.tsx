@@ -1,11 +1,10 @@
 "use client";
 
 import { Radio } from "@mantine/core";
-import { useQuery } from "convex/react";
 
 import { TICKET_STATUS_LABELS } from "@/domain/labels";
 import type { TicketSummary } from "@/domain/ticket";
-import { api } from "../../../../convex/_generated/api";
+import { useBlockTickets } from "./block-reads";
 import classes from "./blocks.module.css";
 import { TICKET_STATUS_COLORS, formatShortDate, ticketChoiceText } from "./block-texts";
 import { DotLabel } from "./dot-label";
@@ -75,7 +74,7 @@ export function LiveTicketSelector({
   codes,
   ...props
 }: { codes: string[] } & Omit<Parameters<typeof TicketSelector>[0], "choices">) {
-  const tickets = useQuery(api.ticketing.queries.listMine, {});
+  const tickets = useBlockTickets();
   const choices = codes.map((code) => ({
     code,
     ticket: tickets?.find((ticket) => ticket.code === code) ?? null,

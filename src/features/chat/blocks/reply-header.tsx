@@ -1,9 +1,7 @@
 "use client";
 
-import { useQuery } from "convex/react";
-
-import { api } from "../../../../convex/_generated/api";
 import { CheckIcon } from "../icons";
+import { useBlockActionLabels } from "./block-reads";
 import classes from "./blocks.module.css";
 
 // Linha acima de cada resposta: quem escreveu e, para o agent, os chips do que ele fez
@@ -65,7 +63,7 @@ export function LiveActionChips({
   /** Abre o painel de decisão (T8). */
   onShowDetails?: (decisionId: string) => void;
 }) {
-  const labels = useQuery(api.decisions.getActionLabels, { messageId });
+  const labels = useBlockActionLabels(messageId);
   return (
     <ActionChips
       labels={labels ?? []}

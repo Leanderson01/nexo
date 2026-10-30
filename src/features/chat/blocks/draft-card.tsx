@@ -2,7 +2,6 @@
 
 import { Button } from "@mantine/core";
 import { useOs } from "@mantine/hooks";
-import { useQuery } from "convex/react";
 import { useEffect, useState } from "react";
 
 import type { PendingActionStatus } from "@/domain/enums";
@@ -10,7 +9,7 @@ import { PRIORITY_LABELS, TICKET_CATEGORY_LABELS, TICKET_STATUS_LABELS } from "@
 import type { PendingAction } from "@/domain/pending-action";
 import { computeDueAt } from "@/domain/sla";
 import type { NewTicket, TicketFieldChanges } from "@/domain/ticket";
-import { api } from "../../../../convex/_generated/api";
+import { useBlockPendingAction } from "./block-reads";
 import classes from "./blocks.module.css";
 import {
   DRAFT_STATUS_COLORS,
@@ -273,7 +272,7 @@ export function LiveDraftCard({
   pendingActionId: string;
   callbacks: DraftCallbacks;
 }) {
-  const draft = useQuery(api.pendingActions.get, { pendingActionId });
+  const draft = useBlockPendingAction(pendingActionId);
   const now = useNow();
 
   if (draft === undefined) return <TicketCardSkeleton />;

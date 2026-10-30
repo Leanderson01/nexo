@@ -1,12 +1,11 @@
 "use client";
 
 import { Skeleton } from "@mantine/core";
-import { useQuery } from "convex/react";
 
 import { PRIORITY_LABELS, TICKET_CATEGORY_LABELS, TICKET_STATUS_LABELS } from "@/domain/labels";
 import { formatSlaBadge, getSlaState } from "@/domain/sla";
 import type { Ticket } from "@/domain/ticket";
-import { api } from "../../../../convex/_generated/api";
+import { useBlockTicket } from "./block-reads";
 import classes from "./blocks.module.css";
 import {
   PRIORITY_COLORS,
@@ -81,7 +80,7 @@ export function Field({ label, children }: { label: string; children: React.Reac
 
 /** O card ligado ao Convex: atualiza sozinho quando o chamado muda. */
 export function LiveTicketCard({ code }: { code: string }) {
-  const ticket = useQuery(api.ticketing.queries.getMine, { code });
+  const ticket = useBlockTicket(code);
   const now = useNow();
 
   if (ticket === undefined) return <TicketCardSkeleton />;
