@@ -21,6 +21,27 @@ export interface TraceEnvironment {
 
 const UNEXPECTED_ERROR = "Falha inesperada na ferramenta. Não tente de novo neste turno.";
 
+/** Frase (ou trecho depois de ":") que é instrução ao modelo, não resultado da tool. */
+const MODEL_INSTRUCTION =
+  /^(n[aã]o (invente|pergunte|proponha|atualize|tente|repita|cite)|diga|escreva|siga|chame|use|oriente|proponha|cite|pe[cç]a)\b/i;
+
+/**
+ * O resumo de uma recusa para o painel (lido pelo analista): só o que aconteceu, sem as
+ * instruções ao modelo que a mensagem da tool carrega ("Não invente dados de chamados.").
+ */
+export function failureSummary(error: string): string {
+  const sentences = error.match(/[^.]+(?:\.|$)/g) ?? [];
+  const kept = sentences
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence !== "" && !MODEL_INSTRUCTION.test(sentence))
+    .map((sentence) => {
+      const colon = sentence.indexOf(": ");
+      if (colon === -1 || !MODEL_INSTRUCTION.test(sentence.slice(colon + 2))) return sentence;
+      return `${sentence.slice(0, colon)}.`;
+    });
+  return kept.length > 0 ? kept.join(" ") : "a ferramenta recusou a chamada";
+}
+
 /** Resumos ficam curtos: o painel mostra uma linha por chamada. */
 const SUMMARY_MAX_LENGTH = 240;
 
@@ -39,7 +60,7 @@ export function withTrace<Input, Output extends ToolSuccess>(
     let outputSummary: string;
     try {
       output = await tool.run(input, gateways);
-      outputSummary = output.ok ? tool.describeOutput(output) : output.error;
+      outputSummary = output.ok ? tool.describeOutput(output) : failureSummary(output.error);
     } catch (error) {
       console.error(`[withTrace] ${tool.name} lançou`, error);
       output = { ok: false, error: UNEXPECTED_ERROR };

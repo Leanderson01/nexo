@@ -6,7 +6,7 @@ import type { TicketGateway } from "@/agent/gateways/ticket-gateway";
 import type { ToolCallTrace } from "@/domain/decision-record";
 
 import type { AgentTool, GatewayAttempt, ToolGateways } from "../tool-session";
-import { withTrace } from "../with-trace";
+import { failureSummary, withTrace } from "../with-trace";
 
 type Output = { ok: true; count: number };
 
@@ -111,5 +111,23 @@ describe("withTrace", () => {
       attempts: 1,
       outputSummary: "falha inesperada",
     });
+  });
+});
+
+describe("failureSummary: o painel não mostra instruções ao modelo (QA R2)", () => {
+  it.each([
+    [
+      "O sistema de chamados está instável e não respondeu depois de 3 tentativas. Não invente dados de chamados.",
+      "O sistema de chamados está instável e não respondeu depois de 3 tentativas.",
+    ],
+    [
+      "Ainda não dá para propor: falta saber quem é afetado. Não pergunte nada sobre isso: o sistema faz a pergunta. Escreva no máximo uma frase curta de acolhimento.",
+      "Ainda não dá para propor: falta saber quem é afetado.",
+    ],
+    ["INC-20077 está aberto: use proposeTicketUpdate.", "INC-20077 está aberto."],
+    ["Chame findSimilarTickets antes de propor um chamado novo.", "a ferramenta recusou a chamada"],
+    ["Já há um rascunho proposto neste turno.", "Já há um rascunho proposto neste turno."],
+  ])("%j → %j", (error, expected) => {
+    expect(failureSummary(error)).toBe(expected);
   });
 });
