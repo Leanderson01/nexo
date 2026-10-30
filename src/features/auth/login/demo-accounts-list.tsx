@@ -3,8 +3,8 @@
 import { Collapse, Stack, Text, UnstyledButton } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 
+import { ChevronDownIcon, ICON_SIZE } from "@/shared/icons";
 import { DEMO_ACCOUNTS } from "./demo-accounts";
-import { ChevronIcon } from "./icons";
 import classes from "./login.module.css";
 
 /** Lista discreta e recolhível das contas do seed; um clique preenche o e-mail. */
@@ -13,16 +13,19 @@ export function DemoAccounts({ onPick }: { onPick: (email: string) => void }) {
 
   return (
     <div>
-      <UnstyledButton onClick={toggle} aria-expanded={opened} aria-controls="demo-accounts">
-        <Text
-          size="sm"
-          c="dimmed"
-          span
-          style={{ display: "inline-flex", gap: 6, alignItems: "center" }}
-        >
-          Contas de demonstração
-          <ChevronIcon open={opened} size={14} />
-        </Text>
+      <UnstyledButton
+        className={classes.demoToggle}
+        onClick={toggle}
+        aria-expanded={opened}
+        aria-controls="demo-accounts"
+      >
+        Contas de demonstração
+        <ChevronDownIcon
+          size={ICON_SIZE.sm}
+          className={
+            opened ? `${classes.demoChevron} ${classes.demoChevronOpen}` : classes.demoChevron
+          }
+        />
       </UnstyledButton>
 
       <Collapse expanded={opened}>

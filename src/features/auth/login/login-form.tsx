@@ -16,11 +16,11 @@ import {
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
+import { ArrowRightIcon, EyeIcon, EyeOffIcon, MailIcon, PasswordIcon } from "@/shared/icons";
 import { describeSignInError, normalizeEmail, validateCorporateEmail } from "../email-validation";
 import { saveRememberMePreference } from "../remember-me";
 import { safeNextPath } from "../route-access";
 import { DemoAccounts } from "./demo-accounts-list";
-import { ArrowRightIcon, LockIcon, MailIcon } from "./icons";
 import classes from "./login.module.css";
 
 /** O `?next=` que o proxy pôs na URL, se for um caminho interno. */
@@ -79,18 +79,17 @@ export function LoginForm() {
 
   return (
     <form className={classes.form} onSubmit={handleSubmit} noValidate>
-      <Stack gap="lg">
+      {/* Espaços medidos no print, por isso cada bloco tem a sua margem. */}
+      <Stack gap={0}>
         <div>
-          <h2 className={classes.formTitle} style={{ margin: 0 }}>
-            Entrar
-          </h2>
-          <Text size="sm" c="dimmed" mt={4}>
+          <h2 className={classes.formTitle}>Entrar</h2>
+          <Text size="lg" c="dimmed" mt={8}>
             Use seu e-mail corporativo e a senha da rede Nexo.
           </Text>
         </div>
 
         {formError && (
-          <Alert color="red" variant="light" role="alert">
+          <Alert color="red" variant="light" role="alert" mt="lg">
             {formError}
           </Alert>
         )}
@@ -99,6 +98,10 @@ export function LoginForm() {
           label="E-mail corporativo"
           placeholder="nome.sobrenome@nexo.com.br"
           type="email"
+          size="lg"
+          mt={26}
+          classNames={{ input: classes.fieldInput }}
+          styles={{ label: { marginBottom: 8 } }}
           autoComplete="username"
           leftSection={<MailIcon />}
           value={email}
@@ -110,8 +113,8 @@ export function LoginForm() {
           disabled={isSubmitting}
         />
 
-        <div>
-          <Group justify="space-between" mb={4}>
+        <div style={{ marginTop: 18 }}>
+          <Group justify="space-between" mb={6}>
             <Text component="label" htmlFor="login-password" size="sm" fw={500}>
               Senha
             </Text>
@@ -126,8 +129,12 @@ export function LoginForm() {
           </Group>
           <PasswordInput
             id="login-password"
+            size="lg"
             autoComplete="current-password"
-            leftSection={<LockIcon />}
+            className={classes.passwordInput}
+            classNames={{ input: classes.fieldInput }}
+            leftSection={<PasswordIcon className={classes.passwordIcon} />}
+            visibilityToggleIcon={({ reveal }) => (reveal ? <EyeOffIcon /> : <EyeIcon />)}
             value={password}
             onChange={(event) => {
               setPassword(event.currentTarget.value);
@@ -146,6 +153,7 @@ export function LoginForm() {
 
         <Checkbox
           label="Manter conectado neste computador"
+          mt={20}
           checked={rememberMe}
           onChange={(event) => setRememberMe(event.currentTarget.checked)}
           disabled={isSubmitting}
@@ -153,15 +161,17 @@ export function LoginForm() {
 
         <Button
           type="submit"
-          size="md"
+          size="lg"
+          mt={28}
           fullWidth
+          className={classes.submit}
           loading={isSubmitting}
           rightSection={<ArrowRightIcon />}
         >
           Entrar
         </Button>
 
-        <Divider />
+        <Divider my={28} color="gray.1" />
 
         <DemoAccounts onPick={fillDemoAccount} />
       </Stack>

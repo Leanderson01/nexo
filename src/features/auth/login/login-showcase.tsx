@@ -2,7 +2,7 @@ import { NexoMark } from "./icons";
 import classes from "./login.module.css";
 
 // Painel escuro do login: apresentação, chat de exemplo e números.
-// Os números são estáticos até o T17 (decisão 14).
+// Os números são estáticos (decisões 14 e 29).
 
 const STATS = [
   { value: "8 s", label: "primeira resposta, em média" },
@@ -14,32 +14,29 @@ export function LoginShowcase() {
   return (
     <section className={classes.showcase} aria-label="Sobre o Nexo Assist">
       <div className={classes.brand}>
-        <span className={classes.brandMark}>
-          <NexoMark />
-        </span>
+        <NexoMark size={28} />
         Nexo Assist
       </div>
 
-      <div>
-        <p className={classes.eyebrow}>Service desk de TI da Nexo</p>
-        <h1 className={classes.headline}>Seu problema de TI, resolvido em uma conversa.</h1>
-        <p className={classes.pitch}>
-          Descreva o que está acontecendo. O assistente consulta seus chamados, busca na central de
-          ajuda e chama um analista quando precisa.
-        </p>
+      <div className={classes.showcaseBody}>
+        <div>
+          <p className={classes.eyebrow}>Service desk de TI da Nexo</p>
+          <h1 className={classes.headline}>Seu problema de TI, resolvido em uma conversa.</h1>
+          <p className={classes.pitch}>
+            Descreva o que está acontecendo. O assistente consulta seus chamados, busca na central
+            de ajuda e chama um analista quando precisa.
+          </p>
+        </div>
+        <SampleChat />
       </div>
-
-      <SampleChat />
 
       <dl className={classes.stats}>
         {STATS.map((stat) => (
           <div key={stat.label} className={classes.stat}>
-            <dt className={classes.statLabel} style={{ order: 2 }}>
-              {stat.label}
-            </dt>
-            <dd className={classes.statValue} style={{ margin: 0 }}>
+            <dt className={classes.statLabel}>{stat.label}</dt>
+            <dd className={classes.statValue}>
               {stat.value}
-              {stat.online && <span className={classes.dot} style={{ background: "#2fb170" }} />}
+              {stat.online && <span className={`${classes.dot} ${classes.dotOnline}`} />}
             </dd>
           </div>
         ))}
@@ -59,7 +56,7 @@ function SampleChat() {
         Pronto: abri o chamado com prioridade alta. Um analista fala com você em até 4 h úteis.
       </div>
       <div className={classes.ticketChip}>
-        <span className={classes.dot} style={{ background: "#f0a020" }} />
+        <span className={`${classes.dot} ${classes.dotWarning}`} />
         <strong>INC-20517</strong> Rede e VPN · Alta · em até 4 h
       </div>
     </div>

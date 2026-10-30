@@ -12,9 +12,9 @@ export function LoginScreen() {
 
       <section className={classes.formSide}>
         <div className={classes.formTopBar}>
-          <Text size="xs" c="dimmed">
+          <Text size="sm" c="dimmed">
             Problema para entrar?{" "}
-            <Anchor href="tel:4000" size="xs" fw={600}>
+            <Anchor href="tel:4000" size="sm" fw={600}>
               Ligue no ramal 4000
             </Anchor>
           </Text>

@@ -24,6 +24,7 @@ export {
   // formulário e conta
   Mail as MailIcon,
   Lock as LockIcon,
+  LockKeyhole as PasswordIcon, // campo de senha do login (cadeado com fechadura)
   KeyRound as KeyIcon,
   RotateCcwKey as ResetPasswordIcon,
   Eye as EyeIcon,

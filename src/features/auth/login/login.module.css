@@ -4,23 +4,23 @@
   display: grid;
   grid-template-columns: 1fr;
   min-height: 100vh;
-  background: var(--mantine-color-white);
+  background: var(--nexo-color-surface);
 
+  /* No print (1440 px) o painel escuro tem 800 px e o formulário, 640. */
   @media (min-width: $mantine-breakpoint-md) {
-    grid-template-columns: 1.27fr 1fr;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 4fr);
   }
 }
 
 /* ---------- Painel de apresentação ---------- */
 
+/* Marca no topo, apresentação + chat de exemplo centralizados, números no rodapé. */
 .showcase {
   display: none;
   flex-direction: column;
-  justify-content: space-between;
-  gap: var(--mantine-spacing-xl);
-  padding: 32px 40px;
-  background: #1e2430;
-  color: #e8ebf1;
+  padding: 34px 60px 36px;
+  background: var(--nexo-color-surface-dark);
+  color: var(--nexo-color-text-on-dark);
 
   @media (min-width: $mantine-breakpoint-md) {
     display: flex;
@@ -34,43 +34,40 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 700;
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 600;
 }
 
-.brandMark {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
-  background: currentColor;
-}
-
-.brandMark svg {
-  color: #1e2430;
+.showcaseBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 38px;
 }
 
 .eyebrow {
-  color: #9aa3b2;
+  margin: 0;
+  color: var(--nexo-color-text-on-dark-tertiary);
   font-size: 13px;
 }
 
 .headline {
+  margin: 16px 0 0;
   font-family: var(--font-serif), Georgia, serif;
   font-weight: 400;
-  font-size: clamp(34px, 3.4vw, 46px);
-  line-height: 1.12;
+  /* 50 px: a largura das linhas do print (o token de display é 48). */
+  font-size: 50px;
+  line-height: 1.14;
   letter-spacing: -0.01em;
-  color: #ffffff;
-  max-width: 20ch;
 }
 
 .pitch {
-  color: #b5bdca;
-  font-size: 15px;
+  max-width: 520px;
+  margin: 16px 0 0;
+  color: var(--nexo-color-text-on-dark-secondary);
+  font-size: 16px;
   line-height: 1.6;
-  max-width: 46ch;
 }
 
 /* Chat de exemplo */
@@ -78,40 +75,41 @@
 .sampleChat {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  width: min(100%, 440px);
+  width: min(100%, 504px);
   margin-inline: auto;
-  padding: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  padding: 16px 17px;
+  border: 1px solid var(--nexo-color-border-on-dark);
+  border-radius: 14px;
+  background: var(--nexo-color-surface-dark-raised);
   font-size: 13px;
 }
 
 .userBubble {
   align-self: flex-end;
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: #ffffff;
-  color: #1e2430;
+  padding: 8px 14px;
+  border-radius: var(--nexo-radius-bubble);
+  background: var(--nexo-color-surface);
+  color: var(--nexo-color-text);
 }
 
 .agentLabel {
-  color: #9aa3b2;
+  margin: 9px 0 3px;
+  color: var(--nexo-color-text-on-dark-tertiary);
   font-size: 12px;
 }
 
 .agentLabel strong {
-  color: #e8ebf1;
+  margin-right: 4px;
+  color: var(--nexo-color-text-on-dark-secondary);
+  font-weight: 600;
 }
 
 .agentBubble {
   align-self: flex-start;
-  max-width: 85%;
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #e8ebf1;
+  max-width: 382px;
+  padding: 10px 14px;
+  border-radius: var(--nexo-radius-bubble);
+  background: var(--nexo-color-surface-dark-overlay);
   line-height: 1.5;
 }
 
@@ -120,21 +118,32 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: #ffffff;
-  color: #4a5262;
+  margin-top: 8px;
+  padding: 5px 12px;
+  border-radius: var(--nexo-radius-pill);
+  background: var(--nexo-color-surface);
+  color: var(--nexo-color-text-secondary);
   font-size: 12px;
 }
 
 .ticketChip strong {
-  color: #1e2430;
+  margin-right: 2px;
+  color: var(--nexo-color-text);
+  font-weight: 600;
 }
 
 .dot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+}
+
+.dotWarning {
+  background: var(--nexo-color-status-warning-dot);
+}
+
+.dotOnline {
+  background: var(--nexo-color-status-success-dot);
 }
 
 /* Números */
@@ -142,15 +151,18 @@
 .stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  padding-top: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--nexo-color-border-on-dark);
 }
 
+/* O valor vem antes do rótulo na tela; no HTML o <dt> precisa vir primeiro. */
 .stat {
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
   gap: 4px;
-  padding-inline: 16px;
+  padding-inline: 24px;
 }
 
 .stat:first-child {
@@ -158,21 +170,22 @@
 }
 
 .stat + .stat {
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 1px solid var(--nexo-color-border-on-dark);
 }
 
 .statValue {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
+  margin: 0;
   font-family: var(--font-serif), Georgia, serif;
-  font-size: 28px;
-  color: #ffffff;
+  font-size: var(--nexo-font-size-stat);
+  line-height: 1.15;
 }
 
 .statLabel {
-  color: #9aa3b2;
-  font-size: 12px;
+  color: var(--nexo-color-text-on-dark-tertiary);
+  font-size: 13px;
 }
 
 /* ---------- Formulário ---------- */
@@ -180,10 +193,10 @@
 .formSide {
   display: flex;
   flex-direction: column;
-  padding: 24px 16px;
+  padding: 28px 16px;
 
   @media (min-width: $mantine-breakpoint-sm) {
-    padding: 24px 32px;
+    padding: 32px 56px;
   }
 }
 
@@ -198,18 +211,46 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding-block: 32px;
+  /* O print centraliza o formulário até o divisor; o link das contas de demonstração
+     (que não está no print) fica abaixo, sem puxar o resto para cima. */
+  padding-block: 52px 32px;
 }
 
 .form {
   width: 100%;
-  max-width: 360px;
+  max-width: 384px;
 }
 
 .formTitle {
+  margin: 0;
   font-family: var(--font-serif), Georgia, serif;
   font-weight: 400;
-  font-size: 30px;
+  font-size: var(--nexo-font-size-display-sm);
+  line-height: 1.2;
+}
+
+/* Botão "Entrar": halo azul embaixo. */
+.submit {
+  box-shadow: var(--nexo-shadow-primary);
+}
+
+/* Campo em foco: anel azul claro em volta da borda, como na senha do print. */
+.fieldInput:focus,
+.fieldInput:focus-within {
+  border-color: var(--nexo-color-primary);
+  box-shadow:
+    0 0 0 1px var(--nexo-color-primary),
+    0 0 0 3px color-mix(in srgb, var(--nexo-color-primary) 15%, transparent);
+}
+
+/* Pontos da senha espaçados, como no print. */
+.fieldInput input[type="password"] {
+  letter-spacing: 0.15em;
+}
+
+/* Cadeado da senha fica azul com o campo em foco, como no print. */
+.passwordInput:focus-within .passwordIcon {
+  color: var(--nexo-color-primary);
 }
 
 .footer {
@@ -219,15 +260,31 @@
   gap: 8px;
 }
 
-/* Contas de demonstração */
+/* Contas de demonstração (decisão 13): discretas, abaixo do divisor. */
+
+.demoToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--nexo-color-text-secondary);
+  font-size: 13px;
+}
+
+.demoChevron {
+  transition: transform 150ms ease;
+}
+
+.demoChevronOpen {
+  transform: rotate(180deg);
+}
 
 .demoAccount {
   display: block;
   width: 100%;
   padding: 8px 10px;
-  border-radius: var(--mantine-radius-sm);
+  border-radius: var(--nexo-radius-control);
 
   &:hover {
-    background: var(--mantine-color-gray-0);
+    background: var(--nexo-color-surface-subtle);
   }
 }
