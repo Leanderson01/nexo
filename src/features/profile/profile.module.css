@@ -6,11 +6,12 @@
   overflow-y: auto;
 }
 
+/* Cards de 600 px no print, centralizados na área de conteúdo. */
 .column {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  max-width: 640px;
+  gap: 32px;
+  max-width: 648px;
   margin: 0 auto;
   padding: 24px 16px;
 
@@ -21,10 +22,10 @@
 
 .card {
   overflow: hidden;
-  border: 1px solid var(--mantine-color-gray-3);
-  border-radius: 12px;
-  background: var(--mantine-color-white);
-  box-shadow: 0 1px 3px rgb(30 36 48 / 6%);
+  border: 1px solid var(--nexo-color-border);
+  border-radius: var(--nexo-radius-card);
+  background: var(--nexo-color-surface);
+  box-shadow: var(--nexo-shadow-card);
 }
 
 /* Linha "rótulo · valor · selo"; no celular cada um fica numa linha. */
@@ -34,27 +35,27 @@
   gap: 2px 12px;
   align-items: center;
   padding: 14px 16px;
-  font-size: 14px;
 
   & + & {
-    border-top: 1px solid var(--mantine-color-gray-2);
+    border-top: 1px solid var(--nexo-color-border);
   }
 
   @media (min-width: $mantine-breakpoint-sm) {
-    grid-template-columns: 180px 1fr auto;
+    grid-template-columns: 164px 1fr auto;
     padding: 18px 24px;
   }
 }
 
 .rowLabel {
   font-size: 13px;
-  color: var(--mantine-color-gray-6);
+  color: var(--nexo-color-text-secondary);
 }
 
 .rowValue {
   overflow: hidden;
+  font-size: 14px;
   font-weight: 500;
-  color: #1e2430;
+  color: var(--nexo-color-text);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -64,7 +65,7 @@
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: var(--mantine-color-gray-6);
+  color: var(--nexo-color-text-secondary);
   white-space: nowrap;
 }
 
@@ -72,11 +73,11 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   padding: 16px;
 
   @media (min-width: $mantine-breakpoint-sm) {
-    padding: 18px 24px;
+    padding: 24px;
   }
 }
 
@@ -84,11 +85,11 @@
   display: grid;
   flex-shrink: 0;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: var(--mantine-color-gray-1);
-  color: var(--mantine-color-gray-7);
+  background: var(--nexo-color-surface-subtle);
+  color: var(--nexo-color-text-secondary);
 }
 
 .passwordText {
@@ -96,17 +97,23 @@
   min-width: 0;
 }
 
+/* "Redefinir senha": botão claro com o texto no cinza da navegação, como no print. */
+.resetButton {
+  color: var(--nexo-color-text-nav);
+}
+
+/* Faixa cinza do aviso de redefinição, no pé do card. */
 .notice {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
-  border-top: 1px solid var(--mantine-color-gray-2);
-  background: var(--mantine-color-gray-0);
+  padding: 12px 16px;
+  border-top: 1px solid var(--nexo-color-border);
+  background: var(--nexo-color-surface-subtle);
   font-size: 12px;
-  color: var(--mantine-color-gray-7);
+  color: var(--nexo-color-text-secondary);
 
   @media (min-width: $mantine-breakpoint-sm) {
-    padding: 10px 24px;
+    padding: 12px 24px;
   }
 }

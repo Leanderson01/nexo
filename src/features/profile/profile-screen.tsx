@@ -8,8 +8,8 @@ import { useState } from "react";
 
 import { LOGIN_PATH } from "@/features/auth/route-access";
 import { PageHeader } from "@/features/chat/chat-header";
+import { ICON_SIZE, KeyIcon, LockIcon, MailIcon, ResetPasswordIcon } from "@/shared/icons";
 import { api } from "../../../convex/_generated/api";
-import { KeyIcon, LockIcon, MailIcon, ResetIcon } from "./icons";
 import classes from "./profile.module.css";
 import { PASSWORD_DESCRIPTION, passwordResetNotice } from "./profile-texts";
 
@@ -21,10 +21,10 @@ export function ProfileScreen() {
       <div className={classes.scroller}>
         <div className={classes.column}>
           <div>
-            <Title order={1} fz={24} fw={600}>
+            <Title order={1} fz={24} fw={700}>
               Meu perfil
             </Title>
-            <Text size="sm" c="dimmed" mt={4}>
+            <Text c="dimmed" mt={4}>
               Seus dados de acesso ao service desk de TI.
             </Text>
           </div>
@@ -53,7 +53,7 @@ function ProfileDetails() {
           <span className={classes.rowLabel}>E-mail corporativo</span>
           <span className={classes.rowValue}>{person.email}</span>
           <span className={classes.managedBadge}>
-            <LockIcon size={12} />
+            <LockIcon size={ICON_SIZE.sm} />
             Gerenciado pela TI
           </span>
         </div>
@@ -74,20 +74,18 @@ function PasswordCard({ email }: { email: string }) {
     <section className={classes.card} aria-label="Senha">
       <div className={classes.password}>
         <span className={classes.passwordIcon}>
-          <KeyIcon size={16} />
+          <KeyIcon size={ICON_SIZE.lg} />
         </span>
         <div className={classes.passwordText}>
-          <Text size="sm" fw={600}>
-            Senha
-          </Text>
-          <Text size="xs" c="dimmed">
+          <Text fw={600}>Senha</Text>
+          <Text size="sm" c="dimmed">
             {PASSWORD_DESCRIPTION}
           </Text>
         </div>
         <Button
           variant="default"
-          size="xs"
-          leftSection={<ResetIcon size={13} />}
+          className={classes.resetButton}
+          leftSection={<ResetPasswordIcon size={ICON_SIZE.sm} />}
           onClick={() => setResetRequested(true)}
         >
           Redefinir senha
@@ -95,7 +93,7 @@ function PasswordCard({ email }: { email: string }) {
       </div>
       {resetRequested && (
         <div className={classes.notice} role="status">
-          <MailIcon size={13} />
+          <MailIcon size={ICON_SIZE.sm} />
           {passwordResetNotice(email)}
         </div>
       )}
