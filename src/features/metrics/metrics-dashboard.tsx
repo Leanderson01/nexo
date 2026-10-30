@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, SegmentedControl, Skeleton, Text } from "@mantine/core";
+import { Alert, SegmentedControl, Skeleton } from "@mantine/core";
 import { useQuery } from "convex/react";
 import { useState } from "react";
 
@@ -41,9 +41,7 @@ export function MetricsDashboard() {
       <header className={classes.header}>
         <div>
           <h1 className={classes.title}>Métricas do atendimento</h1>
-          <Text size="xs" c="dimmed">
-            {dashboard ? periodText(dashboard.since) : " "}
-          </Text>
+          <div className={classes.subtitle}>{dashboard ? periodText(dashboard.since) : " "}</div>
         </div>
         <SegmentedControl
           size="xs"
@@ -57,25 +55,29 @@ export function MetricsDashboard() {
         />
       </header>
 
-      {dashboard === undefined ? (
-        <DashboardSkeleton />
-      ) : dashboard.metrics.conversations === 0 ? (
-        <div className={classes.empty}>
-          <Text fw={600}>Nenhuma conversa atendida neste período.</Text>
-          <Text size="sm" c="dimmed">
-            Os números aparecem assim que um funcionário conversar com o Nexo Assist.
-          </Text>
-        </div>
-      ) : (
-        <>
-          {dashboard.truncated && (
-            <Alert color="yellow" variant="light" mb="md">
-              O período tem muitas conversas: os números cobrem só as mais recentes.
-            </Alert>
+      <div className={classes.body}>
+        <div className={classes.content}>
+          {dashboard === undefined ? (
+            <DashboardSkeleton />
+          ) : dashboard.metrics.conversations === 0 ? (
+            <div className={classes.empty}>
+              <div className={classes.emptyTitle}>Nenhuma conversa atendida neste período.</div>
+              <p className={classes.emptyText}>
+                Os números aparecem assim que um funcionário conversar com o Nexo Assist.
+              </p>
+            </div>
+          ) : (
+            <>
+              {dashboard.truncated && (
+                <Alert color="yellow" variant="light" mb="md">
+                  O período tem muitas conversas: os números cobrem só as mais recentes.
+                </Alert>
+              )}
+              <DashboardBody metrics={dashboard.metrics} />
+            </>
           )}
-          <DashboardBody metrics={dashboard.metrics} />
-        </>
-      )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -136,12 +138,12 @@ function DashboardBody({ metrics }: { metrics: DashboardMetrics }) {
         />
       </div>
 
-      <Text size="xs" c="dimmed" mt="lg" className={classes.footnote}>
+      <p className={classes.footnote}>
         Conversa atendida: teve resposta do agent ou foi transferida. Resolvida sem fila: sem
         transferência e sem chamado criado, ou com &ldquo;Sim&rdquo; ao &ldquo;Isso resolveu?&rdquo;
         de um artigo. Duplicado evitado: rascunho que atualiza ou reabre um chamado em vez de criar
         outro (rascunhos substituídos não contam).
-      </Text>
+      </p>
     </>
   );
 }
@@ -184,12 +186,12 @@ function DashboardSkeleton() {
     <div aria-label="Carregando as métricas">
       <div className={classes.tiles}>
         {Array.from({ length: 6 }, (_, index) => (
-          <Skeleton key={index} height={104} radius="md" />
+          <Skeleton key={index} height={104} radius="lg" />
         ))}
       </div>
       <div className={classes.charts}>
-        <Skeleton height={180} radius="md" />
-        <Skeleton height={180} radius="md" />
+        <Skeleton height={180} radius="lg" />
+        <Skeleton height={180} radius="lg" />
       </div>
     </div>
   );

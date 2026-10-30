@@ -1,42 +1,60 @@
-/* Painel de métricas do console (T17): mesmo fundo, bordas e tipografia do console. */
+/*
+ * Painel de métricas do console (T17). Não há print: segue o console (protótipos 05 e 06) —
+ * cabeçalho branco de 56 px como o da conversa, fundo da área da conversa e cards da fundação
+ * visual (raio 12, borda e sombra de card), sempre pelas variáveis --nexo-*.
+ */
 
 .page {
+  display: flex;
   flex: 1;
+  flex-direction: column;
   min-width: 0;
-  overflow-y: auto;
-  padding: 20px 28px 32px;
-  background: #f5f6f8;
+  min-height: 0;
+  background: var(--nexo-color-surface-sunken);
+  color: var(--nexo-color-text);
 }
 
 .header {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
-  max-width: 1080px;
-  margin: 0 auto 18px;
+  gap: 12px;
+  height: 56px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--nexo-color-border);
+  background: var(--nexo-color-surface);
 }
 
 .title {
   margin: 0;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
-  color: #1e2430;
+  line-height: 1.35;
 }
 
-.tiles,
-.charts,
-.footnote {
+.subtitle {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--nexo-color-text-secondary);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 24px 32px;
+}
+
+.content {
   max-width: 1080px;
-  margin-right: auto;
-  margin-left: auto;
+  margin: 0 auto;
 }
 
 .tiles {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 16px;
 
   @media (max-width: 900px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -45,56 +63,56 @@
 
 .tile,
 .card {
-  border: 1px solid var(--mantine-color-gray-2);
-  border-radius: 10px;
-  background: var(--mantine-color-white);
+  border: 1px solid var(--nexo-color-border);
+  border-radius: var(--nexo-radius-card);
+  background: var(--nexo-color-surface);
+  box-shadow: var(--nexo-shadow-card);
 }
 
 .tile {
-  padding: 14px 16px;
+  padding: 16px;
 }
 
 .tileLabel {
   font-size: 12px;
   font-weight: 500;
-  color: var(--mantine-color-gray-6);
+  color: var(--nexo-color-text-secondary);
 }
 
 .tileValue {
-  margin: 4px 0 2px;
+  margin: 6px 0 2px;
   font-size: 28px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
-  color: #1e2430;
 }
 
 .tileNote {
   font-size: 12px;
-  color: var(--mantine-color-gray-6);
+  line-height: 1.45;
+  color: var(--nexo-color-text-secondary);
 }
 
 .charts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 12px;
-  margin-top: 12px;
+  gap: 16px;
+  margin-top: 16px;
 }
 
 .card {
-  padding: 14px 16px 16px;
+  padding: 16px;
 }
 
 .cardTitle {
-  margin: 0 0 12px;
-  font-size: 13px;
+  margin: 0 0 14px;
+  font-size: 15px;
   font-weight: 600;
-  color: #1e2430;
 }
 
 .bars {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -103,40 +121,58 @@
 .barRow {
   display: grid;
   grid-template-columns: minmax(120px, 42%) 1fr 28px;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .barLabel {
-  color: var(--mantine-color-gray-7);
+  color: var(--nexo-color-text-nav);
 }
 
 .barTrack {
-  height: 10px;
+  height: 8px;
+  border-radius: var(--nexo-radius-pill);
+  background: var(--nexo-color-surface-subtle);
 }
 
 .bar {
   display: block;
   height: 100%;
   min-width: 4px;
-  border-radius: 0 4px 4px 0;
-  background: var(--mantine-color-blue-6);
+  border-radius: var(--nexo-radius-pill);
+  background: var(--nexo-color-primary);
 }
 
 .barValue {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: right;
-  color: #1e2430;
+}
+
+.footnote {
+  margin: 20px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--nexo-color-text-secondary);
 }
 
 .empty {
   display: grid;
   gap: 4px;
-  max-width: 1080px;
-  margin: 48px auto 0;
+  margin-top: 48px;
   text-align: center;
+}
+
+.emptyTitle {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: 13px;
+  color: var(--nexo-color-text-secondary);
 }
 
 .errorBox {
@@ -144,6 +180,6 @@
   flex: 1;
   place-items: center;
   padding: 24px;
-  background: #f5f6f8;
+  background: var(--nexo-color-surface-sunken);
   text-align: center;
 }
