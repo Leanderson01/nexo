@@ -76,7 +76,13 @@ export function MessagePartView({
         />
       );
     case "event":
-      return <ConversationEventLine kind={part.kind} actorName={part.actorName} />;
+      return (
+        <ConversationEventLine
+          kind={part.kind}
+          actorName={part.actorName}
+          ticket={{ code: part.ticketCode, status: part.ticketStatus }}
+        />
+      );
     case "error":
       return (
         <ErrorBlock message={part.message} retryable={part.retryable} onRetry={actions.onRetry} />

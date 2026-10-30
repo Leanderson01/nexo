@@ -1,4 +1,4 @@
-import type { TicketStatus } from "./enums";
+import type { TicketStatus, TicketUpdateAuthor } from "./enums";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CLOSED_STATUSES: readonly TicketStatus[] = ["resolved", "closed"];
@@ -9,6 +9,15 @@ const DUPLICATE_WINDOW_MS = 30 * DAY_MS;
 /** Aberto é qualquer status diferente de Resolvido e Fechado (§3.2). */
 export function isOpen(status: TicketStatus): boolean {
   return !CLOSED_STATUSES.includes(status);
+}
+
+/**
+ * Atualização que avisa o dono do chamado no chat (§11.6, T17): só a de um analista. As notas
+ * do agent no legado (abertura, transferência) contam o que o funcionário acabou de ver no
+ * chat, e a atualização do próprio funcionário foi ele quem escreveu.
+ */
+export function notifiesOwner(authorType: TicketUpdateAuthor): boolean {
+  return authorType === "analyst";
 }
 
 /** Resolvido há até 7 dias corridos pode ser reaberto (§3.2). */

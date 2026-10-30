@@ -17,6 +17,7 @@ const EVENT_NOTES = {
   returned_to_agent: "a conversa voltou para o Nexo Assist",
   closed: "conversa encerrada",
   draft_cancelled: "rascunho cancelado",
+  ticket_updated: "o suporte atualizou um chamado",
 } as const;
 
 /** Uma parte como o modelo a lê. */
@@ -39,7 +40,9 @@ export function describePart(part: MessagePart): string {
     case "handoff":
       return note(`transferido para analista: ${HANDOFF_REASON_LABELS[part.reason]}`);
     case "event":
-      return note(EVENT_NOTES[part.kind]);
+      return note(
+        part.ticketCode ? `${EVENT_NOTES[part.kind]} (${part.ticketCode})` : EVENT_NOTES[part.kind],
+      );
     case "error":
       return note(`erro mostrado: ${part.message}`);
   }

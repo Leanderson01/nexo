@@ -7,10 +7,11 @@ import type {
   TicketStatus,
   TicketUpdateAuthor,
 } from "@/domain/enums";
-import { HANDOFF_REASON_LABELS } from "@/domain/labels";
+import { HANDOFF_REASON_LABELS, TICKET_STATUS_LABELS } from "@/domain/labels";
 import { isOverdue, type SlaTicket } from "@/domain/sla";
 import { isOpen } from "@/domain/ticket-rules";
 import { conversationEventText } from "@/features/chat/chat-texts";
+import type { UpdatedTicket } from "@/features/notifications/notification-texts";
 import type { ConsoleActionError } from "../../../convex/console";
 
 // Textos e cores do console do analista (§7.4, §7.5, protótipos 05 e 06). Funções puras,
@@ -138,8 +139,16 @@ export function confidenceText(value: number, levelLabel: string): string {
  * Linha de evento para o analista. O chat fala com o funcionário ("Você voltou a falar com o
  * Nexo Assist"); aqui o texto diz quem fez e o que acontece com o agent.
  */
-export function consoleEventText(kind: ConversationEvent, actorName?: string): string {
+export function consoleEventText(
+  kind: ConversationEvent,
+  actorName?: string,
+  ticket: UpdatedTicket = {},
+): string {
   switch (kind) {
+    case "ticket_updated":
+      return actorName && ticket.code
+        ? `${actorName} atualizou o ${ticket.code}${ticket.status ? `: ${TICKET_STATUS_LABELS[ticket.status]}` : ""}`
+        : conversationEventText(kind, actorName, ticket);
     case "assigned":
       return `${conversationEventText(kind, actorName)} · agent pausado`;
     case "returned_to_agent":
@@ -147,7 +156,7 @@ export function consoleEventText(kind: ConversationEvent, actorName?: string): s
     case "closed":
       return actorName ? `${actorName} encerrou a conversa` : "Conversa encerrada";
     default:
-      return conversationEventText(kind, actorName);
+      return conversationEventText(kind, actorName, ticket);
   }
 }
 

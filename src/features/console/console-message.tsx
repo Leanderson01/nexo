@@ -164,7 +164,11 @@ function SystemLine({ part, createdAt }: { part: MessagePart; createdAt: number 
     if (part.kind === "transferred") return null;
     return (
       <EventLine icon={eventIcon(part.kind)}>
-        {consoleEventText(part.kind, part.actorName)} · {formatTime(createdAt)}
+        {consoleEventText(part.kind, part.actorName, {
+          code: part.ticketCode,
+          status: part.ticketStatus,
+        })}{" "}
+        · {formatTime(createdAt)}
       </EventLine>
     );
   }

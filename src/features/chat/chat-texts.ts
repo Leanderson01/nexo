@@ -5,6 +5,7 @@ import type {
   HandoffReason,
 } from "@/domain/enums";
 import { CONVERSATION_STATUS_LABELS } from "@/domain/labels";
+import { ticketUpdatedText, type UpdatedTicket } from "@/features/notifications/notification-texts";
 import { nextBusinessDayText } from "./blocks/block-texts";
 
 // Textos do chat que dependem de dados (estado, eventos, banner). Puros, para testar.
@@ -35,7 +36,11 @@ export function conversationStatusText(
 }
 
 /** Linha de evento no histórico (§7.2). */
-export function conversationEventText(kind: ConversationEvent, actorName?: string): string {
+export function conversationEventText(
+  kind: ConversationEvent,
+  actorName?: string,
+  ticket: UpdatedTicket = {},
+): string {
   switch (kind) {
     case "transferred":
       return "Conversa transferida para um analista";
@@ -47,6 +52,8 @@ export function conversationEventText(kind: ConversationEvent, actorName?: strin
       return "Conversa encerrada";
     case "draft_cancelled":
       return "Rascunho cancelado";
+    case "ticket_updated":
+      return ticketUpdatedText(ticket);
   }
 }
 

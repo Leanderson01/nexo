@@ -16,8 +16,9 @@ import { normalizeText } from "../src/shared/normalize-text";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { requireAnalyst } from "./lib/guards";
-import { vConsoleTab, vHandoffReason } from "./lib/validators";
+import { vConsoleTab, vHandoffReason, vTicketStatus } from "./lib/validators";
 import { findOwnedTicket } from "./ticketing/reads";
+import { recordTicketUpdate } from "./ticketing/service";
 
 // Console do analista (§7.4, §7.5, §9): a fila, a conversa e as ações sobre ela.
 // Tudo passa por `requireAnalyst`; as transições de estado, por `transition` (§5.9), e cada
@@ -469,6 +470,42 @@ export const close = mutation({
       lastMessageAt: now,
     });
     await insertEvent(ctx, conversation._id, TRANSITION_EVENTS.close, analyst, now);
+    return ok(null);
+  },
+});
+
+// ---------- Atualização de chamado pelo analista (T17) ----------
+
+/** Erros esperados do "Registrar atualização": chamado inexistente, fechado ou texto vazio. */
+export type TicketUpdateError = "not_found" | "closed" | "empty";
+
+/**
+ * "Registrar atualização" no painel do funcionário (T17): o analista escreve no histórico do
+ * chamado e, se quiser, muda o status. Passa pelo mesmo `recordTicketUpdate` do serviço de
+ * chamados, que renova o prazo e avisa o funcionário no chat (§11.6).
+ */
+export const registerTicketUpdate = mutation({
+  args: {
+    employeeId: v.id("people"),
+    code: v.string(),
+    text: v.string(),
+    status: v.optional(vTicketStatus),
+  },
+  handler: async (ctx, args): Promise<Result<null, TicketUpdateError>> => {
+    const analyst = await requireAnalyst(ctx);
+    const trimmed = args.text.trim();
+    if (trimmed === "") return err("empty");
+
+    const ticket = await findOwnedTicket(ctx, args.employeeId, args.code);
+    if (!ticket) return err("not_found");
+
+    const recorded = await recordTicketUpdate(ctx, ticket, {
+      text: maskSensitiveData(trimmed).text,
+      fieldChanges: args.status === undefined ? undefined : { status: args.status },
+      authorType: "analyst",
+      authorName: analystDisplayName(analyst),
+    });
+    if (!recorded.ok) return err(recorded.error.kind === "conflict" ? "closed" : "not_found");
     return ok(null);
   },
 });

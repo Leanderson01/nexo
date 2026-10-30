@@ -55,6 +55,8 @@ export const CONVERSATION_EVENTS = [
   "returned_to_agent",
   "closed",
   "draft_cancelled",
+  /** O suporte atualizou um chamado do funcionário (T17, §11.6); a parte leva o código. */
+  "ticket_updated",
 ] as const;
 export type ConversationEvent = (typeof CONVERSATION_EVENTS)[number];
 

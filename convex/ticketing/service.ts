@@ -6,7 +6,8 @@ import { vNewTicket, vTicketFieldChanges, vTicketUpdateAuthor } from "../lib/val
 import type { TicketKind, TicketStatus, TicketUpdateAuthor } from "../../src/domain/enums";
 import { err, ok, type Result } from "../../src/domain/result";
 import type { TicketDetail, TicketFieldChanges } from "../../src/domain/ticket";
-import { canReopen, isOpen } from "../../src/domain/ticket-rules";
+import { canReopen, isOpen, notifiesOwner } from "../../src/domain/ticket-rules";
+import { notifyOwnerInChat } from "./notifyOwner";
 import { findOwnedTicket, loadDetail, ticketNotFound, type ServiceError } from "./reads";
 
 // Escritas do serviço de chamados (o "legado" simulado, §5.6). Só a API HTTP chama
@@ -81,37 +82,68 @@ export const addUpdate = internalMutation({
 
     const ticket = await findOwnedTicket(ctx, args.employeeId, args.code);
     if (!ticket) return err(ticketNotFound);
-    if (ticket.status === "closed") {
-      return err({
-        kind: "conflict",
-        message: "Esse chamado está fechado e não recebe atualizações. Abra um novo chamado.",
-      });
-    }
-    if (args.authorType === "employee" && args.fieldChanges?.status !== undefined) {
-      return err({
-        kind: "validation",
-        message: "Só o suporte muda o status de um chamado.",
-      });
-    }
 
-    const now = Date.now();
-    const fieldChanges = args.fieldChanges ?? {};
-    await ctx.db.patch(ticket._id, {
-      ...ticketPatchFor(ticket, fieldChanges, now),
-      ...(renewsDeadline(args.authorType) && { lastActivityAt: now }),
-    });
-    await ctx.db.insert("ticketUpdates", {
-      ticketId: ticket._id,
-      authorType: args.authorType,
-      authorName: args.authorName,
+    const recorded = await recordTicketUpdate(ctx, ticket, {
       text: args.text,
       fieldChanges: args.fieldChanges,
-      createdAt: now,
+      authorType: args.authorType,
+      authorName: args.authorName,
     });
+    if (!recorded.ok) return recorded;
     await rememberIdempotencyKey(ctx, args.idempotencyKey, ticket.code);
     return ok(await loadDetailById(ctx, ticket._id));
   },
 });
+
+export interface TicketUpdateInput {
+  text: string;
+  fieldChanges?: TicketFieldChanges;
+  authorType: TicketUpdateAuthor;
+  authorName?: string;
+}
+
+/**
+ * Grava uma atualização num chamado já conferido (dono e existência). Usada pelo `addUpdate`
+ * da API e pelo "Registrar atualização" do console (T17). Quando o autor é o suporte, avisa o
+ * dono no chat na mesma transação (§11.6): o evento sai uma vez por atualização gravada, e a
+ * repetição pela mesma chave de idempotência volta antes de chegar aqui.
+ */
+export async function recordTicketUpdate(
+  ctx: MutationCtx,
+  ticket: Doc<"tickets">,
+  update: TicketUpdateInput,
+): Promise<Result<null, ServiceError>> {
+  if (ticket.status === "closed") {
+    return err({
+      kind: "conflict",
+      message: "Esse chamado está fechado e não recebe atualizações. Abra um novo chamado.",
+    });
+  }
+  if (update.authorType === "employee" && update.fieldChanges?.status !== undefined) {
+    return err({
+      kind: "validation",
+      message: "Só o suporte muda o status de um chamado.",
+    });
+  }
+
+  const now = Date.now();
+  await ctx.db.patch(ticket._id, {
+    ...ticketPatchFor(ticket, update.fieldChanges ?? {}, now),
+    ...(renewsDeadline(update.authorType) && { lastActivityAt: now }),
+  });
+  await ctx.db.insert("ticketUpdates", {
+    ticketId: ticket._id,
+    authorType: update.authorType,
+    authorName: update.authorName,
+    text: update.text,
+    fieldChanges: update.fieldChanges,
+    createdAt: now,
+  });
+  if (notifiesOwner(update.authorType)) {
+    await notifyOwnerInChat(ctx, ticket, update, now);
+  }
+  return ok(null);
+}
 
 /** Só a atividade do suporte reinicia o prazo (§3.6). */
 function renewsDeadline(authorType: TicketUpdateAuthor): boolean {

@@ -153,6 +153,8 @@ export const vMessagePart = v.union(
     type: v.literal("event"),
     kind: vConversationEvent,
     actorName: v.optional(v.string()),
+    ticketCode: v.optional(v.string()),
+    ticketStatus: v.optional(vTicketStatus),
   }),
   v.object({ type: v.literal("error"), message: v.string(), retryable: v.boolean() }),
 );

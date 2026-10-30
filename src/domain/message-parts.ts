@@ -1,4 +1,4 @@
-import type { ConversationEvent, HandoffReason } from "./enums";
+import type { ConversationEvent, HandoffReason, TicketStatus } from "./enums";
 import type { TicketCode } from "./ticket";
 
 // Blocos de uma mensagem do chat (§5.11). A UI renderiza um componente por `type`.
@@ -13,7 +13,17 @@ export type MessagePart =
   | { type: "draft"; pendingActionId: string }
   | { type: "quickReplies"; options: { label: string; value: string }[] }
   | { type: "handoff"; reason: HandoffReason; outOfHours: boolean }
-  | { type: "event"; kind: ConversationEvent; actorName?: string }
+  /**
+   * Linha de evento. Em `ticket_updated` (T17), o chamado atualizado pelo suporte e, se a
+   * atualização mudou o status, o status novo.
+   */
+  | {
+      type: "event";
+      kind: ConversationEvent;
+      actorName?: string;
+      ticketCode?: TicketCode;
+      ticketStatus?: TicketStatus;
+    }
   | { type: "error"; message: string; retryable: boolean };
 
 export type MessagePartType = MessagePart["type"];
