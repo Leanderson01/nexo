@@ -11,6 +11,9 @@
 import type * as auth from "../auth.js";
 import type * as conversations from "../conversations.js";
 import type * as http from "../http.js";
+import type * as knowledge_articles from "../knowledge/articles.js";
+import type * as knowledge_ranking from "../knowledge/ranking.js";
+import type * as knowledge_searchTerms from "../knowledge/searchTerms.js";
 import type * as lib_guards from "../lib/guards.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as messages from "../messages.js";
@@ -33,6 +36,9 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   conversations: typeof conversations;
   http: typeof http;
+  "knowledge/articles": typeof knowledge_articles;
+  "knowledge/ranking": typeof knowledge_ranking;
+  "knowledge/searchTerms": typeof knowledge_searchTerms;
   "lib/guards": typeof lib_guards;
   "lib/validators": typeof lib_validators;
   messages: typeof messages;

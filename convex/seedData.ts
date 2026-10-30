@@ -1,4 +1,5 @@
 import type { ArticleCondition } from "../src/domain/article";
+import { buildArticleSearchText } from "./knowledge/searchTerms";
 import type {
   Priority,
   TicketCategory,
@@ -433,56 +434,84 @@ export const SEED_ARTICLES: SeedArticle[] = [
     slug: "vpn-erro-809",
     title: "VPN com erro 809",
     body: "Reinstale o cliente de VPN pelo portal de softwares e reinicie o computador. Vale apenas para Windows 10; no Windows 11, abra um chamado.",
-    tags: ["vpn", "erro 809", "conexão", "home office", "windows 10"],
+    tags: ["vpn", "erro 809", "conexão", "home office", "windows 10", "acesso remoto"],
     conditions: [{ field: "os", appliesTo: ["Windows 10"] }],
   },
   {
     slug: "horario-service-desk",
     title: "Horário do service desk",
     body: "O service desk atende de segunda a sexta, das 8h às 18h. Chamados críticos têm plantão 24 horas.",
-    tags: ["horário", "atendimento", "plantão", "service desk"],
+    tags: ["horário", "atendimento", "plantão", "service desk", "suporte", "expediente"],
   },
   {
     slug: "redefinir-senha-de-rede",
     title: "Redefinir a senha de rede",
     body: "Use o portal de autoatendimento com o código enviado ao celular cadastrado. Se não tiver celular cadastrado, abra um chamado.",
-    tags: ["senha", "rede", "login", "autoatendimento", "esqueci a senha"],
+    tags: [
+      "senha",
+      "rede",
+      "login",
+      "autoatendimento",
+      "esqueci a senha",
+      "redefinir senha",
+      "senha expirada",
+    ],
   },
   {
     slug: "senha-sap-bloqueada",
     title: "Senha do SAP bloqueada",
     body: "O bloqueio acontece após 3 tentativas erradas. O desbloqueio é automático em 30 minutos ou imediato pelo portal de autoatendimento. Se persistir, abra um chamado.",
-    tags: ["sap", "senha", "bloqueio", "acesso"],
+    tags: ["sap", "senha", "bloqueio", "acesso", "bloqueada", "desbloquear"],
   },
   {
     slug: "instalar-software",
     title: "Instalar software",
     body: "Softwares do catálogo são instalados pelo portal de softwares. Softwares fora do catálogo exigem requisição com aprovação do gestor.",
-    tags: ["software", "instalação", "programa", "catálogo", "licença"],
+    tags: ["software", "instalação", "programa", "catálogo", "licença", "instalar", "aplicativo"],
   },
   {
     slug: "email-corporativo-no-celular",
     title: "Configurar o e-mail corporativo no celular",
     body: "Instale o app oficial de e-mail, entre com o e-mail corporativo e a senha de rede e aceite o perfil de segurança. O celular precisa estar registrado no MDM.",
-    tags: ["e-mail", "celular", "outlook", "mdm", "sincronização"],
+    tags: ["e-mail", "celular", "outlook", "mdm", "sincronização", "smartphone", "configurar"],
   },
   {
     slug: "wifi-corporativo",
     title: "Conectar ao Wi-Fi corporativo",
     body: "Conecte-se à rede Nexo-Corp com as suas credenciais de rede. Visitantes usam a rede Nexo-Guest.",
-    tags: ["wi-fi", "wifi", "rede", "internet", "visitantes"],
+    tags: [
+      "wi-fi",
+      "wifi",
+      "rede",
+      "internet",
+      "visitantes",
+      "rede sem fio",
+      "empresa",
+      "escritório",
+    ],
   },
   {
     slug: "solicitar-equipamento",
     title: "Solicitar equipamento",
     body: "Monitores, teclados e headsets são pedidos por requisição. O prazo de entrega é de 5 dias úteis após a aprovação.",
-    tags: ["equipamento", "monitor", "teclado", "headset", "requisição"],
+    tags: [
+      "equipamento",
+      "monitor",
+      "teclado",
+      "headset",
+      "requisição",
+      "segundo monitor",
+      "mouse",
+    ],
   },
 ];
 
-/** O índice de busca do Convex aceita um campo só: título, corpo e tags vão juntos. */
+/**
+ * O índice de busca do Convex aceita um campo só: título, corpo e tags vão juntos, já como
+ * termos normalizados (sem acento, sem plural), iguais aos da consulta.
+ */
 export function buildSearchText(article: SeedArticle): string {
-  return [article.title, article.body, article.tags.join(" ")].join("\n");
+  return buildArticleSearchText(article);
 }
 
 // ---------- Conversa inicial (decisão 1: a do Pedro, não a da Mariana) ----------

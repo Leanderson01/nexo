@@ -22,7 +22,8 @@ export async function getCurrentPerson(ctx: QueryCtx): Promise<Doc<"people"> | n
     .unique();
 }
 
-async function requirePerson(ctx: QueryCtx): Promise<Doc<"people">> {
+/** Qualquer pessoa logada (funcionário ou analista), ex.: a busca na central de ajuda. */
+export async function requirePerson(ctx: QueryCtx): Promise<Doc<"people">> {
   const userId = await getAuthUserId(ctx);
   if (!userId) throw new ConvexError("Sessão expirada. Entre novamente.");
 
