@@ -39,6 +39,8 @@ function toDecisionRecord(decision: Doc<"decisions">): DecisionRecord {
     confidence: decision.confidence,
     rationale: decision.rationale,
     outcome: decision.outcome,
+    ...(decision.shortCircuit !== undefined ? { shortCircuit: decision.shortCircuit } : {}),
+    ...(decision.errorStage ? { errorStage: decision.errorStage } : {}),
     usage: decision.usage,
     createdAt: decision.createdAt,
   };

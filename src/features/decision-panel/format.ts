@@ -1,5 +1,5 @@
 import type { DecisionRecord, ToolCallTrace } from "@/domain/decision-record";
-import type { DecisionOutcome, Intent, PolicyOutcome, Priority } from "@/domain/enums";
+import type { DecisionOutcome, Intent, PolicyOutcome, Priority, TurnStage } from "@/domain/enums";
 import { IMPACT_LABELS, TICKET_CATEGORY_LABELS, TICKET_KIND_LABELS } from "@/domain/labels";
 import { PRIORITY_DEADLINES } from "@/domain/priority";
 import { MAX_ATTEMPTS } from "@/agent/gateways/http-ticket-gateway";
@@ -29,6 +29,30 @@ export const DECISION_OUTCOME_LABELS: Record<DecisionOutcome, string> = {
   redirected: "Indicou outra área",
   error: "Turno com erro",
 };
+
+export const TURN_STAGE_LABELS: Record<TurnStage, string> = {
+  understand: "entender a mensagem",
+  decide: "aplicar as regras",
+  act: "agir",
+  record: "registrar o turno",
+};
+
+/**
+ * Notas da seção "Por quê" que não dependem do texto do modelo (decisão 23): se uma regra
+ * decidiu sozinha, sem o modelo principal, e em que etapa um turno com erro parou.
+ */
+export function formatTurnNotes(
+  record: Pick<DecisionRecord, "shortCircuit" | "errorStage">,
+): string[] {
+  const notes: string[] = [];
+  if (record.shortCircuit) {
+    notes.push("Uma regra decidiu sozinha: o modelo principal não foi chamado neste turno.");
+  }
+  if (record.errorStage) {
+    notes.push(`O turno parou ao ${TURN_STAGE_LABELS[record.errorStage]}.`);
+  }
+  return notes;
+}
 
 export const POLICY_OUTCOME_LABELS: Record<PolicyOutcome, string> = {
   triggered: "disparou",

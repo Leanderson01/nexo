@@ -22,6 +22,7 @@ import {
   formatLatency,
   formatPriorityDeadline,
   formatTokens,
+  formatTurnNotes,
   type EntityRow,
 } from "./format";
 
@@ -86,6 +87,11 @@ export function DecisionPanel({ record }: { record: DecisionRecord }) {
         <Text size="sm" className={classes.prose}>
           {record.rationale}
         </Text>
+        {formatTurnNotes(record).map((note) => (
+          <Text key={note} size="sm" c="dimmed" mt={6}>
+            {note}
+          </Text>
+        ))}
       </Section>
       <Section id="usage">
         <UsageSection usage={record.usage} />

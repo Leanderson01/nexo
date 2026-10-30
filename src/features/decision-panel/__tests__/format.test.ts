@@ -11,7 +11,24 @@ import {
   formatLatency,
   formatPriorityDeadline,
   formatTokens,
+  formatTurnNotes,
 } from "../format";
+
+describe("formatTurnNotes", () => {
+  test("turno normal não tem nota", () => {
+    expect(formatTurnNotes({})).toEqual([]);
+  });
+
+  test("curto-circuito avisa que o modelo principal não foi chamado", () => {
+    expect(formatTurnNotes({ shortCircuit: true })).toEqual([
+      "Uma regra decidiu sozinha: o modelo principal não foi chamado neste turno.",
+    ]);
+  });
+
+  test("turno com erro diz em que etapa parou", () => {
+    expect(formatTurnNotes({ errorStage: "act" })).toEqual(["O turno parou ao agir."]);
+  });
+});
 
 describe("formatAttempts", () => {
   test("de primeira, quando funcionou na 1ª tentativa", () => {
