@@ -316,6 +316,27 @@ language: "pt" } } })` (compila, não testado).
 - Escolhas registradas: legado fora do ar sai com `outcome: error` e parte `error` com
   `retryable: true`; o cenário do vencido testa só a oferta de analista (decisão 22).
 
+### T7: blocos de mensagem
+
+- Blocos em `src/features/chat/blocks/`, ligados em `message-part-view.tsx` e `message-item.tsx`;
+  exemplos de todos os estados em `/dev/blocos` (só em dev).
+- Leituras novas, só do funcionário dono: `api.decisions.getActionLabels({ messageId })` (chips) e
+  `api.pendingActions.get({ pendingActionId })` (card de rascunho).
+- **"Ver detalhes" já abre o painel de decisão** (T8) pela gaveta em `chat-conversation.tsx`.
+- **Para a T11:** o stub `src/features/chat/blocks/use-block-actions-stub.ts` (PROVISÓRIO) é usado em
+  `chat-conversation.tsx`. Trocar pelos callbacks reais e apagar o arquivo:
+  `draft.onConfirm(pendingActionId)`, `draft.onCancel(pendingActionId)`,
+  `draft.onSaveEdit(pendingActionId, edited: PendingAction)` (no `create_ticket` a prioridade já vem
+  recalculada; a rota recalcula de novo) e `onRetry()` do erro. O card mostra carregando enquanto a
+  promise não termina; Ctrl/⌘+Enter confirma.
+- **Para a T10:** o seletor de chamados já mostra o `prompt` da parte num balão; **não repita o
+  mesmo texto numa parte `text`**, senão aparece duas vezes. A opção escolhida em destaque é a que
+  bate com a próxima mensagem do funcionário ("CÓDIGO · título" ou só o código).
+- **Para a T12:** o card de chamado, o seletor e as leituras novas usam `requireEmployee`; o console
+  precisa de variantes para o analista.
+- Selo do card de chamado: "há 6 dias · vencido há 1 dia" (tempo desde a última atividade + selo de
+  SLA), no lugar do "prazo vencido" do protótipo.
+
 ### T20: Meu perfil
 
 - `/chat/perfil` (coberto pelo proxy sem mudar `route-access.ts`), tela em `src/features/profile/`.
