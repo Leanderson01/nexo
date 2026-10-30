@@ -137,7 +137,7 @@ describe("coerência do roteiro", () => {
   it("botões de rascunho vêm depois de um turno que propõe rascunho", () => {
     for (const scenario of SCENARIOS) {
       scenario.steps.forEach((step, index) => {
-        if (step.kind === "message") return;
+        if (step.kind !== "confirmDraft" && step.kind !== "cancelDraft") return;
         const previous = scenario.steps[index - 1];
         const proposesDraft =
           previous?.kind === "message" && previous.expect?.outcome === "draft_proposed";

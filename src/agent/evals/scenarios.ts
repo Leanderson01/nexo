@@ -3,6 +3,7 @@ import {
   confirmDraft,
   pick,
   PROPOSAL_TOOLS,
+  returnToAgent,
   say,
   type Scenario,
   type TextRule,
@@ -673,6 +674,197 @@ const criticalDraftCancelled: Scenario = {
   },
 };
 
+// ---------- Qualidade do agent (QA de ponta a ponta, C1) ----------
+// Sinais, descrição e condução da abertura garantidos em código: o que o funcionário não disse
+// nem escolheu numa opção não vale (impacto, bloqueio, urgência, fatos da descrição).
+
+const SAYS_CRITICAL: TextRule = {
+  description: "chamar de crítico um caso em que ninguém disse que a equipe parou",
+  pattern: /cr[ií]tic/i,
+};
+
+const ASKS_OPERATING_SYSTEM: TextRule = {
+  description: "perguntar o sistema operacional sem artigo que dependa dele",
+  pattern: /sistema operacional|qual (é )?(o )?seu windows|windows|macos|linux/i,
+};
+
+const INVENTED_FACTS: TextRule = {
+  description: "trazer fatos que o funcionário não disse (tentativas, sistema, orientações)",
+  pattern: /tentei|tentou|reinici|reinstal|windows|orienta[çc][õo]es|nenhuma a[çc][ãa]o/i,
+};
+
+const wifiShortSentence: Scenario = {
+  id: "extra-wifi-frase-curta",
+  title: '"O Wi-Fi da sala 3 caiu de novo", sem impacto nem bloqueio, não vira crítico',
+  source: "extra",
+  reference: "§3.5 (sinais só do que foi dito); §8 F4 passo 1; QA C1 bloqueante 1",
+  employeeEmail: RAFAEL,
+  tickets: { ofEmployee: [], ofOthers: [] },
+  steps: [
+    say("O Wi-Fi da sala 3 caiu de novo", {
+      policiesNotTriggered: ["CriticalPolicy"],
+      toolsForbidden: ["proposeTicketDraft", "proposeReopen", "requestHandoff"],
+      parts: {
+        mustInclude: [{ type: "quickReplies", includesLabel: "Minha equipe" }],
+        mustNotInclude: [{ type: "draft" }, { type: "handoff" }],
+      },
+      text: { mustNotMatch: [SAYS_CRITICAL] },
+    }),
+  ],
+  final: {
+    conversationStatus: "agent",
+    handoffReason: null,
+    proposedAction: null,
+    ticketsCreated: [],
+  },
+};
+
+const intakeByOptions: Scenario = {
+  id: "extra-abertura-por-opcoes",
+  title: "Abertura sem sinais: uma pergunta por vez, com opções definidas em código",
+  source: "extra",
+  reference: "§8 F4 passo 1; §6.4 (uma pergunta por vez); §11.2; QA C1 bloqueantes 2 e 3",
+  employeeEmail: MARIANA,
+  tickets: { ofEmployee: [], ofOthers: [] },
+  steps: [
+    say("Quero abrir um chamado: o Excel trava toda vez que abro a planilha de fechamento.", {
+      toolsForbidden: PROPOSAL_TOOLS,
+      parts: {
+        mustInclude: [{ type: "quickReplies", includesLabel: "Só eu" }],
+        mustNotInclude: [{ type: "draft" }, { type: "quickReplies", includesLabel: "Windows" }],
+      },
+      text: {
+        mustMatch: [{ description: "perguntar quem é afetado", pattern: /afetad/i }],
+        mustNotMatch: [ASKS_OPERATING_SYSTEM],
+      },
+    }),
+    pick("Só eu", {
+      toolsForbidden: PROPOSAL_TOOLS,
+      parts: { mustInclude: [{ type: "quickReplies", includesLabel: "Sim, dá para seguir" }] },
+      text: {
+        mustMatch: [{ description: "perguntar se consegue trabalhar", pattern: /outro jeito/i }],
+        mustNotMatch: [ASKS_OPERATING_SYSTEM],
+      },
+    }),
+    pick("Sim, dá para seguir", {
+      toolsForbidden: PROPOSAL_TOOLS,
+      parts: { mustInclude: [{ type: "quickReplies", includesLabel: "Não, pode esperar" }] },
+      text: {
+        mustMatch: [{ description: "perguntar pelo compromisso de hoje", pattern: /compromisso/i }],
+        mustNotMatch: [ASKS_OPERATING_SYSTEM],
+      },
+    }),
+    pick("Não, pode esperar", {
+      outcome: "draft_proposed",
+      toolsCalled: [{ tool: "findSimilarTickets" }, { tool: "proposeTicketDraft" }],
+      priority: "MEDIUM",
+      parts: { mustInclude: [{ type: "draft" }] },
+    }),
+  ],
+  final: {
+    conversationStatus: "agent",
+    handoffReason: null,
+    proposedAction: {
+      kind: "create_ticket",
+      status: "pending",
+      ticketKind: "INC",
+      priority: "MEDIUM",
+      reopenedFrom: null,
+      descriptionMustMatch: [{ description: "descrever o sintoma", pattern: /Excel/i }],
+      descriptionMustNotMatch: [INVENTED_FACTS],
+    },
+    ticketsCreated: [],
+  },
+};
+
+const noDeadlineToday: Scenario = {
+  id: "extra-sem-compromisso-hoje",
+  title: '"Sem compromisso hoje" não vira "compromisso hoje em risco"',
+  source: "extra",
+  reference: "§3.5 (urgência); QA C1 bloqueante 1",
+  employeeEmail: JULIANA,
+  tickets: { ofEmployee: [], ofOthers: [] },
+  steps: [
+    say(
+      "Quero abrir um chamado: o leitor de PDF fecha sozinho quando abro arquivos grandes. Só eu estou com isso, consigo abrir pelo navegador por enquanto e estou sem compromisso hoje.",
+      {
+        outcome: "draft_proposed",
+        toolsCalled: [{ tool: "findSimilarTickets" }, { tool: "proposeTicketDraft" }],
+        priority: "MEDIUM",
+        parts: { mustInclude: [{ type: "draft" }] },
+      },
+    ),
+  ],
+  final: {
+    conversationStatus: "agent",
+    handoffReason: null,
+    proposedAction: {
+      kind: "create_ticket",
+      status: "pending",
+      ticketKind: "INC",
+      priority: "MEDIUM",
+      descriptionMustNotMatch: [INVENTED_FACTS],
+    },
+    ticketsCreated: [],
+  },
+};
+
+const keyboardWithoutOs: Scenario = {
+  id: "extra-teclado-sem-so",
+  title: "Teclado parado: não pergunta o sistema operacional",
+  source: "extra",
+  reference: "§6.4 (condição só quando o artigo depende dela); QA C1 bloqueante 3",
+  employeeEmail: PEDRO,
+  tickets: { ofEmployee: [], ofOthers: [] },
+  steps: [
+    say("Meu teclado parou de funcionar.", {
+      toolsForbidden: ["proposeTicketDraft", "requestHandoff"],
+      parts: { mustNotInclude: [{ type: "quickReplies", includesLabel: "Windows" }] },
+      text: { mustNotMatch: [ASKS_OPERATING_SYSTEM] },
+    }),
+  ],
+  final: {
+    conversationStatus: "agent",
+    handoffReason: null,
+    proposedAction: null,
+    ticketsCreated: [],
+  },
+};
+
+const returnWithNote: Scenario = {
+  id: "extra-devolucao-com-nota",
+  title: 'Devolução com nota seguida de "E aí, conseguiu?"',
+  source: "extra",
+  reference: "§5.11 returnNote; §7.5 Devolver ao agent; QA C1 bloqueante 4",
+  employeeEmail: JULIANA,
+  tickets: { ofEmployee: ["REQ-10510"], ofOthers: [] },
+  steps: [
+    say("Quero falar com um analista.", {
+      outcome: "handoff",
+      parts: { mustInclude: [{ type: "handoff", reason: "requested" }] },
+    }),
+    returnToAgent(
+      "Ela está falando do acesso ao Figma (REQ-10510): está aguardando ela aceitar o convite que mandamos por e-mail. Explique isso a ela.",
+    ),
+    say("E aí, conseguiu?", {
+      outcome: "answered",
+      policiesNotTriggered: ["ExplicitHandoffPolicy", "LowConfidencePolicy"],
+      toolsForbidden: ["requestHandoff"],
+      parts: { mustNotInclude: [{ type: "handoff" }] },
+      text: {
+        mustMatch: [
+          { description: "explicar o que o analista viu (o convite)", pattern: /convite/i },
+        ],
+      },
+    }),
+  ],
+  final: {
+    conversationStatus: "agent",
+    proposedAction: null,
+    ticketsCreated: [],
+  },
+};
+
 export const SPEC_SCENARIOS: Scenario[] = [
   vpnWindows11,
   vpnWindows10,
@@ -695,6 +887,11 @@ export const EXTRA_SCENARIOS: Scenario[] = [
   articleDidNotHelp,
   pausedDeadline,
   criticalDraftCancelled,
+  wifiShortSentence,
+  intakeByOptions,
+  noDeadlineToday,
+  keyboardWithoutOs,
+  returnWithNote,
 ];
 
 export const SCENARIOS: Scenario[] = [...SPEC_SCENARIOS, ...EXTRA_SCENARIOS];

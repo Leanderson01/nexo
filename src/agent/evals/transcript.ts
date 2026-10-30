@@ -24,6 +24,8 @@ export function transcriptLines(step: ScenarioStep, observed: ObservedStep | und
 function describeAction(step: ScenarioStep): string {
   if (step.kind === "confirmDraft") return "Funcionário: [clica em Confirmar]";
   if (step.kind === "cancelDraft") return "Funcionário: [clica em Cancelar]";
+  if (step.kind === "returnToAgent")
+    return `Analista: [devolve ao agent com a nota "${step.note}"]`;
   return step.via === "quickReply"
     ? `Funcionário: [escolhe "${step.text}"]`
     : `Funcionário: ${step.text}`;

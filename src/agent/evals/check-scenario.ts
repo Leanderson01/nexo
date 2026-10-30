@@ -46,6 +46,7 @@ export function checkScenario(scenario: Scenario, observed: ObservedScenario): s
 function describeStep(step: ScenarioStep): string {
   if (step.kind === "confirmDraft") return "clica em Confirmar";
   if (step.kind === "cancelDraft") return "clica em Cancelar";
+  if (step.kind === "returnToAgent") return "analista devolve ao agent";
   return step.via === "quickReply" ? `escolhe "${step.text}"` : `"${step.text}"`;
 }
 
@@ -385,7 +386,7 @@ function checkProposedAction(
     failures.push(
       ...checkTextRules(
         expect.descriptionMustMatch,
-        undefined,
+        expect.descriptionMustNotMatch,
         ticket.description,
         "a descrição do rascunho",
       ),

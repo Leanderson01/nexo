@@ -134,7 +134,23 @@ async function executeStep(step: ScenarioStep, context: StepContext): Promise<St
     case "confirmDraft":
     case "cancelDraft":
       return await clickDraftButton(step.kind, context);
+    case "returnToAgent":
+      return await returnToAgent(step.note, context);
   }
+}
+
+/** Analista que devolve as conversas nos cenários (seed, §4.1). */
+const ANALYST_EMAIL = "ana.ribeiro@nexo.com.br";
+
+/** "Devolver ao agent" no console, como a analista do seed, com a nota (§7.5). */
+async function returnToAgent(note: string, context: StepContext): Promise<StepProblem | null> {
+  const analyst = await signInAs(context.options.config.convexUrl, ANALYST_EMAIL);
+  const result = await analyst.mutation(api.console.returnToAgent, {
+    conversationId: context.conversationId,
+    note,
+  });
+  if (result.ok) return null;
+  return { message: `a devolução ao agent foi recusada (${result.error}).`, stop: true };
 }
 
 async function sendMessage(text: string, context: StepContext): Promise<StepProblem | null> {

@@ -140,7 +140,9 @@ export interface TurnExpectation {
 export type ScenarioStep =
   | { kind: "message"; text: string; via: "typed" | "quickReply"; expect?: TurnExpectation }
   | { kind: "confirmDraft" }
-  | { kind: "cancelDraft" };
+  | { kind: "cancelDraft" }
+  /** O analista devolve a conversa ao agent no console (§7.5), com a nota opcional. */
+  | { kind: "returnToAgent"; note: string };
 
 // ---------- Estado final ----------
 
@@ -154,6 +156,8 @@ export type ProposedActionExpectation = { status?: PendingActionStatus } & (
       /** `null` = o rascunho não pode referenciar chamado antigo. */
       reopenedFrom?: TicketCode | null;
       descriptionMustMatch?: TextRule[];
+      /** Fatos que a descrição não pode trazer (inventados: nada disso foi dito). */
+      descriptionMustNotMatch?: TextRule[];
     }
   | { kind: "update_ticket"; code: TicketCode }
   | { kind: "reopen_ticket"; code: TicketCode }
@@ -253,4 +257,8 @@ export function confirmDraft(): ScenarioStep {
 
 export function cancelDraft(): ScenarioStep {
   return { kind: "cancelDraft" };
+}
+
+export function returnToAgent(note: string): ScenarioStep {
+  return { kind: "returnToAgent", note };
 }
