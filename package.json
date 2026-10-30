@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "seed": "convex run seed:run",
     "setup:auth": "node scripts/setup-auth-env.mjs",
+    "setup:local": "node scripts/setup-local-env.mjs",
     "spike:llm": "tsx scripts/spike-llm.ts",
     "evals": "tsx src/agent/evals/run-evals.ts"
   },
