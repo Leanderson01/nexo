@@ -24,7 +24,7 @@ export async function act(options: {
   model: LlmModels["main"];
   briefing: string;
   history: ChatMessage[];
-  tools: ReturnType<typeof createTools>;
+  tools: Partial<ReturnType<typeof createTools>>;
   onText: (piece: string) => Promise<void>;
   /** Encerra o loop depois do passo atual (ex.: o legado caiu e não adianta continuar). */
   shouldStop: () => boolean;

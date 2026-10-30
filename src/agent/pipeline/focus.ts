@@ -1,6 +1,7 @@
 import type { Intent } from "@/domain/enums";
 import type { TicketCode } from "@/domain/ticket";
 import type { Understanding } from "@/domain/understanding";
+import { normalizeText } from "@/shared/normalize-text";
 
 import { resolveFocusedTicket, type FocusedTicketResolution } from "./resolve-focused-ticket";
 import type { TurnWorkspace } from "./turn-workspace";
@@ -79,5 +80,37 @@ export async function resolveFocus(options: {
     employeeTickets: workspace.employeeTickets,
   });
   workspace.focusedTicket = resolution.focusedTicket;
+  const unspecified = unspecifiedTicket(
+    understanding,
+    options.userText,
+    selectedTicketCode,
+    resolution,
+  );
+  if (unspecified && workspace.employeeTickets.length > 1) {
+    return {
+      resolution: { focusedTicket: null, ambiguousCandidates: workspace.employeeTickets },
+      ticketsUnavailable: false,
+    };
+  }
   return { resolution, ticketsUnavailable: false };
+}
+
+/** "Qual o status do meu chamado?": um chamado, no singular, sem dizer qual. */
+const ONE_UNNAMED_TICKET = /\b(meu|o|do|esse|este) (chamado|pedido|ticket)\s*[?.!]*\s*$/;
+
+/**
+ * Consulta de um chamado sem dizer qual, com mais de um: o seletor (F2, "vários"), decidido em
+ * código (QA: o modelo às vezes listava os chamados no texto, ou dizia "não encontrei").
+ */
+function unspecifiedTicket(
+  understanding: Understanding,
+  userText: string,
+  selectedTicketCode: TicketCode | null,
+  resolution: FocusedTicketResolution,
+): boolean {
+  if (understanding.intent !== "ticket_status" || selectedTicketCode !== null) return false;
+  if (resolution.focusedTicket !== null || resolution.ambiguousCandidates.length > 0) return false;
+  const { ticketRef, device, system } = understanding.entities;
+  if (ticketRef || device || system) return false;
+  return ONE_UNNAMED_TICKET.test(normalizeText(userText));
 }

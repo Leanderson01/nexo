@@ -2,7 +2,7 @@ import type { ConvexHttpClient } from "convex/browser";
 
 import type { GuidingAction } from "@/agent/policies/run-policies";
 import { buildTurnBriefing } from "@/agent/prompts/turn-briefing";
-import { createTools } from "@/agent/tools/create-tools";
+import { createTools, toolsForIntent } from "@/agent/tools/create-tools";
 import { listMyTicketsTool } from "@/agent/tools/list-my-tickets";
 import type { ToolSession } from "@/agent/tools/tool-session";
 import { withTrace, type TraceEnvironment } from "@/agent/tools/with-trace";
@@ -133,6 +133,9 @@ export interface RunTurnOptions {
   /** Onde a resposta é escrita. Padrão: as mutations de convex/messages.ts. */
   sink?: AgentMessageSink;
 }
+
+/** A pergunta do seletor de chamados montado em código. */
+const SELECTOR_QUESTION = "Qual desses chamados você quer consultar?";
 
 /** Novas tentativas do AGIR quando o texto promete um rascunho que não foi proposto. */
 const MAX_DRAFT_RETRIES = 2;
@@ -460,7 +463,7 @@ async function answerWithModel(
       model: turn.deps.llm.models.main,
       briefing: extraInstruction ? `${briefing}\n\n${extraInstruction}` : briefing,
       history: context.history,
-      tools: createTools(session, traceEnvironment),
+      tools: toolsForIntent(createTools(session, traceEnvironment), understanding.intent),
       onText,
       // Rascunho recusado por falta de sinais: a pergunta sai em código, o loop para aqui.
       shouldStop: () =>
@@ -614,6 +617,30 @@ async function answerWithModel(
     // O prazo vencido é explicado em código, com a mesma base do card (QA: o texto dizia
     // "4 dias" e o card "há 6 dias").
     replaceModelText(turn, overdueOfferText(overdueOffer, turn.now));
+  }
+  // Mais de um chamado combina e o AGIR não mostrou o seletor nem um chamado (F2, "vários"):
+  // o seletor entra em código, com a pergunta dele, e o texto vira a frase curta.
+  const candidates = focus.resolution.ambiguousCandidates;
+  if (
+    candidates.length > 1 &&
+    understanding.intent === "ticket_status" &&
+    !workspace.hasTicketSelector() &&
+    workspace.shownTickets().length === 0 &&
+    workspace.draft === null &&
+    !overdueOffer
+  ) {
+    workspace.showTicketSelector(
+      candidates.map((ticket) => ticket.code),
+      SELECTOR_QUESTION,
+    );
+    workspace.clearQuickReplies();
+    replaceModelText(turn, "Encontrei mais de um chamado seu.");
+    turn.corrections.push(
+      correction(
+        "one_question",
+        "Mais de um chamado do funcionário combinava e a resposta não mostrou o seletor: o seletor entrou em código.",
+      ),
+    );
   }
   // Condução em código (QA C1): perguntas conhecidas com texto e opções daqui, uma por turno.
   const basedOnArticle = await conductReply(turn, {

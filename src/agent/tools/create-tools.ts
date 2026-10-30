@@ -1,4 +1,5 @@
 import { createTool } from "@mastra/core/tools";
+import type { Understanding } from "@/domain/understanding";
 
 import { plainHyphens } from "@/shared/normalize-text";
 
@@ -35,6 +36,22 @@ export function createTools(session: ToolSession, environment: TraceEnvironment)
     offerQuickReplies: toMastraTool(offerQuickRepliesTool(session), environment),
     showTicketSelector: toMastraTool(showTicketSelectorTool(session), environment),
   };
+}
+
+/**
+ * Consulta de status não propõe nada (QA: "Como está o chamado da impressora?" às vezes chamava
+ * proposeTicketDraft): as tools de proposta ficam fora do turno.
+ */
+export function toolsForIntent(
+  tools: ReturnType<typeof createTools>,
+  intent: Understanding["intent"],
+): Partial<ReturnType<typeof createTools>> {
+  if (intent !== "ticket_status") return tools;
+  const { proposeTicketDraft, proposeTicketUpdate, proposeReopen, ...rest } = tools;
+  void proposeTicketDraft;
+  void proposeTicketUpdate;
+  void proposeReopen;
+  return rest;
 }
 
 function withPlainHyphens<Input>(input: Input): Input {
