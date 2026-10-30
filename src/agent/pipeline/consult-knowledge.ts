@@ -15,9 +15,22 @@ export function shouldConsultKnowledge(understanding: Understanding): boolean {
   return INTENTS_THAT_SEARCH.includes(understanding.intent);
 }
 
-/** Termos da busca: o resumo do ENTENDER, o código de erro e o dispositivo, se houver. */
-export function knowledgeQuery(understanding: Understanding): string {
-  return [understanding.summary, understanding.entities.errorCode, understanding.entities.device]
+/**
+ * Termos da busca: o resumo do ENTENDER, o código de erro, o dispositivo e, numa resposta curta
+ * a uma pergunta do agent ("Windows 10"), a fala em que o funcionário contou o problema: o
+ * resumo desse turno às vezes era só "Resposta ao pedido de sistema operacional" e a busca não
+ * achava o artigo (extra-artigo-nao-resolveu).
+ */
+export function knowledgeQuery(
+  understanding: Understanding,
+  problem: string | null = null,
+): string {
+  return [
+    understanding.summary,
+    understanding.entities.errorCode,
+    understanding.entities.device,
+    problem,
+  ]
     .filter((term) => term !== null && term !== "")
     .join(" ");
 }
@@ -26,8 +39,9 @@ export function knowledgeQuery(understanding: Understanding): string {
 export async function consultKnowledge(
   session: ToolSession,
   environment: TraceEnvironment,
+  problem: string | null = null,
 ): Promise<ArticleForModel[] | null> {
   const search = withTrace(searchKnowledgeBaseTool(session), environment);
-  const result = await search({ query: knowledgeQuery(session.understanding) });
+  const result = await search({ query: knowledgeQuery(session.understanding, problem) });
   return result.ok ? result.articles : null;
 }

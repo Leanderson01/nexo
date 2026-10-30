@@ -418,7 +418,7 @@ async function answerWithModel(
     !similarTickets?.length &&
     !workspace.legacyUnavailable &&
     !turn.facts.answeredIntakeNow
-      ? await consultKnowledge(session, traceEnvironment)
+      ? await consultKnowledge(session, traceEnvironment, pickedReplyProblem(turn))
       : null;
   if (workspace.legacyUnavailable) {
     await finishWithError(
@@ -1282,6 +1282,12 @@ function derivedPriorityRecord(decision: TurnDecision, now: number) {
   if (!decision.derivedPriority) return null;
   const { priority, reason } = decision.derivedPriority;
   return { value: priority, reason, dueAt: computeDueAt(priority, now) };
+}
+
+/** Numa opção escolhida ("Windows 10"), a fala em que o funcionário contou o problema. */
+function pickedReplyProblem(turn: Turn): string | null {
+  const picked = findPickedReply(turn.context.snapshot.recentMessages, turn.input.userText);
+  return picked ? reportedProblem(turn.facts) : null;
 }
 
 /** A fala em que o funcionário contou o problema (a mais longa da janela), se houver. */
