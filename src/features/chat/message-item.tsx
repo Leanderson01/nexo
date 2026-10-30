@@ -3,6 +3,8 @@
 import type { FunctionReturnType } from "convex/server";
 
 import type { MessagePart } from "@/domain/message-parts";
+import { ListenButton } from "@/features/voice/listen-button";
+import { speakableText } from "@/features/voice/speech";
 import type { api } from "../../../convex/_generated/api";
 import { QuickReplies } from "./blocks/quick-replies";
 import { ReplyBubble } from "./blocks/reply-bubble";
@@ -65,6 +67,7 @@ function AssistantMessage({
             onShowDetails={onShowDetails}
           />
         )}
+        {!isStreaming && <ListenButton text={speakableText(message.parts)} />}
       </ReplyHeader>
       {isStreaming && !hasText && <TypingBubble />}
       <ReplyParts message={message} actions={actions} showCaret={isStreaming} />
