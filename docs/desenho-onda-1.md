@@ -396,3 +396,40 @@ empty`) e gravam evento `system` com o nome e o nível do analista.
 - Diferenças do protótipo: presença/"online" fora (decisão 12); "Encerradas" no menu de filtros; painel do
   funcionário some abaixo de 1100 px; card de resumo recolhível; "Encerrar" para conversa com o agent fica
   no menu ⋮. A busca cobre nome, assunto e o código do chamado da conversa.
+
+### T10: pipeline do agent
+
+- **Contexto** (`context-loader.ts`): estado, rascunho pendente, funcionário e as 12 últimas mensagens;
+  resumo acumulado reescrito pelo modelo rápido quando 10+ mensagens ficam fora dele (custo entra no
+  turno); depois de 12 h, a resposta abre com o retomo (`buildReturnContext`).
+- **ENTENDER** (`understand.ts`): modelo rápido, estrito; uma nova tentativa com lembrete do schema;
+  persistindo, `unclear` com confiança 0,3.
+- **Foco** (`focus.ts`): só em turnos sobre chamado; `listMyTickets` via `withTrace` (aparece no painel)
+  e `resolveFocusedTicket`, com fallback para dispositivo, sistema e o próprio texto.
+- **DECIDIR** (`decide.ts`): `deriveSignalsPriority` + `runPolicies`; decisão 22 (aceitar a oferta do
+  vencido transfere com `overdue`); `clarificationAttempts` sobe no esclarecimento e zera em confiança
+  alta ou transferência; ações decisivas respondem em código (`code-replies.ts`, `shortCircuit: true`).
+- **AGIR** (`act.ts`): agent Mastra por requisição com `createTools(session, traceEnv)` e `withTrace`.
+  Em dúvidas e problemas, a central de ajuda é consultada **em código** antes do AGIR (o modelo pulava a
+  busca). Vencido: card e opções "Sim, chamar um analista"/"Não, obrigado" fixos em código. Crítico:
+  rascunho com `handoffOnConfirm`.
+- **REGISTRAR** (`record.ts`): `DecisionRecord` completo, com os campos da decisão 23, e `finish(parts,
+decisionId)`.
+- **Erros:** legado fora depois do retry ou falha do LLM → mensagem honesta, opção "Falar com um
+  analista" e parte `error` repetível; o turno termina `complete` com `decisionId` (o retry da T11 foi
+  ajustado para achar esse turno pela parte de erro).
+- **Funções Convex** (`convex/agent.ts`, todas com segredo): `loadTurnContext`, `createDraft`,
+  `saveTurnState`, `recordDecision` e `transfer` (via `transferToAnalyst`). Campos novos em
+  `conversations`: `pendingHandoffOffer` (decisão 22) e `summarizedMessageCount`.
+- **`runTurn(input, options?)`**: `RunTurnInput` igual ao da T5; `RunTurnOptions` agora é
+  `{ dependencies?, sink? }`.
+- **Validação real com o Groq** (6 de 6 exigidos + extras): VPN Win11 e Win10, notebook vencido (3 de
+  3), SAP reabre, Wi-Fi novo com referência, injeção recusada em código, "quero falar com uma pessoa",
+  legado 100% fora, holerite → RH, mensagem vaga → 2 esclarecimentos e transferência, impressora vira
+  atualização, chamado alheio sem vazar o código, senha mascarada, Figma com prazo pausado. Custo:
+  ~US$ 0,0006–0,0015 por turno completo, ~US$ 0,0001 no curto-circuito, ~US$ 0,04 na validação toda.
+- **Para a T14b:** o banner de transferência vem na **mensagem `system`** criada no mesmo turno, não na
+  resposta do agent; o runner deve tratar todas as mensagens não-usuário do passo como a resposta.
+- **Pendências:** o ranking da central de ajuda ainda devolve artigo "aplicável" para problema sem
+  relação (não afetou os cenários); o ENTENDER não recebe a lista de chamados (§6.2) para não consultar
+  o legado a cada turno; o foco é resolvido em código.
