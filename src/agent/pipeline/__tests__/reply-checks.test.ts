@@ -7,7 +7,9 @@ import {
   draftRetryInstruction,
   EMPTY_REPLY_FALLBACK_TEXT,
   EMPTY_REPLY_RETRY_INSTRUCTION,
+  extractQuickRepliesFromText,
   isEmptyReply,
+  QUICK_REPLIES_ONLY_TEXT,
   resolveEmptyReply,
   TALK_TO_ANALYST_OPTION,
   extractTicketCodes,
@@ -57,6 +59,23 @@ describe("removeToolCallsFromText", () => {
   it("se só havia a chamada, vira um aviso honesto", () => {
     const result = removeToolCallsFromText('offerQuickReplies({"options":["Sim","Não"]})');
     expect(result?.text).toBe(TOOL_CALL_FALLBACK_TEXT);
+  });
+
+  it("as opções de um offerQuickReplies escrito voltam para virar a parte de opções", () => {
+    const result = removeToolCallsFromText(
+      'Qual o impacto?\nofferQuickReplies({"options":["Só eu","Minha equipe"]})',
+    );
+    expect(result?.text).toBe("Qual o impacto?");
+    expect(result?.quickReplies).toEqual(["Só eu", "Minha equipe"]);
+    expect(result?.correction.explanation).toContain("viraram opções rápidas");
+  });
+
+  it("não devolve opções quando a tool já anexou as dela ou quando só havia a chamada", () => {
+    const call = 'Isso resolveu? offerQuickReplies({"options":["Sim","Não"]})';
+    expect(removeToolCallsFromText(call, true)?.quickReplies).toBeNull();
+    expect(
+      removeToolCallsFromText('offerQuickReplies({"options":["Sim"]})')?.quickReplies,
+    ).toBeNull();
   });
 
   it("não mexe em texto normal, nem no nome da tool sem parênteses", () => {
@@ -353,5 +372,131 @@ describe("resolveEmptyReply", () => {
   it("a instrução da nova tentativa pede texto e as opções pela tool", () => {
     expect(EMPTY_REPLY_RETRY_INSTRUCTION).toContain("## Correção (decidida em código)");
     expect(EMPTY_REPLY_RETRY_INSTRUCTION).toContain("offerQuickReplies");
+  });
+});
+
+describe("extractQuickRepliesFromText", () => {
+  const extract = (text: string, hasQuickReplies = false) =>
+    extractQuickRepliesFromText({ text, hasQuickReplies });
+
+  it("marcação [options] com ponto e vírgula (visto com o modelo real)", () => {
+    const result = extract(
+      "Qual o impacto desse problema?\n\n[options] Só eu; Minha equipe; A empresa toda",
+    );
+    expect(result?.text).toBe("Qual o impacto desse problema?");
+    expect(result?.quickReplies).toEqual(["Só eu", "Minha equipe", "A empresa toda"]);
+    expect(result?.correction.rule).toBe("quick_replies_as_text");
+    expect(result?.correction.explanation).toContain("virou 3 opção(ões)");
+  });
+
+  it("variações da marcação: [opções: ...], [Opções rápidas] com barra vertical", () => {
+    expect(extract("Funcionou? [opções: Sim, Não]")).toMatchObject({
+      text: "Funcionou?",
+      quickReplies: ["Sim", "Não"],
+    });
+    expect(extract("Funcionou?\n[Opções rápidas]: Sim | Não")).toMatchObject({
+      text: "Funcionou?",
+      quickReplies: ["Sim", "Não"],
+    });
+  });
+
+  it("JSON solto, inclusive num bloco de código", () => {
+    expect(
+      extract('Qual o impacto?\n{"options": ["Só eu", "Minha equipe", "A empresa toda"]}'),
+    ).toMatchObject({
+      text: "Qual o impacto?",
+      quickReplies: ["Só eu", "Minha equipe", "A empresa toda"],
+    });
+    expect(
+      extract('Qual o impacto?\n```json\n{"options":["Só eu","Minha equipe"]}\n```'),
+    ).toMatchObject({ text: "Qual o impacto?", quickReplies: ["Só eu", "Minha equipe"] });
+  });
+
+  it("narração sem rótulos só sai; com dois-pontos, os rótulos viram opções", () => {
+    expect(extract("Qual o impacto? (oferecendo opções rápidas)")).toMatchObject({
+      text: "Qual o impacto?",
+      quickReplies: null,
+    });
+    expect(extract("Qual o impacto?\n[mostrando as opções]")?.text).toBe("Qual o impacto?");
+    expect(extract("Funcionou? (opções rápidas: Sim, Não)")).toMatchObject({
+      text: "Funcionou?",
+      quickReplies: ["Sim", "Não"],
+    });
+  });
+
+  it('"Opções:" com lista abaixo ou na mesma linha', () => {
+    expect(extract("Isso resolveu?\nOpções:\n- Sim\n- Não")).toMatchObject({
+      text: "Isso resolveu?",
+      quickReplies: ["Sim", "Não"],
+    });
+    expect(extract("Isso resolveu?\n\nOpções: - Sim - Não")).toMatchObject({
+      text: "Isso resolveu?",
+      quickReplies: ["Sim", "Não"],
+    });
+    expect(
+      extract("Qual o impacto?\n**Opções:**\n1. Só eu\n2. Minha equipe\n3. A empresa toda"),
+    ).toMatchObject({
+      text: "Qual o impacto?",
+      quickReplies: ["Só eu", "Minha equipe", "A empresa toda"],
+    });
+  });
+
+  it("pergunta seguida de lista curta com marcadores", () => {
+    expect(extract("Qual o impacto?\n- Só eu\n- Minha equipe\n- A empresa toda")).toMatchObject({
+      text: "Qual o impacto?",
+      quickReplies: ["Só eu", "Minha equipe", "A empresa toda"],
+    });
+  });
+
+  it("com as opções da tool já anexadas, o trecho só sai", () => {
+    const result = extract("Qual o impacto?\n[options] Só eu; Minha equipe", true);
+    expect(result).toMatchObject({ text: "Qual o impacto?", quickReplies: null });
+    expect(result?.correction.explanation).toContain("as opções da tool ficaram");
+  });
+
+  it("se só havia as opções, o texto não fica vazio acima delas", () => {
+    expect(extract("[options] Sim; Não")).toMatchObject({
+      text: QUICK_REPLIES_ONLY_TEXT,
+      quickReplies: ["Sim", "Não"],
+    });
+    expect(extract("(oferecendo opções rápidas)", true)?.text).toBe(QUICK_REPLIES_ONLY_TEXT);
+    expect(extract("(oferecendo opções rápidas)")?.text).toBe(TOOL_CALL_FALLBACK_TEXT);
+  });
+
+  it("no máximo quatro opções, sem repetição", () => {
+    expect(extract("Qual? [options] A; B; A; C; D; E")?.quickReplies).toEqual(["A", "B", "C", "D"]);
+  });
+
+  describe("falsos positivos: listas que não são opções ficam", () => {
+    it("passos numerados de um artigo", () => {
+      const steps =
+        "Siga estes passos:\n1. Abra o Cisco AnyConnect.\n2. Clique em Desconectar.\n3. Reinicie o computador e conecte de novo.\n\nIsso resolveu?";
+      expect(extract(steps)).toBeNull();
+    });
+
+    it("passos numerados no fim do texto, mesmo curtos", () => {
+      expect(extract("Para reconectar:\n1. Abra a VPN\n2. Clique em Conectar")).toBeNull();
+    });
+
+    it("lista com marcadores que não vem depois de uma pergunta", () => {
+      expect(extract("O que sei do seu chamado:\n- Status: aberto\n- Prioridade: Alta")).toBeNull();
+    });
+
+    it("lista depois de pergunta, mas com itens longos ou frases", () => {
+      expect(
+        extract(
+          "Você já tentou isto?\n- Reiniciar o computador e esperar alguns minutos antes de entrar\n- Limpar o cache do navegador.",
+        ),
+      ).toBeNull();
+    });
+
+    it("lista com mais de quatro itens", () => {
+      expect(extract("Qual sistema?\n- SAP\n- Teams\n- Outlook\n- VPN\n- Figma")).toBeNull();
+    });
+
+    it('"opções" no meio de uma frase e parênteses comuns', () => {
+      expect(extract("Você tem duas opções: reiniciar ou abrir um chamado.")).toBeNull();
+      expect(extract("Abra o portal (de softwares) e escolha as opções de instalação.")).toBeNull();
+    });
   });
 });

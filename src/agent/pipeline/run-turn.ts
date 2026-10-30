@@ -36,6 +36,7 @@ import {
   draftRetryInstruction,
   draftRetryReason,
   EMPTY_REPLY_RETRY_INSTRUCTION,
+  extractQuickRepliesFromText,
   extractTicketCodes,
   isEmptyReply,
   isNoTicketFound,
@@ -428,10 +429,26 @@ async function answerWithModel(
   }
 
   // Regra 4: chamada de tool escrita como texto não chega ao funcionário.
-  const withoutToolCalls = removeToolCallsFromText(modelText(turn));
+  const withoutToolCalls = removeToolCallsFromText(
+    modelText(turn),
+    workspace.quickReplyLabels() !== null,
+  );
   if (withoutToolCalls) {
     replaceModelText(turn, withoutToolCalls.text);
+    if (withoutToolCalls.quickReplies) workspace.offerQuickReplies(withoutToolCalls.quickReplies);
     turn.corrections.push(withoutToolCalls.correction);
+  }
+  // Regra 6: opções escritas como texto saem do texto e viram a parte de opções.
+  const withoutWrittenOptions = extractQuickRepliesFromText({
+    text: modelText(turn),
+    hasQuickReplies: workspace.quickReplyLabels() !== null,
+  });
+  if (withoutWrittenOptions) {
+    replaceModelText(turn, withoutWrittenOptions.text);
+    if (withoutWrittenOptions.quickReplies) {
+      workspace.offerQuickReplies(withoutWrittenOptions.quickReplies);
+    }
+    turn.corrections.push(withoutWrittenOptions.correction);
   }
 
   // As opções da oferta de analista são fixas em código (decisão 22 lê a resposta).

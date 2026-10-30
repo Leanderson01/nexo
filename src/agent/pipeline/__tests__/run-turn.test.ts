@@ -570,6 +570,10 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
     await turn.run();
 
     expect(turn.sink.text).toBe("Instale pelo portal de softwares.");
+    expect(turn.sink.finalParts).toContainEqual({
+      type: "quickReplies",
+      options: ["Sim", "Não"].map((label) => ({ label, value: label })),
+    });
     expect(turn.store.decisions[0].corrections).toEqual([
       expect.objectContaining({ rule: "tool_call_as_text" }),
     ]);
@@ -626,6 +630,38 @@ describe("runTurn: conferências depois do AGIR (decisão 25)", () => {
     ]);
     expect(turn.store.decisions[0].corrections).toEqual([
       expect.objectContaining({ rule: "empty_reply" }),
+    ]);
+  });
+
+  it("opções escritas como texto saem do texto e viram a parte de opções", async () => {
+    const turn = setup({ userText: MOUSE });
+    turn.understands({
+      intent: "open_ticket",
+      summary: "Mouse sem fio parou.",
+      ticketSignals: MOUSE_SIGNALS,
+    });
+    turn.groq.reply(
+      streamText(
+        MAIN,
+        ["Qual o impacto desse problema?\n\n", "[options] Só eu; Minha equipe; A empresa toda"],
+        USAGE,
+      ),
+    );
+
+    await turn.run();
+
+    expect(turn.sink.text).toBe("Qual o impacto desse problema?");
+    expect(turn.sink.finalParts).toEqual([
+      {
+        type: "quickReplies",
+        options: ["Só eu", "Minha equipe", "A empresa toda"].map((label) => ({
+          label,
+          value: label,
+        })),
+      },
+    ]);
+    expect(turn.store.decisions[0].corrections).toEqual([
+      expect.objectContaining({ rule: "quick_replies_as_text" }),
     ]);
   });
 });

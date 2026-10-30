@@ -307,8 +307,14 @@ function findCallEnd(text: string, openIndex: number): number {
 }
 
 /** O texto sem as chamadas, arrumado (crases vazias, espaços e linhas em branco a mais). */
-function stripToolCalls(text: string): { text: string; toolNames: string[] } {
+function stripToolCalls(text: string): {
+  text: string;
+  toolNames: string[];
+  /** As opções da primeira chamada de `offerQuickReplies` escrita, se trouxer alguma. */
+  offeredOptions: string[] | null;
+} {
   const toolNames: string[] = [];
+  let offeredOptions: string[] | null = null;
   let kept = "";
   let cursor = 0;
   for (const match of text.matchAll(TOOL_CALL_START)) {
@@ -316,39 +322,59 @@ function stripToolCalls(text: string): { text: string; toolNames: string[] } {
     toolNames.push(match[1]!);
     kept += text.slice(cursor, match.index);
     cursor = findCallEnd(text, match.index + match[0].length - 1);
+    const options =
+      match[1] === "offerQuickReplies" ? optionsInCall(text.slice(match.index, cursor)) : [];
+    if (offeredOptions === null && options.length > 0) offeredOptions = options;
   }
   kept += text.slice(cursor);
+  return { text: tidyText(kept), toolNames, offeredOptions };
+}
 
-  const tidy = kept
-    .replace(/```\w*\s*```/g, "") // bloco de código que só tinha a chamada
-    .replace(/``/g, "") // crases que só cercavam a chamada
+/** Os rótulos do array de uma chamada `offerQuickReplies({"options":[...]})` escrita. */
+function optionsInCall(call: string): string[] {
+  const array = call.match(/\[([^\]]*)\]?/);
+  return array ? parseWrittenOptions(array[1]!) : [];
+}
+
+/** Arruma o texto depois de tirar trechos: crases vazias, espaços e linhas em branco a mais. */
+function tidyText(text: string): string {
+  return text
+    .replace(/```\w*\s*```/g, "") // bloco de código que só tinha o trecho
+    .replace(/``/g, "") // crases que só cercavam o trecho
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .replace(/ {2,}/g, " ")
     .trim();
-  return { text: tidy, toolNames };
 }
 
 /**
  * O modelo às vezes escreve a chamada da tool como texto em vez de chamá-la (achado da T10b:
  * `offerQuickReplies({"options":[...]})`). A chamada não aconteceu e o trecho só confunde o
  * funcionário, então sai do texto. Se não sobrar nada, a resposta vira um aviso honesto.
+ * As opções de um `offerQuickReplies` escrito voltam em `quickReplies` (quem chama decide se
+ * viram a parte de opções); com o aviso honesto, não voltam.
  */
 export function removeToolCallsFromText(
   text: string,
-): { text: string; correction: ReplyCorrection } | null {
+  /** A resposta já tem a parte de opções (a tool foi chamada de verdade). */
+  hasQuickReplies = false,
+): { text: string; quickReplies: string[] | null; correction: ReplyCorrection } | null {
   const stripped = stripToolCalls(text);
   if (stripped.toolNames.length === 0) return null;
 
   const names = [...new Set(stripped.toolNames)].join(", ");
   const nothingLeft = stripped.text === "";
+  const quickReplies = nothingLeft || hasQuickReplies ? null : stripped.offeredOptions;
   return {
     text: nothingLeft ? TOOL_CALL_FALLBACK_TEXT : stripped.text,
+    quickReplies,
     correction: {
       rule: "tool_call_as_text",
       explanation: nothingLeft
         ? `O modelo escreveu a chamada de ${names} como texto e não sobrou resposta: virou um aviso honesto.`
-        : `O modelo escreveu a chamada de ${names} como texto: o trecho saiu da resposta.`,
+        : quickReplies
+          ? `O modelo escreveu a chamada de ${names} como texto: o trecho saiu da resposta e as opções escritas viraram opções rápidas.`
+          : `O modelo escreveu a chamada de ${names} como texto: o trecho saiu da resposta.`,
     },
   };
 }
@@ -406,6 +432,229 @@ export function resolveEmptyReply(input: {
     correction: {
       rule: "empty_reply",
       explanation: `${problem}, e a nova tentativa também não respondeu: a resposta virou um aviso honesto.`,
+    },
+  };
+}
+
+// ---------- Regra 6: opções rápidas escritas como texto viram a parte de opções ----------
+
+/** Máximo de opções da tool `offerQuickReplies`. */
+const MAX_QUICK_REPLIES = 4;
+/** Opção rápida é curta: item de lista mais longo que isto é passo ou explicação. */
+const MAX_LIST_LABEL_LENGTH = 40;
+const MAX_LIST_LABEL_WORDS = 5;
+/** Rótulo aceito nos formatos explícitos (marcação, JSON); mais longo que isto é descartado. */
+const MAX_EXPLICIT_LABEL_LENGTH = 60;
+
+/** Quando só sobraram as opções: o texto não fica vazio acima delas. */
+export const QUICK_REPLIES_ONLY_TEXT = "Escolha uma das opções abaixo.";
+
+const OPTIONS_WORD = String.raw`(?:op[çc][õo]es(?:\s+r[áa]pidas)?|options|quick\s*replies)`;
+
+/** `{"options": ["Só eu", ...]}`, com ou sem chaves e aspas na chave. */
+const JSON_OPTIONS = new RegExp(
+  String.raw`\{?\s*["']?(?:options|op[çc][õo]es|quickReplies)["']?\s*:\s*\[([^\]]*)\]\s*\}?`,
+  "gi",
+);
+/** `[opções: Sim, Não]`. */
+const TAG_OPTIONS_INLINE = new RegExp(String.raw`\[\s*${OPTIONS_WORD}\s*:\s*([^\]\n]*)\]`, "gi");
+/** `[options] Só eu; Minha equipe` (as opções vão até o fim da linha). */
+const TAG_OPTIONS_LINE = new RegExp(String.raw`\[\s*${OPTIONS_WORD}\s*\]\s*:?[ \t]*([^\n]*)`, "gi");
+/** Narração entre parênteses ou colchetes: "(oferecendo opções rápidas)", "(opções rápidas: Sim, Não)". */
+const NARRATION = new RegExp(
+  String.raw`[(\[][^()\[\]\n]{0,60}?(?:op[çc][õo]es\s+r[áa]pidas|quick\s*replies|offerQuickReplies|(?:oferec|mostr|anex)\w*\s+(?:as\s+|algumas\s+)?op[çc][õo]es)([^()\[\]\n]{0,200}?)[)\]]`,
+  "gi",
+);
+/** Linha que começa com o rótulo "Opções:" (o resto da linha pode trazer as opções). */
+const LABEL_LINE = new RegExp(
+  String.raw`^[ \t]*\*{0,2}${OPTIONS_WORD}\*{0,2}\s*:\*{0,2}[ \t]*(.*)$`,
+  "i",
+);
+const BULLET_ITEM = /^[ \t]*[-*•][ \t]+(.+?)[ \t]*$/;
+const ANY_LIST_ITEM = /^[ \t]*(?:[-*•]|\d+[.)])[ \t]+(.+?)[ \t]*$/;
+
+/** Tira aspas, negrito, marcador e pontuação final de um rótulo. */
+function cleanLabel(label: string): string {
+  return label
+    .trim()
+    .replace(/^(?:[-•]|\d+[.)])\s+/, "")
+    .replace(/^["'“”‘’`*]+|["'“”‘’`*]+$/g, "")
+    .replace(/[.;,]+$/, "")
+    .trim();
+}
+
+/** Opções escritas numa linha: entre aspas, ou separadas por ";", "|", " - ", vírgula ou "ou". */
+function splitInlineOptions(raw: string): string[] {
+  const quoted = [...raw.matchAll(/"((?:[^"\\]|\\.)*)"|“([^”]*)”/g)].map(
+    (match) => match[1] ?? match[2] ?? "",
+  );
+  if (quoted.length > 0) return quoted.map(cleanLabel);
+  const trimmed = raw.trim().replace(/^[-•]\s+/, "");
+  const separator = /[;|]/.test(trimmed)
+    ? /\s*[;|]\s*/
+    : /\s[-•]\s/.test(trimmed)
+      ? /\s+[-•]\s+/
+      : /\s*,\s*|\s+ou\s+/;
+  return trimmed.split(separator).map(cleanLabel);
+}
+
+/** Rótulos não vazios e não longos, sem repetição, no máximo quatro. */
+function usableLabels(labels: string[], maxLength: number): string[] {
+  const kept = labels.filter((label) => label !== "" && label.length <= maxLength);
+  return [...new Set(kept)].slice(0, MAX_QUICK_REPLIES);
+}
+
+/** As opções escritas num formato explícito (`[...]` do JSON, resto da linha da marcação). */
+export function parseWrittenOptions(raw: string): string[] {
+  return usableLabels(splitInlineOptions(raw), MAX_EXPLICIT_LABEL_LENGTH);
+}
+
+/** Item de lista que pode ser opção rápida: curto, sem ponto final nem dois-pontos. */
+function isShortOption(raw: string): boolean {
+  const label = cleanLabel(raw);
+  return (
+    label !== "" &&
+    label.length <= MAX_LIST_LABEL_LENGTH &&
+    label.split(/\s+/).length <= MAX_LIST_LABEL_WORDS &&
+    !/[.:]\**$/.test(raw.trim())
+  );
+}
+
+/** 2 a 4 itens, todos curtos: o critério de lista que vira opções rápidas. */
+function looksLikeOptions(rawItems: string[]): boolean {
+  return (
+    rawItems.length >= 2 && rawItems.length <= MAX_QUICK_REPLIES && rawItems.every(isShortOption)
+  );
+}
+
+interface Found {
+  labels: string[];
+  format: string;
+}
+
+/** A lista no fim das linhas (ignorando linhas em branco no fim): onde começa e os itens. */
+function trailingList(lines: string[], item: RegExp): { start: number; rawItems: string[] } | null {
+  let end = lines.length;
+  while (end > 0 && lines[end - 1]!.trim() === "") end--;
+  let start = end;
+  while (start > 0 && item.test(lines[start - 1]!)) start--;
+  if (start === end) return null;
+  const rawItems = lines.slice(start, end).map((line) => line.match(item)![1]!);
+  return { start, rawItems };
+}
+
+/**
+ * "Opções:" no fim do texto, com as opções na mesma linha ("Opções: - Sim - Não") ou numa
+ * lista logo abaixo.
+ */
+function takeLabeledList(text: string): { text: string; found: Found } | null {
+  const lines = text.split("\n");
+  let end = lines.length;
+  while (end > 0 && lines[end - 1]!.trim() === "") end--;
+  const list = trailingList(lines.slice(0, end), ANY_LIST_ITEM);
+  const labelIndex = list ? list.start - 1 : end - 1;
+  const label = labelIndex >= 0 ? lines[labelIndex]!.match(LABEL_LINE) : null;
+  if (!label) return null;
+  const inline = label[1]!.trim();
+  if (list && inline !== "") return null;
+  const rawItems = list ? list.rawItems : splitInlineOptions(inline);
+  if (!looksLikeOptions(rawItems)) return null;
+  return {
+    text: lines.slice(0, labelIndex).join("\n"),
+    found: {
+      labels: usableLabels(rawItems.map(cleanLabel), MAX_LIST_LABEL_LENGTH),
+      format: "lista com o rótulo Opções",
+    },
+  };
+}
+
+/** Pergunta seguida de uma lista com marcadores (não numerada) no fim do texto. */
+function takeListAfterQuestion(text: string): { text: string; found: Found } | null {
+  const lines = text.split("\n");
+  const list = trailingList(lines, BULLET_ITEM);
+  if (!list || !looksLikeOptions(list.rawItems)) return null;
+  const question = lines
+    .slice(0, list.start)
+    .reverse()
+    .find((line) => line.trim() !== "");
+  if (!question?.trim().endsWith("?")) return null;
+  return {
+    text: lines.slice(0, list.start).join("\n"),
+    found: {
+      labels: usableLabels(list.rawItems.map(cleanLabel), MAX_LIST_LABEL_LENGTH),
+      format: "lista depois da pergunta",
+    },
+  };
+}
+
+/** Tira os trechos do padrão; `parse` lê as opções do grupo capturado. */
+function takePattern(
+  text: string,
+  pattern: RegExp,
+  format: string,
+  parse: (raw: string) => string[],
+  found: Found[],
+): string {
+  return text.replace(pattern, (_whole, raw: string | undefined) => {
+    found.push({ labels: parse(raw ?? ""), format });
+    return "";
+  });
+}
+
+/** Narração só traz opções depois de dois-pontos: "(opções rápidas: Sim, Não)". */
+function parseNarratedOptions(raw: string): string[] {
+  const afterColon = raw.match(/^\s*:\s*(.+)$/);
+  return afterColon ? parseWrittenOptions(afterColon[1]!) : [];
+}
+
+/**
+ * O modelo às vezes escreve as opções rápidas no texto em vez de chamar `offerQuickReplies`:
+ * `[options] Só eu; Minha equipe`, `{"options": [...]}`, "(oferecendo opções rápidas)",
+ * "Opções: - Sim - Não". O trecho sai do texto e, se a resposta ainda não tem opções, os
+ * rótulos viram a parte `quickReplies`. A narração sem rótulos só sai.
+ *
+ * Contra falso positivo, lista só conta como opções com sinal claro e no fim do texto: o
+ * rótulo "Opções:" logo antes, ou uma pergunta logo antes e itens com marcador (não
+ * numerados); e sempre 2 a 4 itens curtos (até 40 caracteres e 5 palavras, sem ponto final
+ * nem dois-pontos). Passos de um artigo (numerados, longos, depois de "Siga os passos:")
+ * ficam como estão.
+ */
+export function extractQuickRepliesFromText(input: {
+  text: string;
+  /** A resposta já tem a parte de opções (a tool foi chamada). */
+  hasQuickReplies: boolean;
+}): { text: string; quickReplies: string[] | null; correction: ReplyCorrection } | null {
+  const found: Found[] = [];
+  let text = input.text;
+  text = takePattern(text, JSON_OPTIONS, "JSON", parseWrittenOptions, found);
+  text = takePattern(text, TAG_OPTIONS_INLINE, "marcação [options]", parseWrittenOptions, found);
+  text = takePattern(text, TAG_OPTIONS_LINE, "marcação [options]", parseWrittenOptions, found);
+  text = takePattern(text, NARRATION, "narração das opções", parseNarratedOptions, found);
+  for (const take of [takeLabeledList, takeListAfterQuestion]) {
+    const taken = take(text);
+    if (taken) {
+      text = taken.text;
+      found.push(taken.found);
+    }
+  }
+  if (found.length === 0) return null;
+
+  const labels = found.find((item) => item.labels.length > 0)?.labels ?? null;
+  const quickReplies = !input.hasQuickReplies && labels ? labels : null;
+  const tidy = tidyText(text);
+  const withOptions = input.hasQuickReplies || quickReplies !== null;
+  const formats = [...new Set(found.map((item) => item.format))].join(", ");
+  const fix = quickReplies
+    ? `o trecho saiu e virou ${quickReplies.length} opção(ões) rápida(s)`
+    : input.hasQuickReplies
+      ? "o trecho saiu e as opções da tool ficaram"
+      : "o trecho saiu";
+  return {
+    text: tidy !== "" ? tidy : withOptions ? QUICK_REPLIES_ONLY_TEXT : TOOL_CALL_FALLBACK_TEXT,
+    quickReplies,
+    correction: {
+      rule: "quick_replies_as_text",
+      explanation: `O modelo escreveu opções rápidas como texto (${formats}): ${fix}.`,
     },
   };
 }
