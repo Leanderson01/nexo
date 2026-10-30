@@ -46,15 +46,26 @@ function fakeGroq(reply: FakeGroqReply = {}) {
   return { sent, fetch: fetchImpl as unknown as typeof fetch };
 }
 
-function deps(options: { role?: PersonRole | null; groq?: ReturnType<typeof fakeGroq> } = {}) {
+function deps(
+  options: {
+    role?: PersonRole | null;
+    groq?: ReturnType<typeof fakeGroq>;
+    withinDailyLimit?: boolean;
+  } = {},
+) {
   const groq = options.groq ?? fakeGroq();
+  const recordedSeconds: number[] = [];
   const result: TranscribeDeps = {
     findCallerRole: async () => (options.role === undefined ? "employee" : options.role),
     transcribe: createGroqTranscriber(config, groq.fetch),
     model: config.transcriptionModel,
     maxSeconds: 60,
+    isWithinDailyLimit: async () => options.withinDailyLimit ?? true,
+    recordUsage: async (seconds) => {
+      recordedSeconds.push(seconds);
+    },
   };
-  return { deps: result, groq };
+  return { deps: result, groq, recordedSeconds };
 }
 
 function audioRequest(bytes: number, contentType = "audio/webm;codecs=opus") {
@@ -69,6 +80,33 @@ async function errorCode(response: Response) {
   const body = (await response.json()) as TranscribeErrorBody;
   return body.error.code;
 }
+
+describe("limite diário de transcrição (§12.3)", () => {
+  test("com o limite do dia esgotado, recusa sem chamar o provedor", async () => {
+    const { deps: d, groq, recordedSeconds } = deps({ withinDailyLimit: false });
+    const response = await handleTranscribe(audioRequest(20_000), d);
+
+    expect(response.status).toBe(429);
+    expect(await errorCode(response)).toBe("daily_limit_reached");
+    expect(groq.sent).toHaveLength(0);
+    expect(recordedSeconds).toEqual([]);
+  });
+
+  test("registra a duração de cada transcrição feita", async () => {
+    const { deps: d, recordedSeconds } = deps({ groq: fakeGroq({ duration: 7.5 }) });
+    await handleTranscribe(audioRequest(20_000), d);
+
+    expect(recordedSeconds).toEqual([7.5]);
+  });
+
+  test("registra mesmo quando o texto sai vazio: o provedor cobrou", async () => {
+    const { deps: d, recordedSeconds } = deps({ groq: fakeGroq({ text: "   ", duration: 3 }) });
+    const response = await handleTranscribe(audioRequest(20_000), d);
+
+    expect(await errorCode(response)).toBe("not_understood");
+    expect(recordedSeconds).toEqual([3]);
+  });
+});
 
 describe("POST /api/transcribe", () => {
   test("transcreve em português, pontua e devolve duração e custo", async () => {

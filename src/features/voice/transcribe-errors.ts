@@ -7,6 +7,7 @@ export type TranscribeErrorCode =
   | "unsupported_type"
   | "empty_audio"
   | "too_long"
+  | "daily_limit_reached"
   | "not_understood"
   | "provider_failed"
   | "unavailable";
@@ -29,6 +30,10 @@ export const TRANSCRIBE_ERRORS: Record<TranscribeErrorCode, { status: number; me
   too_long: {
     status: 413,
     message: "O áudio passou do tempo máximo. Grave um trecho menor ou digite.",
+  },
+  daily_limit_reached: {
+    status: 429,
+    message: "A entrada por voz atingiu o limite de uso de hoje. Digite sua mensagem.",
   },
   not_understood: { status: 422, message: NOT_UNDERSTOOD_MESSAGE },
   provider_failed: {

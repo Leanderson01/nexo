@@ -12,27 +12,34 @@ import { createGroqTranscriber } from "./transcriber";
 
 export async function POST(request: Request) {
   const config = readConfig();
-  if (!config) return transcribeApiError("unavailable");
+  const agentSecret = process.env.AGENT_SERVER_SECRET;
+  if (!config || !agentSecret) return transcribeApiError("unavailable");
 
   try {
+    const convex = await createConvexClientForCurrentUser();
     return await handleTranscribe(request, {
-      findCallerRole,
+      findCallerRole: async () => {
+        if (!convex) return null;
+        const person = await convex.query(api.auth.currentPerson, {});
+        return person?.role ?? null;
+      },
       transcribe: createGroqTranscriber(config),
       model: config.transcriptionModel,
       maxSeconds: readMaxSeconds(),
+      // Limites diários da §12.3 (convex/usage.ts). Só chegam aqui com sessão de funcionário.
+      isWithinDailyLimit: async () => {
+        const allowed = await convex!.query(api.usage.checkTranscription, { secret: agentSecret });
+        return allowed.ok;
+      },
+      recordUsage: async (seconds) => {
+        await convex!.mutation(api.usage.recordTranscription, { secret: agentSecret, seconds });
+      },
     });
   } catch (error) {
     // Erros esperados já viram resposta no handler; aqui só chega o inesperado (Convex, rede).
     console.error("[transcribe] falha inesperada", error);
     return transcribeApiError("unavailable");
   }
-}
-
-async function findCallerRole() {
-  const convex = await createConvexClientForCurrentUser();
-  if (!convex) return null;
-  const person = await convex.query(api.auth.currentPerson, {});
-  return person?.role ?? null;
 }
 
 function readConfig(): LlmConfig | null {

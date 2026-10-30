@@ -27,6 +27,10 @@ export interface TranscribeDeps {
   model: string;
   /** `TRANSCRIPTION_MAX_SECONDS`. */
   maxSeconds: number;
+  /** Limite diário de transcrição (§12.3): false quando o dia já esgotou. */
+  isWithinDailyLimit: () => Promise<boolean>;
+  /** Soma a transcrição ao uso do dia (segundos e quantidade). */
+  recordUsage: (seconds: number) => Promise<void>;
 }
 
 export interface TranscribeResponse {
@@ -54,7 +58,8 @@ export async function handleTranscribe(request: Request, deps: TranscribeDeps): 
   if (audio.byteLength === 0) return transcribeApiError("empty_audio");
   if (audio.byteLength > maxBytes) return transcribeApiError("too_long");
 
-  // T16: checar o limite diário de transcrição aqui (antes de gastar com o provedor).
+  // Antes de gastar com o provedor.
+  if (!(await deps.isWithinDailyLimit())) return transcribeApiError("daily_limit_reached");
 
   let transcription;
   try {
@@ -67,8 +72,8 @@ export async function handleTranscribe(request: Request, deps: TranscribeDeps): 
   // Sem a duração do provedor, o custo sai pelo mínimo cobrado (10 s).
   const durationSeconds = transcription.durationSeconds ?? 0;
 
-  // T16: registrar o uso de transcrição aqui (durationSeconds e o custo abaixo), mesmo quando
-  // o texto sai vazio ou longo demais: o provedor cobrou do mesmo jeito.
+  // Registra mesmo quando o texto sai vazio ou longo demais: o provedor cobrou do mesmo jeito.
+  await deps.recordUsage(durationSeconds);
 
   if (durationSeconds > deps.maxSeconds + DURATION_TOLERANCE_SECONDS) {
     return transcribeApiError("too_long");
