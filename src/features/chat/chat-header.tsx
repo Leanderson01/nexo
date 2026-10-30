@@ -22,13 +22,22 @@ export function ChatHeader({
   analyst: AnalystInfo | null;
 }) {
   return (
+    <PageHeader current="Atendimento">
+      {status && <StatusBadge status={status} analyst={analyst} />}
+    </PageHeader>
+  );
+}
+
+/** Cabeçalho das telas do funcionário: breadcrumb "Service desk de TI > <tela>" e o que vier à direita. */
+export function PageHeader({ current, children }: { current: string; children?: React.ReactNode }) {
+  return (
     <header className={classes.header}>
       <div className={classes.breadcrumb}>
         <span>Service desk de TI</span>
         <ChevronRightIcon size={12} />
-        <span className={classes.breadcrumbCurrent}>Atendimento</span>
+        <span className={classes.breadcrumbCurrent}>{current}</span>
       </div>
-      {status && <StatusBadge status={status} analyst={analyst} />}
+      {children}
     </header>
   );
 }

@@ -1,10 +1,10 @@
 // Ícones de traço simples do chat, no mesmo estilo dos do login (sem biblioteca de ícones).
 
-interface IconProps {
+export interface IconProps {
   size?: number;
 }
 
-function StrokeIcon({ size = 16, children }: IconProps & { children: React.ReactNode }) {
+export function StrokeIcon({ size = 16, children }: IconProps & { children: React.ReactNode }) {
   return (
     <svg
       width={size}
