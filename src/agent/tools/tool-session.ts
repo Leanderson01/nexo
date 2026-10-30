@@ -66,6 +66,11 @@ export interface AgentTool<Input, Output extends ToolSuccess> {
   label: string;
   /** Chip quando a tool recusa (ex.: rascunho sem os sinais); sem ele, vale o `label`. */
   failureLabel?: string;
+  /**
+   * A recusa não vira chamada registrada (nem chip): é um "nada a fazer" do próprio turno, como
+   * as opções pedidas de novo (QA R1: o chip "manteve as opções do turno" era jargão).
+   */
+  silentRefusal?: boolean;
   /** O que o modelo lê para decidir quando usar a tool. */
   description: string;
   inputSchema: z.ZodType<Input>;

@@ -67,6 +67,7 @@ export function withTrace<Input, Output extends ToolSuccess>(
       outputSummary = "falha inesperada";
     }
 
+    if (!output.ok && tool.silentRefusal && outputSummary !== "falha inesperada") return output;
     environment.traces.push({
       tool: tool.name,
       label: output.ok ? tool.label : (tool.failureLabel ?? tool.label),

@@ -17,7 +17,7 @@ export function offerQuickRepliesTool(session: ToolSession): AgentTool<Input, Ou
   return {
     name: "offerQuickReplies",
     label: "ofereceu opções rápidas",
-    failureLabel: "manteve as opções do turno",
+    silentRefusal: true,
     description:
       "Anexa opções rápidas à resposta quando a pergunta for fechada. Só uma chamada por turno, para a única pergunta do turno.",
     inputSchema: input,
