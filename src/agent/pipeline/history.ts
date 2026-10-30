@@ -4,7 +4,7 @@ import type { MessagePart } from "@/domain/message-parts";
 import type { HistoryMessage } from "./agent-store";
 
 // Histórico do Convex no formato que o Mastra recebe (§5.2: o contexto entra pelas mensagens,
-// sem memória do Mastra). As partes estruturadas viram uma anotação curta entre colchetes,
+// sem memória do Mastra). As partes estruturadas viram uma anotação curta entre parênteses,
 // para o modelo saber o que o funcionário viu (ex.: as opções da pergunta que ele respondeu).
 
 /** União discriminada por `role`: `{ role: "user" | "assistant" }` não compila no Mastra. */
@@ -25,26 +25,40 @@ export function describePart(part: MessagePart): string {
     case "text":
       return part.text;
     case "article":
-      return `[card do artigo "${part.title}"]`;
+      return note(`card do artigo "${part.title}"`);
     case "ticket":
-      return `[card do chamado ${part.code}]`;
+      return note(`card do chamado ${part.code}`);
     case "ticketSelector":
-      return `[seletor de chamados: ${part.prompt} ${part.codes.join(", ")}]`;
+      return note(`seletor de chamados (${part.codes.join(", ")}): ${part.prompt}`);
     case "draft":
-      return "[card de rascunho para o funcionário confirmar]";
+      return note("card de rascunho para o funcionário confirmar");
     case "quickReplies":
-      return `[opções rápidas: ${part.options.map((option) => option.label).join(" | ")}]`;
+      // Fica de fora: medido na T10, o modelo copiava a anotação das opções no texto em vez de
+      // chamar offerQuickReplies. A resposta do funcionário já é o rótulo escolhido.
+      return "";
     case "handoff":
-      return `[transferido para analista: ${HANDOFF_REASON_LABELS[part.reason]}]`;
+      return note(`transferido para analista: ${HANDOFF_REASON_LABELS[part.reason]}`);
     case "event":
-      return `[${EVENT_NOTES[part.kind]}]`;
+      return note(EVENT_NOTES[part.kind]);
     case "error":
-      return `[erro mostrado: ${part.message}]`;
+      return note(`erro mostrado: ${part.message}`);
   }
 }
 
+/**
+ * Anotação de um bloco que o funcionário viu. Fica entre parênteses e com "mostrado pelo
+ * sistema" para o modelo não copiar o formato no texto (ele cria os blocos pelas tools).
+ */
+function note(description: string): string {
+  return `(mostrado pelo sistema: ${description})`;
+}
+
 function messageContent(message: HistoryMessage): string {
-  const text = message.parts.map(describePart).join("\n").trim();
+  const text = message.parts
+    .map(describePart)
+    .filter((piece) => piece !== "")
+    .join("\n")
+    .trim();
   if (message.role === "analyst") return `[Analista ${message.authorName ?? ""}]: ${text}`;
   return text;
 }

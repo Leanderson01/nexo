@@ -79,8 +79,7 @@ function understoodSentence(understanding: Understanding | null): string {
 
 function policySentence(input: RecordInput): string {
   if (input.decisiveAction) {
-    const policy = triggeredPolicyName(input.evaluations, input.decisiveAction.kind);
-    return `${policy ?? "Uma política"} decidiu ${describeDecisive(input.decisiveAction)}, sem chamar o modelo principal.`;
+    return `${decidingPolicy(input.decisiveAction)} decidiu ${describeDecisive(input.decisiveAction)}, sem chamar o modelo principal.`;
   }
   if (input.guidingActions.length > 0) {
     return `As políticas orientaram a resposta: ${input.guidingActions.map(describeGuiding).join("; ")}.`;
@@ -121,12 +120,19 @@ const STAGE_TEXT: Record<TurnStage, string> = {
   record: "REGISTRAR",
 };
 
-function triggeredPolicyName(evaluations: PolicyEvaluation[], kind: string): string | null {
-  return (
-    evaluations.find(
-      (evaluation) => evaluation.outcome === "triggered" && evaluation.actionKind === kind,
-    )?.name ?? null
-  );
+/** Que política toma cada ação decisiva (a transferência por vencido vem da oferta aceita). */
+function decidingPolicy(action: DecisiveAction): string {
+  if (action.kind !== "handoff") return "OutOfScopePolicy";
+  switch (action.reason) {
+    case "requested":
+      return "ExplicitHandoffPolicy";
+    case "overdue":
+      return "OverdueTicketPolicy";
+    case "low_confidence":
+      return "LowConfidencePolicy";
+    case "critical":
+      return "CriticalPolicy";
+  }
 }
 
 function describeDecisive(action: DecisiveAction): string {
@@ -154,7 +160,9 @@ function withPeriod(text: string): string {
   return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
+/** "Quer abrir" vira "quer abrir"; siglas ("VPN caiu") ficam como estão. */
 function lowercaseFirst(text: string): string {
+  if (/^\p{Lu}{2}/u.test(text)) return text;
   return text.charAt(0).toLowerCase() + text.slice(1);
 }
 

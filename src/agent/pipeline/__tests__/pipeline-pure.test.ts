@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { makeUnderstanding, MARIANA_NOTEBOOK } from "@/agent/policies/__tests__/fixtures";
 import { PASSWORD_PLACEHOLDER } from "@/domain/sensitive-data";
+import { plainHyphens } from "@/shared/normalize-text";
 
 import { buildHandoffSummary, sensitiveDataNotice, shortCircuitReply } from "../code-replies";
 import { buildReturnContext, loadContext, RETURN_CONTEXT_AFTER_MS } from "../context-loader";
 import { ACCEPT_HANDOFF_OFFER, decide, type DecideInput } from "../decide";
 import { toChatHistory } from "../history";
 import { buildDecisionRecord, type RecordInput } from "../record";
+import { ticketReference } from "../focus";
 import { decideOutcome, type OutcomeInput } from "../turn-outcome";
 import { addModelUsage, emptyUsage } from "../turn-usage";
 import { assistantMessage, InMemoryAgentStore, makeSnapshot, NOW, userMessage } from "./fakes";
@@ -64,7 +66,7 @@ describe("respostas em código", () => {
 });
 
 describe("contexto do turno", () => {
-  it("histórico anota as partes estruturadas e junta mensagens seguidas do mesmo papel", () => {
+  it("histórico anota os blocos (menos as opções) e junta mensagens seguidas do mesmo papel", () => {
     const history = toChatHistory([
       userMessage("Minha VPN dá erro 809"),
       assistantMessage([
@@ -91,7 +93,7 @@ describe("contexto do turno", () => {
       {
         role: "assistant",
         content:
-          "Qual é o seu Windows?\n[opções rápidas: Windows 10 | Windows 11]\n\n[a conversa voltou para o Nexo Assist]",
+          "Qual é o seu Windows?\n\n(mostrado pelo sistema: a conversa voltou para o Nexo Assist)",
       },
       { role: "user", content: "Windows 11" },
     ]);
@@ -270,5 +272,25 @@ describe("buildDecisionRecord", () => {
     expect(record.rationale).toBe(
       "Entendeu, com confiança alta: quer um analista. ExplicitHandoffPolicy decidiu transferir (pedido do funcionário), sem chamar o modelo principal. Transferiu a conversa para um analista com o resumo do caso.",
     );
+  });
+});
+
+describe("detalhes do texto do modelo", () => {
+  it("consulta de chamado sem ticketRef usa o dispositivo citado", () => {
+    const entities = {
+      system: null,
+      errorCode: null,
+      os: null,
+      device: "notebook",
+      ticketRef: null,
+    };
+    expect(ticketReference(makeUnderstanding({ intent: "ticket_status", entities }))).toBe(
+      "notebook",
+    );
+    expect(ticketReference(makeUnderstanding({ intent: "question", entities }))).toBeNull();
+  });
+
+  it("hífen tipográfico vira hífen comum (códigos e buscas)", () => {
+    expect(plainHyphens("INC\u201120077 e Wi\u2010Fi")).toBe("INC-20077 e Wi-Fi");
   });
 });

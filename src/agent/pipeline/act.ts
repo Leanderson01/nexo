@@ -3,6 +3,7 @@ import { Agent } from "@mastra/core/agent";
 import type { LlmModels } from "@/agent/llm/provider";
 import { ACT_PROMPT } from "@/agent/prompts/act-prompt";
 import type { createTools } from "@/agent/tools/create-tools";
+import { plainHyphens } from "@/shared/normalize-text";
 
 import type { ChatMessage } from "./history";
 import type { ModelUsage } from "./turn-usage";
@@ -46,12 +47,17 @@ export async function act(options: {
 
   const writer = new StepAwareWriter(options.onText);
   for await (const chunk of out.fullStream) {
-    if (chunk.type === "text-delta") await writer.write(chunk.payload.text);
+    if (chunk.type === "text-delta") await writer.write(cleanModelText(chunk.payload.text));
     if (chunk.type === "step-finish") writer.endStep();
   }
 
   if (out.error) return { ok: false, error: out.error, usage: await safeUsage(out.totalUsage) };
   return { ok: true, text: writer.text, usage: await out.totalUsage };
+}
+
+/** Hífen comum no lugar do tipográfico e sem o espaço de largura zero que o gpt-oss solta. */
+function cleanModelText(piece: string): string {
+  return plainHyphens(piece).replace(/\u200b/g, "");
 }
 
 /**

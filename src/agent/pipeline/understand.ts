@@ -4,6 +4,7 @@ import { MastraError } from "@mastra/core/error";
 import type { LlmModels } from "@/agent/llm/provider";
 import { schemaReminder, UNDERSTAND_PROMPT } from "@/agent/prompts/understand-prompt";
 import type { Understanding } from "@/domain/understanding";
+import { plainHyphens } from "@/shared/normalize-text";
 
 import type { ChatMessage } from "./history";
 import type { ModelUsage } from "./turn-usage";
@@ -70,7 +71,9 @@ async function generateUnderstanding(
       modelSettings: { maxRetries: 1, temperature: 0, timeout: { totalMs: UNDERSTAND_TIMEOUT_MS } },
     });
     usage.push(out.totalUsage);
-    return { ok: true, value: understandingSchema.parse(out.object) };
+    // Hífens tipográficos atrapalham a busca e os códigos: normaliza o JSON todo.
+    const parsed = understandingSchema.parse(JSON.parse(plainHyphens(JSON.stringify(out.object))));
+    return { ok: true, value: parsed };
   } catch (error) {
     return { ok: false, error };
   }

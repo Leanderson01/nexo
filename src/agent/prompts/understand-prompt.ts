@@ -23,7 +23,7 @@ summary: uma frase em português com o pedido. Em out_of_scope, repita as palavr
 
 entities: o que já se sabe na conversa inteira, não só na última mensagem; null quando não foi dito. Não invente.
 - os: como o funcionário disse ("Windows 11"). "Não sei" também vale.
-- ticketRef: código citado ("INC-20311") ou a descrição do chamado de que ele fala ("o do notebook").
+- ticketRef: sempre que ele falar de um chamado existente, o código citado ("INC-20311") ou a descrição do chamado ("e o meu chamado do notebook?" → "notebook"; "o pedido do monitor" → "monitor").
 
 ticketSignals (null quando não foi dito):
 - kind: INC = algo parou ou não funciona; REQ = pedido de acesso, equipamento ou software.

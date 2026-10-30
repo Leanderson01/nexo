@@ -30,6 +30,17 @@ export function needsEmployeeTickets(
   );
 }
 
+/**
+ * O que identifica o chamado: o `ticketRef` do ENTENDER ou, numa consulta de chamado sem ele
+ * ("e o meu chamado do notebook?" às vezes sai só como `device`), o dispositivo ou o sistema.
+ */
+export function ticketReference(understanding: Understanding): string | null {
+  const { ticketRef, device, system } = understanding.entities;
+  if (ticketRef) return ticketRef;
+  if (!TICKET_INTENTS.includes(understanding.intent)) return null;
+  return device ?? system;
+}
+
 export interface FocusResult {
   resolution: FocusedTicketResolution;
   /** O serviço de chamados não respondeu depois das tentativas. */
@@ -56,7 +67,7 @@ export async function resolveFocus(options: {
   }
 
   const resolution = resolveFocusedTicket({
-    ticketRef: understanding.entities.ticketRef,
+    ticketRef: ticketReference(understanding),
     selectedTicketCode,
     employeeTickets: workspace.employeeTickets,
   });

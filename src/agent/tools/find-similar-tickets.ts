@@ -79,7 +79,7 @@ export function findSimilarTicketsTool(session: ToolSession): AgentTool<Input, O
         instruction:
           candidates.length === 0
             ? "Nenhum parecido: pode propor um chamado novo."
-            : "Compare cada parecido com o problema atual. Se tratar do mesmo problema, siga o whatToDo dele e cite o código no texto; se for outro problema, ignore-o.",
+            : "Compare o título de cada parecido com o problema atual. Só é o mesmo problema se for a mesma falha no mesmo sistema (mesma categoria não basta). Se for, siga o whatToDo dele e cite o código no texto; se não for, ignore-o e não use referenceCode.",
       };
     },
   };

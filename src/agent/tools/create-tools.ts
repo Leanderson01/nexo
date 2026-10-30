@@ -1,5 +1,7 @@
 import { createTool } from "@mastra/core/tools";
 
+import { plainHyphens } from "@/shared/normalize-text";
+
 import { findSimilarTicketsTool } from "./find-similar-tickets";
 import { getMyTicketTool } from "./get-my-ticket";
 import { listMyTicketsTool } from "./list-my-tickets";
@@ -35,6 +37,10 @@ export function createTools(session: ToolSession, environment: TraceEnvironment)
   };
 }
 
+function withPlainHyphens<Input>(input: Input): Input {
+  return JSON.parse(plainHyphens(JSON.stringify(input))) as Input;
+}
+
 function toMastraTool<Input, Output extends ToolSuccess>(
   tool: AgentTool<Input, Output>,
   environment: TraceEnvironment,
@@ -44,6 +50,7 @@ function toMastraTool<Input, Output extends ToolSuccess>(
     id: tool.name,
     description: tool.description,
     inputSchema: tool.inputSchema,
-    execute: (input: Input) => execute(input),
+    // Hífens tipográficos do modelo viram hífen comum antes da tool ler o código.
+    execute: (input: Input) => execute(withPlainHyphens(input)),
   });
 }

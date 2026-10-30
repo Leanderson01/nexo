@@ -94,12 +94,20 @@ export function proposeTicketDraftTool(session: ToolSession): AgentTool<Input, O
         priority: PRIORITY_LABELS[derived.priority],
         deadline: PRIORITY_DEADLINES[derived.priority].label,
         transfersOnConfirm,
-        instruction: transfersOnConfirm
-          ? "O card do rascunho já aparece. Diga em uma frase que é um caso crítico, peça para conferir e confirmar, e avise que ao confirmar você chama um analista na hora."
-          : "O card do rascunho já aparece com Confirmar, Editar e Cancelar. Peça para conferir e confirmar; não repita todos os campos.",
+        instruction: draftInstruction(transfersOnConfirm, fields.referenceCode),
       };
     },
   };
+}
+
+function draftInstruction(transfersOnConfirm: boolean, referenceCode: string | null): string {
+  const reference = referenceCode
+    ? ` Cite o ${referenceCode} no texto: ele foi encerrado há mais de 7 dias, então este é um chamado novo que faz referência a ele.`
+    : "";
+  const ask = transfersOnConfirm
+    ? "Diga em uma frase que é um caso crítico, peça para conferir e confirmar e avise que, ao confirmar, um analista é chamado na hora."
+    : "Peça para conferir e confirmar no card (Confirmar, Editar, Cancelar); não repita os campos.";
+  return `O card do rascunho já aparece.${reference} ${ask}`;
 }
 
 function checkPreconditions(fields: Input, session: ToolSession): ToolFailure | null {
