@@ -15,25 +15,25 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 
 | Task | Descrição                           | Onda | Depende de         | Status  | Branch / commit      |
 | ---- | ----------------------------------- | ---- | ------------------ | ------- | -------------------- |
-| T0.1 | Repositório e setup                 | 0    | —                  | feito   | `5f1f37f`            |
-| T0.2 | Contratos travados                  | 0    | T0.1               | feito   | `4b5dae1`..`4f25cb5` |
-| T1   | Domínio puro + testes               | 1    | T0                 | feito   | `ee40947`..`e41bcb0` |
-| T2   | Auth, seed e login                  | 1    | T0                 | feito   | `3a37742`..`aa3dc9a` |
-| T3   | Serviço de chamados + gateway       | 1    | T0                 | feito   | `ab067b4`..`f105990` |
-| T4   | Central de ajuda                    | 1    | T0                 | feito   | `c7ec055`..`9d6585d` |
-| T5   | Chat core com agent de eco          | 1    | T0                 | feito   | `7b27cac`..`235b877` |
-| T6   | Teste do Mastra + escolha do LLM    | 1    | —                  | feito   | `c6ba9b3`..`7498b88` |
-| T7   | Blocos de mensagem                  | 1    | T0                 | feito   | `8f4d71e`..`ec0164d` |
-| T8   | Painel de decisão                   | 1    | T0                 | feito   | `5a60bbe`..`03c62b3` |
-| T9   | Políticas de decisão                | 1    | T0, T1             | feito   | `5b75da3`..`7653f89` |
-| T14a | Cenários de eval (escrita)          | 1    | T0                 | feito   | `c8241e0`..`52d8f64` |
-| T10  | Pipeline do agent                   | 2    | T3, T4, T5, T6, T9 | feito   | `34f26b6`..`0ac353e` |
-| T11  | Rascunho fora do LLM                | 2    | T3, T5, T7         | feito   | `42a6d52`..`aed0cca` |
-| T12  | Console do analista                 | 2    | T2, T5, T7, T8     | feito   | `8f281e2`..`839589f` |
-| T15  | Voz                                 | 2    | T5                 | a fazer |                      |
-| T20  | Tela "Meu perfil" (só no protótipo) | 1    | T2                 | feito   | `acdd166`..`7ea35be` |
-| T14b | Runner de evals                     | 3    | T10, T11           | a fazer |                      |
-| T16  | Limites e custo                     | 3    | T10                | a fazer |                      |
+| T0.1 | Repositório e setup                 | 0    | —                  | feito   | `563682f`            |
+| T0.2 | Contratos travados                  | 0    | T0.1               | feito   | `1d61b2f`..`75caf37` |
+| T1   | Domínio puro + testes               | 1    | T0                 | feito   | `9a67b55`..`3c7e07a` |
+| T2   | Auth, seed e login                  | 1    | T0                 | feito   | `e3f4e21`..`64040d5` |
+| T3   | Serviço de chamados + gateway       | 1    | T0                 | feito   | `8542296`..`5af370c` |
+| T4   | Central de ajuda                    | 1    | T0                 | feito   | `c3b7876`..`3569ce7` |
+| T5   | Chat core com agent de eco          | 1    | T0                 | feito   | `e77c42a`..`42105c4` |
+| T6   | Teste do Mastra + escolha do LLM    | 1    | —                  | feito   | `4239a66`..`b1f15aa` |
+| T7   | Blocos de mensagem                  | 1    | T0                 | feito   | `cc0e824`..`005da74` |
+| T8   | Painel de decisão                   | 1    | T0                 | feito   | `71e0cc8`..`c4c6376` |
+| T9   | Políticas de decisão                | 1    | T0, T1             | feito   | `fcd7b1f`..`46303d4` |
+| T14a | Cenários de eval (escrita)          | 1    | T0                 | feito   | `751f366`..`0fec9aa` |
+| T10  | Pipeline do agent                   | 2    | T3, T4, T5, T6, T9 | feito   | `e06954d`..`bfa92dd` |
+| T11  | Rascunho fora do LLM                | 2    | T3, T5, T7         | feito   | `ba10492`..`325f1be` |
+| T12  | Console do analista                 | 2    | T2, T5, T7, T8     | feito   | `d1a56de`..`b266e0b` |
+| T15  | Voz                                 | 2    | T5                 | feito   | `1b065c1`..`ac08637` |
+| T20  | Tela "Meu perfil" (só no protótipo) | 1    | T2                 | feito   | `472ca97`..`4529600` |
+| T14b | Runner de evals                     | 3    | T10, T11           | feito   | `f6f6b07`..`0b2bc11` |
+| T16  | Limites e custo                     | 3    | T10                | feito   | `aff9dd0`..`fdef973` |
 | T17  | Faixa 2                             | 3    | T10, T12           | a fazer |                      |
 | T18  | README e deploy                     | 3    | tudo               | a fazer |                      |
 | T19  | QA de ponta a ponta                 | 3    | tudo               | a fazer |                      |
@@ -64,6 +64,9 @@ Status: `a fazer` · `em andamento` · `bloqueada` · `feito`
 21. ~~**Tipo nulo bloqueava o crítico**~~ → **decidido:** Crítica e Alta são derivadas mesmo sem o tipo (INC/REQ), que só separa Média de Baixa; sem o tipo, só não deriva quando o resultado dependeria dele.
 22. ~~**Vencido aceito: motivo `overdue` ou `requested`?**~~ → **decidido:** quando o funcionário aceita a oferta de analista feita pela `OverdueTicketPolicy` no turno anterior, a transferência sai com motivo **`overdue`** (§3.3), não `requested`. A T10 lembra da oferta pendente na conversa.
 23. ~~**Campos a mais no `DecisionRecord`**~~ → **decidido e já no contrato** (todos opcionais): `PolicyEvaluation.actionKind` (o runner da T9 já grava), `ToolCallTrace.attemptErrors`, `TurnUsage.cachedInputTokens`, `DecisionRecord.shortCircuit` e `DecisionRecord.errorStage`. A T10 preenche os demais e grava o `note` das políticas que não se aplicam em `explanation` (o runner já faz).
+
+24. ~~**Autoria dos commits**~~ → **decidido (30/10):** autor e committer `Leanderson01 <leandersonnunes.alu.lmb@gmail.com>` (fixado na configuração do repo) e **sem** a linha `Co-Authored-By`. O histórico inteiro foi reescrito para isso; os hashes citados aqui já são os novos.
+25. **Falhas do agent achadas pelos evals** (aberta, ver `docs/evals/resultado.md`; 42/54 execuções, 11 de 13 cenários da spec estáveis): (a) "o sistema de folha de ponto caiu para a equipe" vira `out_of_scope` e é recusado em vez de Crítico; (b) chamado alheio por descrição não oferece abrir chamado e, às vezes, o modelo inventa códigos nas opções rápidas; (c) o sinal `blocked` oscila ("não consigo trabalhar sem ela") e a prioridade cai de Alta para Média; (d) às vezes o texto diz que preparou um card sem chamar a tool. Propostas: ajustar o prompt do ENTENDER (sistema fora do ar é TI; exemplos de `blocked`), validar em código depois do AGIR (todo código citado precisa ser do funcionário; "rascunho/card" no texto exige a parte `draft`) e oferecer "abrir chamado" fixo em código quando não há chamado.
 
 ## Desvios da spec feitos no T0
 
