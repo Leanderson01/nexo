@@ -1,50 +1,9 @@
+import { STOPWORDS } from "../../src/shared/normalize-text";
+
 // Termos de busca da central de ajuda. Função pura, usada dos dois lados: ao gravar o
 // `searchText` do artigo (seed) e ao montar a consulta. O índice do Convex casa por termo
 // exato (sem acento, sem plural, sem conjugação), então os dois lados passam pela mesma
 // normalização e "como instalo" encontra "Instalar software". Busca semântica é faixa 3.
-
-/** Palavras que não ajudam a achar um artigo. Já sem acento. */
-const STOPWORDS = new Set([
-  "a",
-  "ao",
-  "aos",
-  "as",
-  "com",
-  "como",
-  "da",
-  "das",
-  "de",
-  "do",
-  "dos",
-  "e",
-  "em",
-  "esta",
-  "estou",
-  "eu",
-  "isso",
-  "me",
-  "meu",
-  "meus",
-  "minha",
-  "minhas",
-  "na",
-  "nao",
-  "nas",
-  "no",
-  "nos",
-  "o",
-  "os",
-  "ou",
-  "para",
-  "pra",
-  "pelo",
-  "pela",
-  "por",
-  "que",
-  "se",
-  "um",
-  "uma",
-]);
 
 /** Terminações cortadas para juntar "instalo", "instalar" e "instalação" no mesmo termo. */
 const SUFFIXES = [

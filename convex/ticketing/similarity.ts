@@ -1,5 +1,6 @@
 import type { TicketCategory } from "../../src/domain/enums";
 import type { SimilarityQuery } from "../../src/domain/ticket";
+import { STOPWORDS } from "../../src/shared/normalize-text";
 
 // Ranking de chamados parecidos com a descrição do funcionário (§5.6). Função pura:
 // a janela de tempo (abertos e encerrados há até 30 dias) é regra de domínio e fica em
@@ -7,56 +8,6 @@ import type { SimilarityQuery } from "../../src/domain/ticket";
 
 /** Quantos candidatos o `findSimilar` devolve, no máximo. */
 export const MAX_SIMILAR_TICKETS = 5;
-
-/** Palavras que não ajudam a distinguir um problema de outro. Já sem acento. */
-const STOPWORDS = new Set([
-  "a",
-  "ao",
-  "aos",
-  "as",
-  "com",
-  "como",
-  "da",
-  "das",
-  "de",
-  "do",
-  "dos",
-  "e",
-  "ela",
-  "ele",
-  "em",
-  "esta",
-  "este",
-  "eu",
-  "foi",
-  "ha",
-  "isso",
-  "ja",
-  "mais",
-  "mas",
-  "me",
-  "meu",
-  "minha",
-  "na",
-  "nao",
-  "nas",
-  "no",
-  "nos",
-  "o",
-  "os",
-  "ou",
-  "para",
-  "pela",
-  "pelo",
-  "por",
-  "que",
-  "se",
-  "sem",
-  "seu",
-  "sua",
-  "um",
-  "uma",
-]);
 
 /** O que o ranking lê de cada chamado. `Doc<"tickets">` e `Ticket` servem. */
 export interface SimilarityCandidate {
