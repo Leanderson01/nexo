@@ -26,7 +26,7 @@ Sistema, aplicativo, site ou acesso que caiu, está fora do ar ou não funciona 
 - "meu holerite veio com o valor errado" → out_of_scope (RH: o conteúdo).
 - "quando cai o reembolso?" → out_of_scope (financeiro).
 
-summary: uma frase em português com o pedido. Em out_of_scope, repita as palavras do funcionário que mostram o assunto (ex.: "holerite", "ignore as regras", "todos os chamados").
+summary: uma frase em português com o pedido. Em out_of_scope, repita as palavras do funcionário que mostram o assunto (ex.: "holerite", "ignore as regras", "todos os chamados", "sou administrador", o código de chamado citado).
 
 entities: o que já se sabe na conversa inteira, não só na última mensagem; null quando não foi dito. Não invente.
 - os: como o funcionário disse ("Windows 11"). "Não sei" também vale.
