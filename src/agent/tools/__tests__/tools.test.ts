@@ -107,6 +107,27 @@ describe("proposeTicketDraft", () => {
     expect(store.drafts[0].action).toMatchObject({ ticket: { priority: "HIGH" } });
   });
 
+  it("o artigo que vale e ainda não foi tentado vem antes do chamado (F1)", async () => {
+    const { session, workspace, gateways, store } = setup({
+      understanding: { intent: "question" },
+    });
+    workspace.similarTickets = new Map();
+    workspace.topArticle = {
+      part: { type: "article", slug: "vpn-erro-809", title: "VPN com erro 809", excerpt: "" },
+      status: "applies",
+      appliesTo: [],
+      knownValue: null,
+    };
+
+    const refused = await proposeTicketDraftTool(session).run(DRAFT, gateways);
+    session.facts.articlesTried.push("VPN com erro 809");
+    const accepted = await proposeTicketDraftTool(session).run(DRAFT, gateways);
+
+    expect(refused).toMatchObject({ ok: false, error: expect.stringContaining("Isso resolveu?") });
+    expect(accepted.ok).toBe(true);
+    expect(store.drafts).toHaveLength(1);
+  });
+
   it("os sinais vêm só do ENTENDER conferido: sem impacto, nada de rascunho", async () => {
     const { session, workspace, gateways, store } = setup({
       understanding: { ticketSignals: { ...SAID_SIGNALS, impact: null, blocked: null } },

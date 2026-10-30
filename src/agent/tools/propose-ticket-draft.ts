@@ -147,6 +147,17 @@ function draftInstruction(transfersOnConfirm: boolean, referenceCode: string | n
   return `O card do rascunho já aparece.${reference} ${ask}`;
 }
 
+/**
+ * F1: o artigo que vale para o caso vem antes do chamado (na validação, o modelo às vezes
+ * propunha o rascunho logo depois do "Windows 10"). Não vale quando o funcionário pediu o
+ * chamado com todas as letras (`open_ticket`) nem quando o artigo já foi tentado.
+ */
+function untriedArticle(session: ToolSession): string | null {
+  const top = session.workspace.topArticle;
+  if (top?.status !== "applies" || session.understanding.intent === "open_ticket") return null;
+  return session.facts.articlesTried.includes(top.part.title) ? null : top.part.title;
+}
+
 function checkPreconditions(fields: Input, session: ToolSession): ToolFailure | null {
   const { workspace } = session;
   if (workspace.draft) {
@@ -154,6 +165,13 @@ function checkPreconditions(fields: Input, session: ToolSession): ToolFailure | 
   }
   if (workspace.similarTickets === null) {
     return { ok: false, error: "Chame findSimilarTickets antes de propor um chamado novo." };
+  }
+  const article = untriedArticle(session);
+  if (article) {
+    return {
+      ok: false,
+      error: `O artigo "${article}" vale para o caso e ainda não foi tentado: oriente os passos dele e termine com "Isso resolveu?". Não proponha o chamado neste turno.`,
+    };
   }
   if (!fields.referenceCode) return null;
 
