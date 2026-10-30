@@ -1,7 +1,7 @@
 // Prepara o ambiente local para o agent responder: segredos internos e modelos do LLM.
 // Uso: npm run setup:local   (depois de `npx convex dev` ter criado o .env.local)
 //
-// - Gera AGENT_SERVER_SECRET e TICKETING_SERVICE_KEY se ainda não existirem no .env.local.
+// - Gera AGENT_SERVER_SECRET, TICKETING_SERVICE_KEY e EVALS_SECRET se ainda não existirem.
 // - Completa no .env.local os modelos do Groq que estiverem faltando.
 // - Grava os dois segredos, com o MESMO valor, nas variáveis do deployment atual do Convex.
 // Não mexe no que já está preenchido e nunca imprime os valores.
@@ -18,8 +18,11 @@ const DEFAULTS = {
   TRANSCRIPTION_MODEL: "whisper-large-v3-turbo",
 };
 
-/** Segredos que o Next e o Convex precisam compartilhar. */
-const SHARED_SECRETS = ["AGENT_SERVER_SECRET", "TICKETING_SERVICE_KEY"];
+/**
+ * Segredos que o Next e o Convex precisam compartilhar. O EVALS_SECRET libera a limpeza do
+ * banco que o `npm run evals` faz: este script é só para o ambiente local, nunca para produção.
+ */
+const SHARED_SECRETS = ["AGENT_SERVER_SECRET", "TICKETING_SERVICE_KEY", "EVALS_SECRET"];
 
 if (!existsSync(ENV_FILE)) {
   console.error(`${ENV_FILE} não existe. Rode "npx convex dev" antes, para criar o deployment.`);
