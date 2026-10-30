@@ -91,7 +91,7 @@ function applyRules(
       intent: "open_ticket",
       confidence: Math.max(understanding.confidence, CLEAR_ANSWER_CONFIDENCE),
       confidenceReason:
-        'Respondeu "Não" a "Isso resolveu?": a orientação não resolveu e o atendimento segue para o chamado (F1).',
+        'Respondeu "Não" a "Isso resolveu?": a orientação não resolveu e o atendimento segue para o chamado.',
     };
   }
   const picked = findPickedReply(messages, userText);
@@ -131,7 +131,7 @@ export function articleResolvedUnderstanding(understanding: Understanding): Unde
     intent: "question",
     confidence: Math.max(understanding.confidence, CLEAR_ANSWER_CONFIDENCE),
     confidenceReason:
-      'Respondeu "Sim" a "Isso resolveu?": a orientação resolveu e o assunto se encerra (F1).',
+      'Respondeu "Sim" a "Isso resolveu?": a orientação resolveu e o assunto se encerra.',
   };
 }
 
