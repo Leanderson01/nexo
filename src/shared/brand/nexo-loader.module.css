@@ -1,0 +1,99 @@
+/*
+  Marca do Nexo em espera: o "N" é desenhado em loop na cor primária sobre o "N" claro.
+  O traço grosso segue o eixo da letra (sobe, desce na diagonal, sobe) e é recortado pelo
+  contorno do NexoMark, então o desenho preenche exatamente a marca.
+*/
+
+.root {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  color: var(--nexo-color-primary);
+}
+
+/* Na área de conteúdo: só aparece se a espera passar de ~180 ms, para não piscar. */
+.delayed {
+  opacity: 0;
+  animation: appear 240ms ease-out 180ms forwards;
+}
+
+/* Na tela inteira (carregamento completo): ocupa a janela, sem atraso. */
+.fullScreen {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.base {
+  fill: var(--nexo-color-primary-muted);
+}
+
+.stroke {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 9;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw 1.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+.label {
+  /* Só para leitor de tela; com movimento reduzido vira um texto discreto. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes appear {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes draw {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 1;
+  }
+  55% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  80% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .delayed {
+    animation-duration: 1ms;
+  }
+
+  .stroke {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--nexo-color-text-tertiary);
+  }
+}

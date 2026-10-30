@@ -2,10 +2,11 @@ import "@mantine/core/styles.css";
 
 import type { Metadata } from "next";
 import { Inter, Newsreader } from "next/font/google";
-import { Center, ColorSchemeScript, Loader, mantineHtmlProps } from "@mantine/core";
+import { ColorSchemeScript, mantineHtmlProps } from "@mantine/core";
 import { Suspense } from "react";
 
 import { AuthProviders } from "@/features/auth/auth-providers";
+import { NexoLoader } from "@/shared/brand/nexo-loader";
 import { IconProvider } from "@/shared/icons";
 import { ThemeProvider } from "@/shared/theme/theme-provider";
 
@@ -30,26 +31,19 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <IconProvider>
             {/*
               A sessão é lida na requisição: com Cache Components, isso fica num <Suspense>.
-              Efeito conhecido: todo carregamento completo mostra este loader por ~300 ms (medido
-              no build de produção; o servidor responde em ~20 ms, o resto é o React revelando o
-              conteúdo que chega em streaming). Tirar o Suspense quebra o build (leitura de
-              cookie fora de Suspense) e ler a sessão só no cliente perde o cookie httpOnly do
-              Convex Auth; por isso ficou assim. A navegação dentro do app não passa por aqui.
+              Efeito conhecido: todo carregamento completo mostra a marca animada por ~300 ms
+              (medido no build de produção; o servidor responde em ~20 ms, o resto é o React
+              revelando o conteúdo que chega em streaming). Tirar o Suspense quebra o build
+              (leitura de cookie fora de Suspense) e ler a sessão só no cliente perde o cookie
+              httpOnly do Convex Auth; por isso ficou assim. A navegação dentro do app não passa
+              por aqui: ela mostra a mesma marca pelos loading.tsx de cada tela.
             */}
-            <Suspense fallback={<FullScreenLoader />}>
+            <Suspense fallback={<NexoLoader placement="fullScreen" size={48} />}>
               <AuthProviders>{children}</AuthProviders>
             </Suspense>
           </IconProvider>
         </ThemeProvider>
       </body>
     </html>
-  );
-}
-
-function FullScreenLoader() {
-  return (
-    <Center h="100vh">
-      <Loader aria-label="Carregando" />
-    </Center>
   );
 }
