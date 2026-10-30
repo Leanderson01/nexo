@@ -55,9 +55,13 @@ export async function act(options: {
   return { ok: true, text: writer.text, usage: await out.totalUsage };
 }
 
-/** Hífen comum no lugar do tipográfico e sem o espaço de largura zero que o gpt-oss solta. */
-function cleanModelText(piece: string): string {
-  return plainHyphens(piece).replace(/\u200b/g, "");
+/**
+ * Hífen comum no lugar do tipográfico, sem o espaço de largura zero e sem os asteriscos de
+ * negrito que o gpt-oss solta mesmo com o prompt pedindo texto simples (o chat não renderiza
+ * markdown).
+ */
+export function cleanModelText(piece: string): string {
+  return plainHyphens(piece).replace(/[\u200b*]/g, "");
 }
 
 /**

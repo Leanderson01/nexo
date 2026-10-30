@@ -32,13 +32,19 @@ export function needsEmployeeTickets(
 
 /**
  * O que identifica o chamado: o `ticketRef` do ENTENDER ou, numa consulta de chamado sem ele
- * ("e o meu chamado do notebook?" às vezes sai só como `device`), o dispositivo ou o sistema.
+ * (medido: "e o meu chamado do notebook?" às vezes sai sem `ticketRef`), o dispositivo, o
+ * sistema e, por fim, a própria mensagem, cujas palavras são comparadas com os títulos. Com
+ * chamado já em foco, a mensagem não entra, para "e aí, alguma novidade?" seguir nele.
  */
-export function ticketReference(understanding: Understanding): string | null {
+export function ticketReference(
+  understanding: Understanding,
+  userText: string,
+  selectedTicketCode: TicketCode | null,
+): string | null {
   const { ticketRef, device, system } = understanding.entities;
   if (ticketRef) return ticketRef;
   if (!TICKET_INTENTS.includes(understanding.intent)) return null;
-  return device ?? system;
+  return device ?? system ?? (selectedTicketCode ? null : userText);
 }
 
 export interface FocusResult {
@@ -51,6 +57,7 @@ const NO_FOCUS: FocusedTicketResolution = { focusedTicket: null, ambiguousCandid
 
 export async function resolveFocus(options: {
   understanding: Understanding;
+  userText: string;
   selectedTicketCode: TicketCode | null;
   workspace: TurnWorkspace;
   /** A tool `listMyTickets` já embrulhada no `withTrace`; preenche `workspace.employeeTickets`. */
@@ -67,7 +74,7 @@ export async function resolveFocus(options: {
   }
 
   const resolution = resolveFocusedTicket({
-    ticketRef: ticketReference(understanding),
+    ticketRef: ticketReference(understanding, options.userText, selectedTicketCode),
     selectedTicketCode,
     employeeTickets: workspace.employeeTickets,
   });

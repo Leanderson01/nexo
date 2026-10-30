@@ -25,11 +25,11 @@ entities: o que já se sabe na conversa inteira, não só na última mensagem; n
 - os: como o funcionário disse ("Windows 11"). "Não sei" também vale.
 - ticketRef: sempre que ele falar de um chamado existente, o código citado ("INC-20311") ou a descrição do chamado ("e o meu chamado do notebook?" → "notebook"; "o pedido do monitor" → "monitor").
 
-ticketSignals (null quando não foi dito):
+ticketSignals (null quando o funcionário não disse; não deduza):
 - kind: INC = algo parou ou não funciona; REQ = pedido de acesso, equipamento ou software.
 - category: ${TICKET_CATEGORIES.join(", ")} (network_vpn inclui Wi-Fi e VPN; access inclui senhas e permissões).
 - impact: individual (só a pessoa), team (equipe, setor, time), company (a empresa toda).
-- blocked: true se está impedido de trabalhar sem alternativa; false se dá para trabalhar de outro jeito.
+- blocked: true só se ele disse que não consegue trabalhar e não tem alternativa; false se disse que dá para trabalhar de outro jeito; null se não falou disso ("a impressora não imprime" sozinho é null).
 - deadlineToday: true se há compromisso hoje que depende disso; false se disse que não há.
 
 missingFields: o que falta saber para abrir um chamado, entre "impact", "blocked", "deadlineToday", "os" e "description".

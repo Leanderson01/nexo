@@ -4,6 +4,7 @@ import { makeUnderstanding, MARIANA_NOTEBOOK } from "@/agent/policies/__tests__/
 import { PASSWORD_PLACEHOLDER } from "@/domain/sensitive-data";
 import { plainHyphens } from "@/shared/normalize-text";
 
+import { cleanModelText } from "../act";
 import { buildHandoffSummary, sensitiveDataNotice, shortCircuitReply } from "../code-replies";
 import { buildReturnContext, loadContext, RETURN_CONTEXT_AFTER_MS } from "../context-loader";
 import { ACCEPT_HANDOFF_OFFER, decide, type DecideInput } from "../decide";
@@ -284,13 +285,23 @@ describe("detalhes do texto do modelo", () => {
       device: "notebook",
       ticketRef: null,
     };
-    expect(ticketReference(makeUnderstanding({ intent: "ticket_status", entities }))).toBe(
-      "notebook",
-    );
-    expect(ticketReference(makeUnderstanding({ intent: "question", entities }))).toBeNull();
+    const status = makeUnderstanding({ intent: "ticket_status", entities });
+    const statusWithout = makeUnderstanding({
+      intent: "ticket_status",
+      entities: { ...entities, device: null },
+    });
+    expect(ticketReference(status, "e o notebook?", null)).toBe("notebook");
+    expect(ticketReference(statusWithout, "e o notebook?", null)).toBe("e o notebook?");
+    expect(ticketReference(statusWithout, "alguma novidade?", "INC-20311")).toBeNull();
+    expect(
+      ticketReference(makeUnderstanding({ intent: "question", entities }), "x", null),
+    ).toBeNull();
   });
 
   it("hífen tipográfico vira hífen comum (códigos e buscas)", () => {
     expect(plainHyphens("INC\u201120077 e Wi\u2010Fi")).toBe("INC-20077 e Wi-Fi");
+    expect(cleanModelText("O **INC\u201120311** est\u00e1 vencido.\u200b")).toBe(
+      "O INC-20311 est\u00e1 vencido.",
+    );
   });
 });

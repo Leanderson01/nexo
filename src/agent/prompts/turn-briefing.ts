@@ -131,6 +131,11 @@ function ticketLines(input: TurnBriefingInput): string[] {
 
 function decisionLines(input: TurnBriefingInput): string[] {
   const lines = input.guidingActions.map((action) => guidingLine(action, input));
+  if (input.understanding.intent === "update_ticket") {
+    lines.push(
+      "Complemento de um problema que já tem chamado: chame findSimilarTickets agora e proponha a atualização (ou a reabertura) neste turno, sem perguntar impacto.",
+    );
+  }
   const known = knownSignalsLine(input.understanding);
   if (known) lines.push(known);
   if (input.sensitiveNoticeWritten) {

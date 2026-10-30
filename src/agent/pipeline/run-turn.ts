@@ -172,6 +172,7 @@ async function runPipeline(
   };
   const focus = await resolveFocus({
     understanding,
+    userText: input.userText,
     selectedTicketCode: context.snapshot.conversation.selectedTicketCode,
     workspace: turn.workspace,
     listEmployeeTickets: () =>

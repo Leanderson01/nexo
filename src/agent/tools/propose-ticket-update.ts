@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-import { IMPACTS } from "@/domain/enums";
 import { PRIORITY_LABELS } from "@/domain/labels";
 import { derivePriority } from "@/domain/priority";
 import type { TicketDetail, TicketFieldChanges } from "@/domain/ticket";
+import type { TicketSignals } from "@/domain/understanding";
 import { isOpen } from "@/domain/ticket-rules";
 
 import type { AgentTool, ToolSession } from "./tool-session";
@@ -12,9 +12,6 @@ import { gatewayFailure } from "./ticket-view";
 const input = z.object({
   code: z.string().describe("Chamado ABERTO do funcionário a complementar."),
   text: z.string().describe("A informação nova, passada a limpo em norma culta."),
-  impact: z.enum(IMPACTS).nullable().describe("Só se a informação nova mudar o impacto."),
-  blocked: z.boolean().nullable().describe("Só se a informação nova mudar o bloqueio."),
-  deadlineToday: z.boolean().nullable().describe("Só se surgiu um compromisso hoje."),
 });
 type Input = z.infer<typeof input>;
 type Output = {
@@ -58,7 +55,7 @@ export function proposeTicketUpdateTool(session: ToolSession): AgentTool<Input, 
         };
       }
 
-      const fieldChanges = reclassify(ticket, fields);
+      const fieldChanges = reclassify(ticket, session.understanding.ticketSignals);
       const draft = await session.store.createDraft(
         {
           kind: "update_ticket",
@@ -78,22 +75,24 @@ export function proposeTicketUpdateTool(session: ToolSession): AgentTool<Input, 
         newPriority,
         instruction: newPriority
           ? `O card do rascunho já aparece. Cite ${ticket.code}, explique que a informação nova muda a prioridade para ${newPriority} e peça para confirmar.`
-          : `O card do rascunho já aparece. Diga que vai acrescentar a informação ao ${ticket.code} em vez de abrir outro e peça para confirmar.`,
+          : `O card do rascunho já aparece. Diga "Preparei a atualização do ${ticket.code}" (ainda não foi gravada), explique que é melhor complementar esse chamado do que abrir outro e peça para confirmar no card.`,
       };
     },
   };
 }
 
-/** Nova prioridade, se os sinais novos mudarem a do chamado (§6.5, passo 3). */
-function reclassify(ticket: TicketDetail, fields: Input): TicketFieldChanges | null {
-  if (fields.impact === null && fields.blocked === null && fields.deadlineToday === null) {
-    return null;
-  }
+/**
+ * Nova prioridade, se os sinais da mensagem mudam a gravidade (§6.5, passo 3). Usa só os
+ * sinais que o ENTENDER extraiu do que o funcionário disse: na validação, o modelo do AGIR
+ * inventava "bloqueado" e subia a prioridade sem motivo.
+ */
+function reclassify(ticket: TicketDetail, said: TicketSignals): TicketFieldChanges | null {
+  if (said.impact === null && said.blocked === null && said.deadlineToday === null) return null;
   const derived = derivePriority({
     kind: ticket.kind,
-    impact: fields.impact ?? ticket.prioritySignals.impact,
-    blocked: fields.blocked ?? ticket.prioritySignals.blocked,
-    deadlineToday: fields.deadlineToday ?? ticket.prioritySignals.deadlineToday,
+    impact: said.impact ?? ticket.prioritySignals.impact,
+    blocked: said.blocked ?? ticket.prioritySignals.blocked,
+    deadlineToday: said.deadlineToday ?? ticket.prioritySignals.deadlineToday,
   });
   if (derived.priority === ticket.priority) return null;
   return { priority: derived.priority, priorityReason: derived.reason };
