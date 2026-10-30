@@ -88,6 +88,7 @@ export function proposeTicketUpdateTool(session: ToolSession): AgentTool<Input, 
       }
 
       const fieldChanges = reclassify(ticket, session.understanding.ticketSignals);
+      const handoffOnConfirm = workspace.criticalCase || fieldChanges?.priority === "CRITICAL";
       const draft = await session.store.createDraft(
         {
           kind: "update_ticket",
@@ -95,7 +96,7 @@ export function proposeTicketUpdateTool(session: ToolSession): AgentTool<Input, 
           text: groundedDraftText(fields.text, fields.evidence, session),
           ...(fieldChanges && { fieldChanges }),
         },
-        workspace.criticalCase || fieldChanges?.priority === "CRITICAL",
+        handoffOnConfirm,
       );
       workspace.draft = { pendingActionId: draft.pendingActionId, kind: "update_ticket" };
       workspace.selectedTicketCode = ticket.code;
@@ -106,7 +107,7 @@ export function proposeTicketUpdateTool(session: ToolSession): AgentTool<Input, 
         draftNumber: draft.draftNumber,
         newPriority,
         instruction: newPriority
-          ? `O card do rascunho já aparece. Cite ${ticket.code}, explique que a informação nova muda a prioridade para ${newPriority} e peça para confirmar.`
+          ? `O card do rascunho já aparece. Cite ${ticket.code}, explique que a informação nova muda a prioridade para ${newPriority} e peça para confirmar.${handoffOnConfirm ? " Avise que, ao confirmar, um analista é chamado na hora." : ""}`
           : `O card do rascunho já aparece. Diga "Preparei a atualização do ${ticket.code}" (ainda não foi gravada), explique que é melhor complementar esse chamado do que abrir outro e peça para confirmar no card.`,
       };
     },
