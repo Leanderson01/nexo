@@ -95,7 +95,7 @@ function DashboardBody({ metrics }: { metrics: DashboardMetrics }) {
         <StatTile
           label="Duplicados evitados"
           value={String(metrics.drafts.duplicatesAvoided)}
-          note={`${metrics.drafts.duplicatesAvoided} de ${countText(metrics.drafts.total, "rascunho", "rascunhos")} atualizam ou reabrem`}
+          note={`atualizar ou reabrir, em ${countText(metrics.drafts.total, "rascunho", "rascunhos")} · ${countText(metrics.drafts.ticketsCreated, "chamado criado", "chamados criados")}`}
         />
         <StatTile
           label="Transferências"
