@@ -10,6 +10,12 @@ import { api } from "../../../../../../convex/_generated/api";
 // funcionário; se o agent deve responder, devolvemos 202 na hora e o turno roda depois
 // da resposta, com `after()`. Com analista, a mensagem só é salva (201).
 
+/**
+ * O turno roda no `after()` e herda o tempo máximo da função. O Convex já encerra um turno
+ * travado em 60 s (§5.7); 90 s dá folga para a plataforma não cortar antes disso.
+ */
+export const maxDuration = 90;
+
 const sendMessageBody = z.object({ text: z.string() });
 
 export interface SendMessageResponse {

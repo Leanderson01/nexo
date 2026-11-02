@@ -11,6 +11,9 @@ import { api } from "../../../../../../convex/_generated/api";
 // Repete o que falhou por último: o turno do agent (202; roda depois da resposta com
 // `after()`, como na rota de mensagens) ou a confirmação do rascunho (200, sem LLM).
 
+/** Mesmo limite da rota de mensagens: o turno repetido também roda no `after()`. */
+export const maxDuration = 90;
+
 export type RetryResponse =
   { kind: "turn"; assistantMessageId: string } | { kind: "confirm"; ticketCode: string };
 
