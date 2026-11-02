@@ -1,0 +1,11 @@
+# O deploy pelo CLI envia a pasta local: nada de segredos, builds locais ou ferramentas.
+.env*
+!.env.example
+.next
+.vercel
+.claude
+.convex
+.vitest
+node_modules
+coverage
+nexo-assist-especificacao.md
