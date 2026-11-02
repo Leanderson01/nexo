@@ -9,7 +9,7 @@ quais regras aplicou, o que fez, por quê e quanto custou).
 Stack: Next.js 16 (App Router) + TypeScript estrito, Convex (dados, tempo real, auth), Mastra (agent)
 e Groq (LLM e transcrição de voz), com Mantine na interface.
 
-**Deploy:** `https://…` _(preencher após o deploy)_
+**Deploy:** https://nexo-jet-beta.vercel.app
 
 ## Sumário
 
@@ -500,18 +500,28 @@ Registrados com o contexto no [`TASKS.md`](TASKS.md) (número da decisão entre 
 
 ## Deploy
 
-> **A preencher após o deploy:** URL pública (`https://…`), data e o resultado da fumaça em produção.
+- **URL pública:** https://nexo-jet-beta.vercel.app (Vercel, deploy automático a cada push na
+  `main`).
+- **Convex de produção:** deployment separado do de desenvolvimento.
+- **Fumaça em produção (02/11/2026):** passou. Login e redirecionamentos; F1 com o INC-20311
+  atrasado, oferta e transferência; fila do console em tempo real (~300 ms até a mensagem
+  aparecer); assumir e encerrar; Windows 10 com "Sim" encerrando o assunto; rascunho de Windows 11
+  confirmado, criando o chamado no serviço legado; ✓✓ otimista; loading entre telas; métricas.
 
-### Passo a passo planejado
+### Como foi feito
+
+O `vercel.json` troca o build por `npx convex deploy --cmd 'npm run build'`: cada deploy da Vercel
+publica antes as funções e o schema no Convex de produção (pelo `CONVEX_DEPLOY_KEY`), que também
+injeta o `NEXT_PUBLIC_CONVEX_URL` no build. O `.vercelignore` impede que um deploy pelo CLI envie
+`.env*`, builds locais ou a pasta `.claude`.
 
 **Convex (produção)**
 
-1. `npx convex deploy` publica as funções e o schema no deployment de produção.
-2. Variáveis no deployment de produção (painel do Convex ou `npx convex env set --prod`):
-   - Convex Auth: `JWT_PRIVATE_KEY`, `JWKS` e `SITE_URL` com a URL pública da Vercel. O
-     `npm run setup:auth -- https://…` gera as chaves, mas grava no deployment para o qual a CLI
-     aponta; para produção, rode com o `CONVEX_DEPLOY_KEY` de produção ou copie os valores para o
-     painel.
+1. Deploy key de produção gerada no painel do Convex (Settings → Deploy keys).
+2. Variáveis no deployment de produção:
+   - Convex Auth: `JWT_PRIVATE_KEY`, `JWKS` e `SITE_URL` com a URL pública da Vercel, geradas com
+     `CONVEX_DEPLOY_KEY=<chave de produção> npm run setup:auth -- https://nexo-jet-beta.vercel.app`
+     (com a deploy key, a CLI aponta para produção em vez do deployment de desenvolvimento).
    - Segredos compartilhados: `AGENT_SERVER_SECRET` e `TICKETING_SERVICE_KEY` novos, gerados com
      `openssl rand -hex 32` e iguais aos da Vercel.
    - Modo caos e limites: `TICKETING_FAILURE_RATE`, `TICKETING_LATENCY_MS`,
@@ -520,17 +530,19 @@ Registrados com o contexto no [`TASKS.md`](TASKS.md) (número da decisão entre 
      `.env.example`).
    - **`EVALS_SECRET` nunca em produção:** sem ela, o Convex recusa as funções de apoio aos evals,
      inclusive a limpeza do banco.
-3. `npx convex run seed:run --prod` cria as pessoas, os chamados, os artigos e a conversa do Pedro.
+3. `npx convex run seed:run` (com a mesma deploy key) cria as pessoas, os chamados, os artigos e a
+   conversa do Pedro.
 
 **Vercel (Next.js)**
 
-1. Importar o repositório; build padrão do Next.
-2. Variáveis (só no painel): `NEXT_PUBLIC_CONVEX_URL` e `NEXT_PUBLIC_CONVEX_SITE_URL` do deployment
-   de produção, `GROQ_API_KEY`, `LLM_PROVIDER`, `LLM_MODEL_FAST`, `LLM_MODEL_MAIN`,
-   `TRANSCRIPTION_PROVIDER`, `TRANSCRIPTION_MODEL`, `TRANSCRIPTION_MAX_SECONDS`,
-   `AGENT_SERVER_SECRET` e `TICKETING_SERVICE_KEY`.
-3. Depois do primeiro deploy, conferir que o `SITE_URL` do Convex é a URL final e repetir a fumaça
-   dos caminhos principais (login, F1, F2, crítico, console).
+1. Projeto criado com `vercel link` e ligado ao repositório do GitHub (Settings → Git).
+2. Variáveis de produção (`vercel env add <NOME> production`): `CONVEX_DEPLOY_KEY`,
+   `NEXT_PUBLIC_CONVEX_SITE_URL`, `GROQ_API_KEY`, `LLM_PROVIDER`, `LLM_MODEL_FAST`,
+   `LLM_MODEL_MAIN`, `TRANSCRIPTION_MODEL`, `TRANSCRIPTION_MAX_SECONDS`, `AGENT_SERVER_SECRET` e
+   `TICKETING_SERVICE_KEY`. O `NEXT_PUBLIC_CONVEX_URL` vem do `convex deploy` no build.
+3. As rotas que rodam o turno no `after()` declaram `maxDuration = 90`, para o agent não ser
+   cortado pelo limite padrão da função.
+4. Fumaça dos caminhos principais na URL final (resultado acima).
 
 ### Proteções de custo e abuso
 
