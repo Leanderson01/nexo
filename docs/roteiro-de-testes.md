@@ -158,6 +158,6 @@ Use **Ana** numa janela e um funcionário na outra.
 npm run evals -- --repeat 1
 ```
 
-Roda os 18 cenários contra o agent real (centavos de dólar) e grava `docs/evals/resultado.md`. **Apaga
+Roda os 29 cenários contra o agent real (centavos de dólar) e grava `docs/evals/resultado.md`. **Apaga
 conversas e chamados criados fora do seed**: rode só no deployment de desenvolvimento e depois dos testes
 manuais.
